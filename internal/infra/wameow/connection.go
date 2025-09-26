@@ -1,0 +1,272 @@
+package wameow
+
+import (
+	"context"
+	"encoding/base64"
+	"fmt"
+	"os"
+	"time"
+
+	"zpwoot/internal/domain/session"
+	"zpwoot/internal/ports"
+	"zpwoot/platform/logger"
+
+	"github.com/mdp/qrterminal/v3"
+	"github.com/skip2/go-qrcode"
+	"go.mau.fi/whatsmeow"
+)
+
+// ConnectionManager handles Wameow client connections
+type ConnectionManager struct {
+	logger *logger.Logger
+}
+
+// NewConnectionManager creates a new connection manager
+func NewConnectionManager(logger *logger.Logger) *ConnectionManager {
+	return &ConnectionManager{
+		logger: logger,
+	}
+}
+
+// SafeConnect safely connects a Wameow client
+func (c *ConnectionManager) SafeConnect(client *whatsmeow.Client, sessionID string) error {
+	if err := ValidateClientAndStore(client, sessionID); err != nil {
+		return newConnectionError(sessionID, "connect", err)
+	}
+
+	if client.IsConnected() {
+		c.logger.InfoWithFields("Client already connected", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return nil
+	}
+
+	c.logger.InfoWithFields("Connecting client", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	err := client.Connect()
+	if err != nil {
+		return newConnectionError(sessionID, "connect", err)
+	}
+
+	return nil
+}
+
+// SafeDisconnect safely disconnects a Wameow client
+func (c *ConnectionManager) SafeDisconnect(client *whatsmeow.Client, sessionID string) {
+	if client == nil {
+		c.logger.WarnWithFields("Cannot disconnect nil client", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
+	if !client.IsConnected() {
+		c.logger.InfoWithFields("Client already disconnected", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
+	c.logger.InfoWithFields("Disconnecting client", map[string]interface{}{
+		"session_id": sessionID,
+	})
+	client.Disconnect()
+}
+
+// ConnectWithRetry connects with retry logic
+func (c *ConnectionManager) ConnectWithRetry(client *whatsmeow.Client, sessionID string, config *RetryConfig) error {
+	if config == nil {
+		config = defaultRetryConfig()
+	}
+
+	var lastErr error
+	for attempt := 0; attempt <= config.MaxRetries; attempt++ {
+		if attempt > 0 {
+			c.logger.InfoWithFields("Retry attempt", map[string]interface{}{
+				"session_id":  sessionID,
+				"attempt":     attempt,
+				"max_retries": config.MaxRetries,
+			})
+			time.Sleep(config.RetryInterval)
+		}
+
+		err := c.SafeConnect(client, sessionID)
+		if err == nil {
+			c.logger.InfoWithFields("Successfully connected", map[string]interface{}{
+				"session_id": sessionID,
+				"attempt":    attempt + 1,
+			})
+			return nil
+		}
+
+		lastErr = err
+		c.logger.WarnWithFields("Connection attempt failed", map[string]interface{}{
+			"session_id": sessionID,
+			"attempt":    attempt + 1,
+			"error":      err.Error(),
+		})
+	}
+
+	return fmt.Errorf("failed to connect after %d attempts: %w", config.MaxRetries+1, lastErr)
+}
+
+// QRCodeGenerator handles QR code generation and display
+type QRCodeGenerator struct {
+	logger *logger.Logger
+}
+
+// NewQRCodeGenerator creates a new QR code generator
+func NewQRCodeGenerator(logger *logger.Logger) *QRCodeGenerator {
+	return &QRCodeGenerator{
+		logger: logger,
+	}
+}
+
+// GenerateQRCodeImage generates a base64 encoded QR code image
+func (q *QRCodeGenerator) GenerateQRCodeImage(qrText string) string {
+	if qrText == "" {
+		q.logger.Warn("Empty QR text provided")
+		return ""
+	}
+
+	png, err := qrcode.Encode(qrText, qrcode.Medium, 256)
+	if err != nil {
+		q.logger.ErrorWithFields("Failed to generate QR code", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return ""
+	}
+
+	base64String := base64.StdEncoding.EncodeToString(png)
+	return "data:image/png;base64," + base64String
+}
+
+// DisplayQRCodeInTerminal displays QR code in terminal
+func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
+	if qrCode == "" {
+		q.logger.WarnWithFields("Empty QR code", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
+	q.logger.InfoWithFields("Displaying compact QR code in terminal", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	// Add defer to capture panics
+	defer func() {
+		if r := recover(); r != nil {
+			q.logger.ErrorWithFields("Panic in DisplayQRCodeInTerminal", map[string]interface{}{
+				"session_id": sessionID,
+				"panic":      r,
+			})
+		}
+		q.logger.InfoWithFields("QR code display completed", map[string]interface{}{
+			"session_id": sessionID,
+		})
+	}()
+
+	// Use GenerateHalfBlock for compact half-size QR code
+	qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
+}
+
+// SessionManager handles session state management
+type SessionManager struct {
+	sessionRepo ports.SessionRepository
+	logger      *logger.Logger
+}
+
+// NewSessionManager creates a new session manager
+func NewSessionManager(sessionRepo ports.SessionRepository, logger *logger.Logger) *SessionManager {
+	return &SessionManager{
+		sessionRepo: sessionRepo,
+		logger:      logger,
+	}
+}
+
+// UpdateConnectionStatus updates session connection status
+func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bool) {
+	s.logger.InfoWithFields("Updating session connection status", map[string]interface{}{
+		"session_id":   sessionID,
+		"is_connected": isConnected,
+	})
+
+	if s.sessionRepo == nil {
+		s.logger.WarnWithFields("No session repository available", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sessionEntity, err := s.sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		s.logger.ErrorWithFields("Failed to get session", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		return
+	}
+
+	currentConnectionStatus := sessionEntity.IsConnected
+	if currentConnectionStatus == isConnected {
+		s.logger.InfoWithFields("Session already has connection status, skipping update", map[string]interface{}{
+			"session_id":   sessionID,
+			"is_connected": isConnected,
+		})
+		return
+	}
+
+	// Update connection status
+	sessionEntity.SetConnected(isConnected)
+
+	// Clear QR code when successfully connected
+	if isConnected {
+		s.logger.InfoWithFields("Clearing QR code after successful connection", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		sessionEntity.QRCode = ""
+		sessionEntity.QRCodeExpiresAt = nil
+	}
+
+	if err := s.sessionRepo.Update(ctx, sessionEntity); err != nil {
+		s.logger.ErrorWithFields("Failed to update session in database", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		return
+	}
+
+	s.logger.InfoWithFields("Successfully updated session connection status", map[string]interface{}{
+		"session_id":       sessionID,
+		"old_is_connected": currentConnectionStatus,
+		"new_is_connected": isConnected,
+	})
+}
+
+// GetSession retrieves a session by ID
+func (s *SessionManager) GetSession(sessionID string) (*session.Session, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	return s.sessionRepo.GetByID(ctx, sessionID)
+}
+
+// RetryConfig defines retry configuration
+type RetryConfig struct {
+	MaxRetries    int
+	RetryInterval time.Duration
+}
+
+// defaultRetryConfig returns default retry configuration
+func defaultRetryConfig() *RetryConfig {
+	return &RetryConfig{
+		MaxRetries:    5,
+		RetryInterval: 30 * time.Second,
+	}
+}
