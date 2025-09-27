@@ -12,15 +12,16 @@ type SendMessageRequest struct {
 	Body     string `json:"body,omitempty" example:"Hello World!"`
 	Caption  string `json:"caption,omitempty" example:"Image caption"`
 	File     string `json:"file,omitempty" example:"https://example.com/image.jpg"`
-	Filename string `json:"filename,omitempty" example:"document.pdf"`
+	Filename string `json:"filename,omitempty" example:"document.pdf"` // Only used for document type, not for audio
 	MimeType string `json:"mimeType,omitempty" example:"image/jpeg"`
 
 	Latitude  float64 `json:"latitude,omitempty" example:"-23.5505"`
 	Longitude float64 `json:"longitude,omitempty" example:"-46.6333"`
 	Address   string  `json:"address,omitempty" example:"São Paulo, SP"`
 
-	ContactName  string `json:"contactName,omitempty" example:"John Doe"`
-	ContactPhone string `json:"contactPhone,omitempty" example:"+5511999999999"`
+	ContactName  string       `json:"contactName,omitempty" example:"John Doe"`
+	ContactPhone string       `json:"contactPhone,omitempty" example:"+5511999999999"`
+	ContextInfo  *ContextInfo `json:"contextInfo,omitempty"`
 } //@name SendMessageRequest
 
 type SendMessageResponse struct {
@@ -117,35 +118,40 @@ type MediaMessageRequest struct {
 } //@name MediaMessageRequest
 
 type ImageMessageRequest struct {
-	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	File     string `json:"file" validate:"required" example:"https://example.com/image.jpg"`
-	Caption  string `json:"caption" example:"Beautiful sunset photo"`
-	MimeType string `json:"mimeType" example:"image/jpeg"`
-	Filename string `json:"filename" example:"sunset.jpg"`
+	To          string       `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	File        string       `json:"file" validate:"required" example:"https://example.com/image.jpg"`
+	Caption     string       `json:"caption" example:"Beautiful sunset photo"`
+	MimeType    string       `json:"mimeType" example:"image/jpeg"`
+	Filename    string       `json:"filename" example:"sunset.jpg"`
+	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name ImageMessageRequest
 
 type VideoMessageRequest struct {
-	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	File     string `json:"file" validate:"required" example:"https://example.com/video.mp4"`
-	Caption  string `json:"caption" example:"Check out this amazing video!"`
-	MimeType string `json:"mimeType" example:"video/mp4"`
-	Filename string `json:"filename" example:"amazing_video.mp4"`
+	To          string       `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	File        string       `json:"file" validate:"required" example:"https://example.com/video.mp4"`
+	Caption     string       `json:"caption" example:"Check out this amazing video!"`
+	MimeType    string       `json:"mimeType" example:"video/mp4"`
+	Filename    string       `json:"filename" example:"amazing_video.mp4"`
+	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name VideoMessageRequest
 
 type AudioMessageRequest struct {
-	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	File     string `json:"file" validate:"required" example:"https://example.com/audio.ogg"`
-	Caption  string `json:"caption" example:"Voice message"`
-	MimeType string `json:"mimeType" example:"audio/ogg"`
-	Filename string `json:"filename" example:"voice_message.ogg"`
+	To          string       `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	File        string       `json:"file" validate:"required" example:"https://example.com/audio.ogg"`
+	Caption     string       `json:"caption" example:"Voice message"`
+	MimeType    string       `json:"mimeType" example:"audio/ogg"`
+	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
+	// Note: AudioMessage in WhatsApp protocol doesn't support filename field
+	// Use DocumentMessage for files that need a filename
 } //@name AudioMessageRequest
 
 type DocumentMessageRequest struct {
-	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	File     string `json:"file" validate:"required" example:"https://example.com/document.pdf"`
-	Caption  string `json:"caption" example:"Important document"`
-	MimeType string `json:"mimeType" example:"application/pdf"`
-	Filename string `json:"filename" validate:"required" example:"important_document.pdf"`
+	To          string       `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	File        string       `json:"file" validate:"required" example:"https://example.com/document.pdf"`
+	Caption     string       `json:"caption" example:"Important document"`
+	MimeType    string       `json:"mimeType" example:"application/pdf"`
+	Filename    string       `json:"filename" validate:"required" example:"important_document.pdf"`
+	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name DocumentMessageRequest
 
 type LocationMessageRequest struct {

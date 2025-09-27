@@ -8,9 +8,6 @@ definitions:
       file:
         example: https://example.com/audio.ogg
         type: string
-      filename:
-        example: voice_message.ogg
-        type: string
       mimeType:
         example: audio/ogg
         type: string
@@ -565,7 +562,6 @@ definitions:
         example: Image caption
         type: string
       contactName:
-        description: Contact specific fields
         example: John Doe
         type: string
       contactPhone:
@@ -575,10 +571,10 @@ definitions:
         example: https://example.com/image.jpg
         type: string
       filename:
+        description: Only used for document type, not for audio
         example: document.pdf
         type: string
       latitude:
-        description: Location specific fields
         example: -23.5505
         type: number
       longitude:
@@ -716,16 +712,16 @@ definitions:
     type: object
   TextMessageRequest:
     properties:
-      contextInfo:
-        $ref: '#/definitions/ContextInfo'
-      text:
+      body:
         example: Hello, this is a text message
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       to:
         example: 5511987654321@s.whatsapp.net
         type: string
     required:
-    - text
+    - body
     - to
     type: object
   VideoMessageRequest:
