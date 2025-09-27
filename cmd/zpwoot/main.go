@@ -3,7 +3,7 @@
 // @description A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.
 // @description
 // @description ## Authentication
-// @description All API endpoints (except /health and /swagger/*) require API key authentication.
+// @description All API endpoints (except /health/* and /swagger/*) require API key authentication.
 // @description Provide your API key in the `Authorization` header.
 // @contact.name zpwoot Support
 // @contact.url https://github.com/your-org/zpwoot
@@ -15,7 +15,7 @@
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization
-// @description Enter your API key directly (no Bearer prefix required). Example: dev-api-key-12345
+// @description Enter your API key directly (no Bearer prefix required). Example: a0b1125a0eb3364d98e2c49ec6f7d6ba
 package main
 
 import (

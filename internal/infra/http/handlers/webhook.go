@@ -23,6 +23,7 @@ func NewWebhookHandler(webhookUC webhook.UseCase, appLogger *logger.Logger) *Web
 // @Summary Set webhook configuration
 // @Description Set or update webhook configuration for a WhatsApp session
 // @Tags Webhooks
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param sessionId path string true "Session ID"
@@ -60,6 +61,7 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 // @Summary Get webhook configuration
 // @Description Get current webhook configuration for a WhatsApp session
 // @Tags Webhooks
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} webhook.WebhookResponse "Webhook configuration retrieved successfully"

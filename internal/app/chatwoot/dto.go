@@ -37,7 +37,7 @@ type ChatwootConfigResponse struct {
 	Active    bool      `json:"active" example:"true"`
 	CreatedAt time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-}
+} //@name ChatwootConfigResponse
 
 type SyncContactRequest struct {
 	PhoneNumber string                 `json:"phone_number" validate:"required" example:"+5511999999999"`

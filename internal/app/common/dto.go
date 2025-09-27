@@ -18,7 +18,7 @@ type HealthResponse struct {
 	Service string `json:"service" example:"zpwoot"`
 	Version string `json:"version,omitempty" example:"1.0.0"`
 	Uptime  string `json:"uptime,omitempty" example:"2h30m15s"`
-}
+} //@name HealthResponse
 
 type PaginationResponse struct {
 	Total   int  `json:"total" example:"100"`

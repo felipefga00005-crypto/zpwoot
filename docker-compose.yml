@@ -14,7 +14,7 @@ services:
       - LOG_OUTPUT=stdout
       - DATABASE_URL=postgres://zpwoot:zpwoot123@postgres:5432/zpwoot?sslmode=disable
       - WA_LOG_LEVEL=INFO
-      - ZP_API_KEY=dev-api-key-12345
+      - ZP_API_KEY=a0b1125a0eb3364d98e2c49ec6f7d6ba
     volumes:
       - ./sessions:/app/sessions
       - ./logs:/app/logs

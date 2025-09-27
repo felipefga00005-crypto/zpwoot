@@ -11,7 +11,7 @@ import (
 func APIKeyAuth(cfg *config.Config, logger *logger.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
-		if path == "/health" || strings.HasPrefix(path, "/swagger") {
+		if strings.HasPrefix(path, "/health") || strings.HasPrefix(path, "/swagger") {
 			return c.Next()
 		}
 

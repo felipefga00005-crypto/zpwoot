@@ -81,6 +81,30 @@ definitions:
     - buttons
     - to
     type: object
+  ChatwootConfigResponse:
+    properties:
+      account_id:
+        example: "1"
+        type: string
+      active:
+        example: true
+        type: boolean
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: chatwoot-config-123
+        type: string
+      inbox_id:
+        example: "1"
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      url:
+        example: https://chatwoot.example.com
+        type: string
+    type: object
   ContactListMessageResponse:
     properties:
       failureCount:
@@ -308,6 +332,21 @@ definitions:
         type: string
       timestamp:
         example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
+  HealthResponse:
+    properties:
+      service:
+        example: zpwoot
+        type: string
+      status:
+        example: ok
+        type: string
+      uptime:
+        example: 2h30m15s
+        type: string
+      version:
+        example: 1.0.0
         type: string
     type: object
   ImageMessageRequest:
@@ -556,60 +595,6 @@ definitions:
     required:
     - rows
     type: object
-  SendMessageRequest:
-    properties:
-      address:
-        example: São Paulo, SP
-        type: string
-      body:
-        example: Hello World!
-        type: string
-      caption:
-        example: Image caption
-        type: string
-      contactName:
-        example: John Doe
-        type: string
-      contactPhone:
-        example: "+5511999999999"
-        type: string
-      contextInfo:
-        $ref: '#/definitions/ContextInfo'
-      file:
-        example: https://example.com/image.jpg
-        type: string
-      filename:
-        description: Only used for document type, not for audio
-        example: document.pdf
-        type: string
-      latitude:
-        example: -23.5505
-        type: number
-      longitude:
-        example: -46.6333
-        type: number
-      mimeType:
-        example: image/jpeg
-        type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
-      type:
-        enum:
-        - text
-        - image
-        - audio
-        - video
-        - document
-        - sticker
-        - location
-        - contact
-        example: text
-        type: string
-    required:
-    - to
-    - type
-    type: object
   SendMessageResponse:
     properties:
       id:
@@ -788,45 +773,6 @@ definitions:
         example: https://example.com/webhook
         type: string
     type: object
-  zpwoot_internal_app_chatwoot.ChatwootConfigResponse:
-    properties:
-      account_id:
-        example: "1"
-        type: string
-      active:
-        example: true
-        type: boolean
-      created_at:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      id:
-        example: chatwoot-config-123
-        type: string
-      inbox_id:
-        example: "1"
-        type: string
-      updated_at:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      url:
-        example: https://chatwoot.example.com
-        type: string
-    type: object
-  zpwoot_internal_app_common.HealthResponse:
-    properties:
-      service:
-        example: zpwoot
-        type: string
-      status:
-        example: ok
-        type: string
-      uptime:
-        example: 2h30m15s
-        type: string
-      version:
-        example: 1.0.0
-        type: string
-    type: object
 host: localhost:8080
 info:
   contact:
@@ -837,7 +783,7 @@ info:
     A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.
 
     ## Authentication
-    All API endpoints (except /health and /swagger/*) require API key authentication.
+    All API endpoints (except /health/* and /swagger/*) require API key authentication.
     Provide your API key in the `Authorization` header.
   license:
     name: MIT
@@ -854,11 +800,13 @@ paths:
         "200":
           description: API is healthy
           schema:
-            $ref: '#/definitions/zpwoot_internal_app_common.HealthResponse'
+            $ref: '#/definitions/HealthResponse'
         "500":
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Health check
       tags:
       - Health
@@ -876,6 +824,8 @@ paths:
           description: Service Unavailable
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: WhatsApp manager health check
       tags:
       - Health
@@ -894,7 +844,7 @@ paths:
         "200":
           description: Chatwoot configuration retrieved successfully
           schema:
-            $ref: '#/definitions/zpwoot_internal_app_chatwoot.ChatwootConfigResponse'
+            $ref: '#/definitions/ChatwootConfigResponse'
         "404":
           description: Session not found
           schema:
@@ -903,6 +853,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Get Chatwoot configuration
       tags:
       - Chatwoot
@@ -943,6 +895,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Set Chatwoot configuration
       tags:
       - Chatwoot
@@ -970,6 +924,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Connect session
       tags:
       - Sessions
@@ -997,6 +953,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Delete session
       tags:
       - Sessions
@@ -1024,6 +982,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Get session information
       tags:
       - Sessions
@@ -1051,6 +1011,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Logout session
       tags:
       - Sessions
@@ -1097,6 +1059,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Delete message
       tags:
@@ -1145,47 +1108,8 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Edit message
-      tags:
-      - Messages
-  /sessions/{sessionId}/messages/send:
-    post:
-      consumes:
-      - application/json
-      description: Send a message of any type (text, image, audio, video, document,
-        etc.)
-      parameters:
-      - description: Session ID
-        in: path
-        name: sessionId
-        required: true
-        type: string
-      - description: Message request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/SendMessageRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Message sent successfully
-          schema:
-            $ref: '#/definitions/MessageResponse'
-        "400":
-          description: Invalid request
-          schema:
-            type: object
-        "404":
-          description: Session not found
-          schema:
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            type: object
-      summary: Send message (generic)
       tags:
       - Messages
   /sessions/{sessionId}/messages/send/audio:
@@ -1231,6 +1155,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send audio message
       tags:
@@ -1278,6 +1203,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send button message
       tags:
@@ -1329,6 +1255,7 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send contact message(s)
       tags:
       - Messages
@@ -1375,6 +1302,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send document message
       tags:
@@ -1423,6 +1351,7 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send image message
       tags:
       - Messages
@@ -1469,6 +1398,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send list message
       tags:
@@ -1517,6 +1447,7 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send location message
       tags:
       - Messages
@@ -1557,6 +1488,9 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send media message
       tags:
       - Messages
@@ -1603,6 +1537,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send presence
       tags:
@@ -1652,6 +1587,7 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send business profile contact
       tags:
       - Messages
@@ -1698,6 +1634,7 @@ paths:
           schema:
             type: object
       security:
+      - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send reaction
       tags:
@@ -1746,6 +1683,7 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send sticker message
       tags:
       - Messages
@@ -1785,6 +1723,9 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Send text message
       tags:
       - Messages
@@ -1832,54 +1773,8 @@ paths:
             type: object
       security:
       - ApiKeyAuth: []
-      summary: Send video message
-      tags:
-      - Messages
-  /sessions/{sessionId}/messages/text:
-    post:
-      consumes:
-      - application/json
-      description: Send a simple text message through WhatsApp
-      parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
-        in: path
-        name: sessionId
-        required: true
-        type: string
-      - description: Text message request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/TextMessageRequest'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: Message sent successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/SendMessageResponse'
-              type: object
-        "400":
-          description: Invalid request
-          schema:
-            type: object
-        "404":
-          description: Session not found
-          schema:
-            type: object
-        "500":
-          description: Internal server error
-          schema:
-            type: object
-      security:
       - ApiKeyAuth: []
-      summary: Send text message
+      summary: Send video message
       tags:
       - Messages
   /sessions/{sessionId}/pair:
@@ -1918,6 +1813,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Pair phone number
       tags:
       - Sessions
@@ -1945,6 +1842,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Get proxy configuration
       tags:
       - Sessions
@@ -1984,6 +1883,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Set proxy configuration
       tags:
       - Sessions
@@ -2011,6 +1912,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Get QR code
       tags:
       - Sessions
@@ -2038,6 +1941,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Get webhook configuration
       tags:
       - Webhooks
@@ -2077,6 +1982,8 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
       summary: Set webhook configuration
       tags:
       - Webhooks
@@ -2107,6 +2014,9 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: Create new session
       tags:
       - Sessions
@@ -2147,13 +2057,16 @@ paths:
           description: Internal Server Error
           schema:
             type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
       summary: List sessions
       tags:
       - Sessions
 securityDefinitions:
   ApiKeyAuth:
     description: 'Enter your API key directly (no Bearer prefix required). Example:
-      dev-api-key-12345'
+      a0b1125a0eb3364d98e2c49ec6f7d6ba'
     in: header
     name: Authorization
     type: apiKey

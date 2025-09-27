@@ -36,6 +36,7 @@ func NewChatwootHandler(chatwootUC chatwoot.UseCase, logger *logger.Logger) *Cha
 // @Summary Set Chatwoot configuration
 // @Description Set or update Chatwoot integration configuration for a WhatsApp session
 // @Tags Chatwoot
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param sessionId path string true "Session ID"
@@ -268,6 +269,7 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 // @Summary Set Chatwoot configuration
 // @Description Set or update Chatwoot integration configuration for a WhatsApp session
 // @Tags Chatwoot
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param sessionId path string true "Session ID"
@@ -335,6 +337,7 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 // @Summary Get Chatwoot configuration
 // @Description Get current Chatwoot integration configuration for a WhatsApp session
 // @Tags Chatwoot
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} chatwoot.ChatwootConfigResponse "Chatwoot configuration retrieved successfully"

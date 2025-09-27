@@ -23,6 +23,7 @@ func NewHealthHandler(logger *logger.Logger, wameowManager *wameow.Manager) *Hea
 // @Summary Health check
 // @Description Check if the API is running and healthy
 // @Tags Health
+// @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {object} common.HealthResponse "API is healthy"
 // @Failure 500 {object} object "Internal Server Error"
@@ -38,6 +39,7 @@ func (h *HealthHandler) GetHealth(c *fiber.Ctx) error {
 // @Summary WhatsApp manager health check
 // @Description Check if WhatsApp manager and whatsmeow tables are available
 // @Tags Health
+// @Security ApiKeyAuth
 // @Produce json
 // @Success 200 {object} object "WhatsApp manager is healthy"
 // @Failure 503 {object} object "Service Unavailable"

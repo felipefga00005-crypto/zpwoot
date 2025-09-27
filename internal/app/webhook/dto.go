@@ -59,12 +59,12 @@ type WebhookEventResponse struct {
 	Type      string                 `json:"type" example:"message"`
 	Timestamp time.Time              `json:"timestamp" example:"2024-01-01T00:00:00Z"`
 	Data      map[string]interface{} `json:"data"`
-}
+} //@name WebhookEventResponse
 
 type TestWebhookRequest struct {
 	EventType string                 `json:"event_type" validate:"required" example:"message"`
 	TestData  map[string]interface{} `json:"test_data,omitempty"`
-}
+} //@name TestWebhookRequest
 
 type TestWebhookResponse struct {
 	Success      bool   `json:"success" example:"true"`

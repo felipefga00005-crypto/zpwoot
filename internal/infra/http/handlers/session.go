@@ -59,8 +59,10 @@ func (h *SessionHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session, *
 // @Summary Create new session
 // @Description Create a new WhatsApp session with optional proxy configuration
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
+// @Security ApiKeyAuth
 // @Param request body session.CreateSessionRequest true "Session creation request"
 // @Success 201 {object} session.CreateSessionResponse "Session created successfully"
 // @Failure 400 {object} object "Bad Request"
@@ -125,8 +127,10 @@ func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
 // @Summary List sessions
 // @Description Get a list of all WhatsApp sessions with optional filtering
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
+// @Security ApiKeyAuth
 // @Param isConnected query bool false "Filter by connection status"
 // @Param deviceJid query string false "Filter by device JID"
 // @Param limit query int false "Number of sessions to return (default: 20)"
@@ -182,6 +186,7 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 // @Summary Get session information
 // @Description Get detailed information about a specific WhatsApp session
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} session.SessionInfoResponse "Session information retrieved successfully"
@@ -219,6 +224,7 @@ func (h *SessionHandler) GetSessionInfo(c *fiber.Ctx) error {
 // @Summary Delete session
 // @Description Delete a WhatsApp session and all associated data
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} common.SuccessResponse "Session deleted successfully"
@@ -256,6 +262,7 @@ func (h *SessionHandler) DeleteSession(c *fiber.Ctx) error {
 // @Summary Connect session
 // @Description Connect a WhatsApp session to start receiving messages
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} common.SuccessResponse "Session connection initiated successfully"
@@ -293,6 +300,7 @@ func (h *SessionHandler) ConnectSession(c *fiber.Ctx) error {
 // @Summary Logout session
 // @Description Logout from WhatsApp session and disconnect
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} common.SuccessResponse "Session logout successful"
@@ -330,6 +338,7 @@ func (h *SessionHandler) LogoutSession(c *fiber.Ctx) error {
 // @Summary Get QR code
 // @Description Get QR code for WhatsApp session pairing
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} session.QRCodeResponse "QR code generated successfully"
@@ -367,6 +376,7 @@ func (h *SessionHandler) GetQRCode(c *fiber.Ctx) error {
 // @Summary Pair phone number
 // @Description Pair WhatsApp session with phone number
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param sessionId path string true "Session ID"
@@ -406,6 +416,7 @@ func (h *SessionHandler) PairPhone(c *fiber.Ctx) error {
 // @Summary Set proxy configuration
 // @Description Set or update proxy configuration for a WhatsApp session
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Param sessionId path string true "Session ID"
@@ -452,6 +463,7 @@ func (h *SessionHandler) SetProxy(c *fiber.Ctx) error {
 // @Summary Get proxy configuration
 // @Description Get current proxy configuration for a WhatsApp session
 // @Tags Sessions
+// @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} session.ProxyResponse "Proxy configuration retrieved successfully"

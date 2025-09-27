@@ -25,6 +25,11 @@ const docTemplate = `{
     "paths": {
         "/health": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Check if the API is running and healthy",
                 "produces": [
                     "application/json"
@@ -37,7 +42,7 @@ const docTemplate = `{
                     "200": {
                         "description": "API is healthy",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app_common.HealthResponse"
+                            "$ref": "#/definitions/HealthResponse"
                         }
                     },
                     "500": {
@@ -51,6 +56,11 @@ const docTemplate = `{
         },
         "/health/wameow": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Check if WhatsApp manager and whatsmeow tables are available",
                 "produces": [
                     "application/json"
@@ -77,6 +87,14 @@ const docTemplate = `{
         },
         "/sessions/create": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Create a new WhatsApp session with optional proxy configuration",
                 "consumes": [
                     "application/json"
@@ -123,6 +141,14 @@ const docTemplate = `{
         },
         "/sessions/list": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get a list of all WhatsApp sessions with optional filtering",
                 "consumes": [
                     "application/json"
@@ -184,6 +210,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/chatwoot/find": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get current Chatwoot integration configuration for a WhatsApp session",
                 "produces": [
                     "application/json"
@@ -205,7 +236,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Chatwoot configuration retrieved successfully",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app_chatwoot.ChatwootConfigResponse"
+                            "$ref": "#/definitions/ChatwootConfigResponse"
                         }
                     },
                     "404": {
@@ -225,6 +256,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/chatwoot/set": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Set or update Chatwoot integration configuration for a WhatsApp session",
                 "consumes": [
                     "application/json"
@@ -284,6 +320,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/connect": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Connect a WhatsApp session to start receiving messages",
                 "produces": [
                     "application/json"
@@ -325,6 +366,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/delete": {
             "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Delete a WhatsApp session and all associated data",
                 "produces": [
                     "application/json"
@@ -366,6 +412,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/info": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get detailed information about a specific WhatsApp session",
                 "produces": [
                     "application/json"
@@ -407,6 +458,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/logout": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Logout from WhatsApp session and disconnect",
                 "produces": [
                     "application/json"
@@ -449,6 +505,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/delete": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -528,6 +587,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Edit an existing message",
@@ -600,68 +662,12 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions/{sessionId}/messages/send": {
-            "post": {
-                "description": "Send a message of any type (text, image, audio, video, document, etc.)",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Messages"
-                ],
-                "summary": "Send message (generic)",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "description": "Session ID",
-                        "name": "sessionId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Message request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/SendMessageRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Message sent successfully",
-                        "schema": {
-                            "$ref": "#/definitions/MessageResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
         "/sessions/{sessionId}/messages/send/audio": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -741,6 +747,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a message with interactive buttons through WhatsApp",
@@ -816,6 +825,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/send/contact": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -895,6 +907,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a document message through WhatsApp with optional reply context",
@@ -970,6 +985,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/send/image": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -1049,6 +1067,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a message with interactive list through WhatsApp",
@@ -1126,6 +1147,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a location message through WhatsApp",
@@ -1200,6 +1224,14 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/messages/send/media": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Send a media file (image, audio, video, document) with optional caption",
                 "consumes": [
                     "application/json"
@@ -1260,6 +1292,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/send/presence": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -1339,6 +1374,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a business profile contact using Business format (with waid, X-ABLabel, X-WA-BIZ-NAME)",
@@ -1414,6 +1452,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/send/reaction": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -1493,6 +1534,9 @@ const docTemplate = `{
                 "security": [
                     {
                         "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
                     }
                 ],
                 "description": "Send a sticker message through WhatsApp",
@@ -1567,6 +1611,14 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/messages/send/text": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Send a text message with optional context info for replies",
                 "consumes": [
                     "application/json"
@@ -1627,6 +1679,9 @@ const docTemplate = `{
         "/sessions/{sessionId}/messages/send/video": {
             "post": {
                 "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
                     {
                         "ApiKeyAuth": []
                     }
@@ -1701,85 +1756,13 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions/{sessionId}/messages/text": {
+        "/sessions/{sessionId}/pair": {
             "post": {
                 "security": [
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send a simple text message through WhatsApp",
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "tags": [
-                    "Messages"
-                ],
-                "summary": "Send text message",
-                "parameters": [
-                    {
-                        "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
-                        "name": "sessionId",
-                        "in": "path",
-                        "required": true
-                    },
-                    {
-                        "description": "Text message request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/TextMessageRequest"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "Message sent successfully",
-                        "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/SendMessageResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "404": {
-                        "description": "Session not found",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "500": {
-                        "description": "Internal server error",
-                        "schema": {
-                            "type": "object"
-                        }
-                    }
-                }
-            }
-        },
-        "/sessions/{sessionId}/pair": {
-            "post": {
                 "description": "Pair WhatsApp session with phone number",
                 "consumes": [
                     "application/json"
@@ -1839,6 +1822,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/proxy/find": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get current proxy configuration for a WhatsApp session",
                 "produces": [
                     "application/json"
@@ -1880,6 +1868,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/proxy/set": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Set or update proxy configuration for a WhatsApp session",
                 "consumes": [
                     "application/json"
@@ -1939,6 +1932,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/qr": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get QR code for WhatsApp session pairing",
                 "produces": [
                     "application/json"
@@ -1980,6 +1978,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/webhook/find": {
             "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Get current webhook configuration for a WhatsApp session",
                 "produces": [
                     "application/json"
@@ -2021,6 +2024,11 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/webhook/set": {
             "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
                 "description": "Set or update webhook configuration for a WhatsApp session",
                 "consumes": [
                     "application/json"
@@ -2189,6 +2197,39 @@ const docTemplate = `{
                 "to": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
+                }
+            }
+        },
+        "ChatwootConfigResponse": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "chatwoot-config-123"
+                },
+                "inbox_id": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://chatwoot.example.com"
                 }
             }
         },
@@ -2509,6 +2550,27 @@ const docTemplate = `{
                 "timestamp": {
                     "type": "string",
                     "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "example": "zpwoot"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "2h30m15s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
                 }
             }
         },
@@ -2856,77 +2918,6 @@ const docTemplate = `{
                 }
             }
         },
-        "SendMessageRequest": {
-            "type": "object",
-            "required": [
-                "to",
-                "type"
-            ],
-            "properties": {
-                "address": {
-                    "type": "string",
-                    "example": "São Paulo, SP"
-                },
-                "body": {
-                    "type": "string",
-                    "example": "Hello World!"
-                },
-                "caption": {
-                    "type": "string",
-                    "example": "Image caption"
-                },
-                "contactName": {
-                    "type": "string",
-                    "example": "John Doe"
-                },
-                "contactPhone": {
-                    "type": "string",
-                    "example": "+5511999999999"
-                },
-                "contextInfo": {
-                    "$ref": "#/definitions/ContextInfo"
-                },
-                "file": {
-                    "type": "string",
-                    "example": "https://example.com/image.jpg"
-                },
-                "filename": {
-                    "description": "Only used for document type, not for audio",
-                    "type": "string",
-                    "example": "document.pdf"
-                },
-                "latitude": {
-                    "type": "number",
-                    "example": -23.5505
-                },
-                "longitude": {
-                    "type": "number",
-                    "example": -46.6333
-                },
-                "mimeType": {
-                    "type": "string",
-                    "example": "image/jpeg"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
-                "type": {
-                    "type": "string",
-                    "enum": [
-                        "text",
-                        "image",
-                        "audio",
-                        "video",
-                        "document",
-                        "sticker",
-                        "location",
-                        "contact"
-                    ],
-                    "example": "text"
-                }
-            }
-        },
         "SendMessageResponse": {
             "type": "object",
             "properties": {
@@ -3176,65 +3167,11 @@ const docTemplate = `{
                     "example": "https://example.com/webhook"
                 }
             }
-        },
-        "zpwoot_internal_app_chatwoot.ChatwootConfigResponse": {
-            "type": "object",
-            "properties": {
-                "account_id": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "active": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "created_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "chatwoot-config-123"
-                },
-                "inbox_id": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "updated_at": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://chatwoot.example.com"
-                }
-            }
-        },
-        "zpwoot_internal_app_common.HealthResponse": {
-            "type": "object",
-            "properties": {
-                "service": {
-                    "type": "string",
-                    "example": "zpwoot"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "ok"
-                },
-                "uptime": {
-                    "type": "string",
-                    "example": "2h30m15s"
-                },
-                "version": {
-                    "type": "string",
-                    "example": "1.0.0"
-                }
-            }
         }
     },
     "securityDefinitions": {
         "ApiKeyAuth": {
-            "description": "Enter your API key directly (no Bearer prefix required). Example: dev-api-key-12345",
+            "description": "Enter your API key directly (no Bearer prefix required). Example: a0b1125a0eb3364d98e2c49ec6f7d6ba",
             "type": "apiKey",
             "name": "Authorization",
             "in": "header"
@@ -3249,7 +3186,7 @@ var SwaggerInfo = &swag.Spec{
 	BasePath:         "/",
 	Schemes:          []string{},
 	Title:            "zpwoot - WhatsApp Multi-Session API",
-	Description:      "A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.\n\n## Authentication\nAll API endpoints (except /health and /swagger/*) require API key authentication.\nProvide your API key in the `Authorization` header.",
+	Description:      "A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.\n\n## Authentication\nAll API endpoints (except /health/* and /swagger/*) require API key authentication.\nProvide your API key in the `Authorization` header.",
 	InfoInstanceName: "swagger",
 	SwaggerTemplate:  docTemplate,
 	LeftDelim:        "{{",

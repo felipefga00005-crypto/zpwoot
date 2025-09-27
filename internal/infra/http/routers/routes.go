@@ -58,7 +58,6 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Get("/:sessionId/chatwoot/find", chatwootHandler.FindConfig) // GET /sessions/:sessionId/chatwoot/find
 
 	messageHandler := handlers.NewMessageHandler(container.GetMessageUseCase(), WameowManager, container.GetSessionRepository(), appLogger)
-	sessions.Post("/:sessionId/messages/send", messageHandler.SendMessage)                          // POST /sessions/:sessionId/messages/send (generic)
 	sessions.Post("/:sessionId/messages/send/text", messageHandler.SendText)                        // POST /sessions/:sessionId/messages/send/text
 	sessions.Post("/:sessionId/messages/send/media", messageHandler.SendMedia)                      // POST /sessions/:sessionId/messages/send/media
 	sessions.Post("/:sessionId/messages/send/image", messageHandler.SendImage)                      // POST /sessions/:sessionId/messages/send/image
