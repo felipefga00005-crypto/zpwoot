@@ -23,18 +23,16 @@ type UseCase interface {
 }
 
 type useCaseImpl struct {
-	groupRepo    ports.GroupRepository
 	wameowMgr    ports.WameowManager
 	groupService *group.Service
 }
 
 func NewUseCase(
-	groupRepo ports.GroupRepository,
+	groupRepo ports.GroupRepository, // Kept for interface compatibility but not used
 	wameowMgr ports.WameowManager,
 	groupService *group.Service,
 ) UseCase {
 	return &useCaseImpl{
-		groupRepo:    groupRepo,
 		wameowMgr:    wameowMgr,
 		groupService: groupService,
 	}
@@ -96,7 +94,7 @@ func (uc *useCaseImpl) ListGroups(ctx context.Context, sessionID string) (*ListG
 			Name:             group.Name,
 			Description:      group.Description,
 			ParticipantCount: len(group.Participants),
-			IsAdmin:          false, // TODO: determine if user is admin
+			IsAdmin:          uc.isUserAdmin(group, sessionID),
 			CreatedAt:        group.CreatedAt,
 		})
 	}
@@ -275,4 +273,22 @@ func convertSettings(settings ports.GroupSettings) GroupSettings {
 		Announce: settings.Announce,
 		Locked:   settings.Locked,
 	}
+}
+
+// isUserAdmin checks if the current user is an admin of the group
+func (uc *useCaseImpl) isUserAdmin(group *ports.GroupInfo, sessionID string) bool {
+	// Get current user's JID from session
+	userJID, err := uc.wameowMgr.GetUserJID(sessionID)
+	if err != nil {
+		return false
+	}
+
+	// Check if user is in the participants list as admin
+	for _, participant := range group.Participants {
+		if participant.JID == userJID && (participant.IsAdmin || participant.IsSuperAdmin) {
+			return true
+		}
+	}
+
+	return false
 }

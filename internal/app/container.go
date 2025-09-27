@@ -34,7 +34,6 @@ type ContainerConfig struct {
 	SessionRepo  ports.SessionRepository
 	WebhookRepo  ports.WebhookRepository
 	ChatwootRepo ports.ChatwootRepository
-	GroupRepo    ports.GroupRepository
 
 	WameowManager       ports.WameowManager
 	ChatwootIntegration ports.ChatwootIntegration
@@ -62,7 +61,7 @@ func NewContainer(config *ContainerConfig) *Container {
 	)
 
 	groupService := domainGroup.NewService(
-		config.GroupRepo,
+		nil, // No repository needed for groups
 		config.WameowManager,
 	)
 
@@ -99,7 +98,7 @@ func NewContainer(config *ContainerConfig) *Container {
 	)
 
 	groupUseCase := group.NewUseCase(
-		config.GroupRepo,
+		nil, // No repository needed for groups
 		config.WameowManager,
 		groupService,
 	)

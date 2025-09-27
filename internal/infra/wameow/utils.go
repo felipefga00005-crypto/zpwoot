@@ -355,11 +355,7 @@ func getCurrentTimestamp() int64 {
 }
 
 func IsRecoverableError(err error) bool {
-	if err == nil {
-		return false
-	}
-
-	return true
+	return err != nil
 }
 
 // GetErrorCategory categorizes errors for better handling

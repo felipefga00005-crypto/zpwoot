@@ -10,8 +10,6 @@ import (
 )
 
 type Service struct {
-	repo      Repository
-	wameow    WameowManager
 	generator *uuid.Generator
 }
 
@@ -29,24 +27,8 @@ type Repository interface {
 	UpdateGroupSettings(ctx context.Context, sessionID string, req *UpdateGroupSettingsRequest) error
 }
 
-type WameowManager interface {
-	CreateGroup(sessionID, name string, participants []string, description string) (*GroupInfo, error)
-	GetGroupInfo(sessionID, groupJID string) (*GroupInfo, error)
-	ListJoinedGroups(sessionID string) ([]*GroupInfo, error)
-	UpdateGroupParticipants(sessionID, groupJID string, participants []string, action string) ([]string, []string, error)
-	SetGroupName(sessionID, groupJID, name string) error
-	SetGroupDescription(sessionID, groupJID, description string) error
-	SetGroupPhoto(sessionID, groupJID string, photo []byte) error
-	GetGroupInviteLink(sessionID, groupJID string, reset bool) (string, error)
-	JoinGroupViaLink(sessionID, inviteLink string) (*GroupInfo, error)
-	LeaveGroup(sessionID, groupJID string) error
-	UpdateGroupSettings(sessionID, groupJID string, announce, locked *bool) error
-}
-
-func NewService(repo Repository, wameow WameowManager) *Service {
+func NewService(repo Repository, wameow interface{}) *Service {
 	return &Service{
-		repo:      repo,
-		wameow:    wameow,
 		generator: uuid.New(),
 	}
 }
@@ -292,65 +274,5 @@ func (s *Service) validateJID(jid string) error {
 	return nil
 }
 
-// CreateGroup creates a new group with validation
-func (s *Service) CreateGroup(ctx context.Context, sessionID string, req *CreateGroupRequest) (*GroupInfo, error) {
-	if err := s.ValidateGroupCreation(req); err != nil {
-		return nil, err
-	}
-
-	return s.repo.CreateGroup(ctx, sessionID, req)
-}
-
-// GetGroupInfo retrieves group information with validation
-func (s *Service) GetGroupInfo(ctx context.Context, sessionID, groupJID string) (*GroupInfo, error) {
-	if err := s.validateJID(groupJID); err != nil {
-		return nil, fmt.Errorf("invalid group JID: %w", err)
-	}
-
-	return s.repo.GetGroupInfo(ctx, sessionID, groupJID)
-}
-
-// UpdateParticipants updates group participants with validation
-func (s *Service) UpdateParticipants(ctx context.Context, sessionID string, req *UpdateParticipantsRequest) (*UpdateParticipantsResult, error) {
-	if err := s.ValidateParticipantUpdate(req); err != nil {
-		return nil, err
-	}
-
-	// Get current group info for additional validation
-	groupInfo, err := s.repo.GetGroupInfo(ctx, sessionID, req.GroupJID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get group info: %w", err)
-	}
-
-	if err := s.ProcessParticipantChanges(req, groupInfo); err != nil {
-		return nil, err
-	}
-
-	return s.repo.UpdateGroupParticipants(ctx, sessionID, req)
-}
-
-// SetGroupName sets group name with validation
-func (s *Service) SetGroupName(ctx context.Context, sessionID string, req *SetGroupNameRequest) error {
-	if err := s.validateJID(req.GroupJID); err != nil {
-		return fmt.Errorf("invalid group JID: %w", err)
-	}
-
-	if err := s.ValidateGroupName(req.Name); err != nil {
-		return err
-	}
-
-	return s.repo.SetGroupName(ctx, sessionID, req)
-}
-
-// SetGroupDescription sets group description with validation
-func (s *Service) SetGroupDescription(ctx context.Context, sessionID string, req *SetGroupDescriptionRequest) error {
-	if err := s.validateJID(req.GroupJID); err != nil {
-		return fmt.Errorf("invalid group JID: %w", err)
-	}
-
-	if err := s.ValidateGroupDescription(req.Description); err != nil {
-		return err
-	}
-
-	return s.repo.SetGroupDescription(ctx, sessionID, req)
-}
+// Note: Group operations are handled directly by the UseCase via WameowManager
+// This service only provides validation functions

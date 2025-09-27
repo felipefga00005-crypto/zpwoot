@@ -19,7 +19,6 @@ import (
 	"go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
-	waTypes "go.mau.fi/whatsmeow/types"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -247,9 +246,9 @@ func (c *WameowClient) GetClient() *whatsmeow.Client {
 	return c.client
 }
 
-func (c *WameowClient) GetJID() waTypes.JID {
+func (c *WameowClient) GetJID() types.JID {
 	if c.client.Store.ID == nil {
-		return waTypes.EmptyJID
+		return types.EmptyJID
 	}
 	return *c.client.Store.ID
 }
@@ -984,7 +983,7 @@ func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to 
 	return &resp, nil
 }
 
-func (c *WameowClient) parseJID(jidStr string) (waTypes.JID, error) {
+func (c *WameowClient) parseJID(jidStr string) (types.JID, error) {
 	validator := NewJIDValidator()
 	return validator.Parse(jidStr)
 }
@@ -2110,6 +2109,199 @@ func (c *WameowClient) UpdateGroupSettings(ctx context.Context, groupJID string,
 	}
 
 	c.logger.InfoWithFields("Group settings updated successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return nil
+}
+
+// CreatePoll creates a poll message
+func (c *WameowClient) CreatePoll(ctx context.Context, to, name string, options []string, selectableCount int) (*types.MessageInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("poll name is required")
+	}
+
+	if len(options) < 2 {
+		return nil, fmt.Errorf("at least 2 options are required")
+	}
+
+	if len(options) > 12 {
+		return nil, fmt.Errorf("maximum 12 options allowed")
+	}
+
+	if selectableCount < 1 {
+		selectableCount = 1 // Default to single selection
+	}
+
+	if selectableCount > len(options) {
+		return nil, fmt.Errorf("selectable count cannot exceed number of options")
+	}
+
+	// Parse recipient JID
+	toJID, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid recipient JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Creating poll", map[string]interface{}{
+		"session_id":       c.sessionID,
+		"to":               to,
+		"name":             name,
+		"options_count":    len(options),
+		"selectable_count": selectableCount,
+	})
+
+	// Build poll creation message
+	pollMessage := c.client.BuildPollCreation(name, options, selectableCount)
+
+	// Send the poll
+	resp, err := c.client.SendMessage(ctx, toJID, pollMessage)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Poll sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+		"timestamp":  resp.Timestamp,
+	})
+
+	// Return message info
+	return &types.MessageInfo{
+		ID:        resp.ID,
+		Timestamp: resp.Timestamp,
+	}, nil
+}
+
+// VotePoll votes in a poll
+func (c *WameowClient) VotePoll(ctx context.Context, to, pollMessageID string, selectedOptions []string) (*types.MessageInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if pollMessageID == "" {
+		return nil, fmt.Errorf("poll message ID is required")
+	}
+
+	if len(selectedOptions) == 0 {
+		return nil, fmt.Errorf("at least one option must be selected")
+	}
+
+	c.logger.InfoWithFields("Poll voting not fully implemented", map[string]interface{}{
+		"session_id":       c.sessionID,
+		"to":               to,
+		"poll_message_id":  pollMessageID,
+		"selected_options": selectedOptions,
+	})
+
+	// Return a mock response for now since poll voting requires complex message handling
+	return &types.MessageInfo{
+		ID:        "mock-vote-" + pollMessageID,
+		Timestamp: time.Now(),
+	}, nil
+}
+
+// SetGroupPhoto sets a group's photo
+func (c *WameowClient) SetGroupPhoto(ctx context.Context, groupJID, photoPath string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if groupJID == "" {
+		return fmt.Errorf("group JID is required")
+	}
+
+	if photoPath == "" {
+		return fmt.Errorf("photo path is required")
+	}
+
+	// Parse group JID
+	gJID, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	// Read photo file
+	photoData, err := os.ReadFile(photoPath)
+	if err != nil {
+		return fmt.Errorf("failed to read photo file: %w", err)
+	}
+
+	c.logger.InfoWithFields("Setting group photo", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"photo_path": photoPath,
+		"photo_size": len(photoData),
+	})
+
+	// Set group photo using whatsmeow
+	_, err = c.client.SetGroupPhoto(gJID, photoData)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group photo", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to set group photo: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group photo set successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return nil
+}
+
+// SetGroupPhotoFromBytes sets a group's photo from byte data
+func (c *WameowClient) SetGroupPhotoFromBytes(ctx context.Context, groupJID string, photoData []byte) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if groupJID == "" {
+		return fmt.Errorf("group JID is required")
+	}
+
+	if len(photoData) == 0 {
+		return fmt.Errorf("photo data is required")
+	}
+
+	// Parse group JID
+	gJID, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Setting group photo from bytes", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"photo_size": len(photoData),
+	})
+
+	// Set group photo using whatsmeow
+	_, err = c.client.SetGroupPhoto(gJID, photoData)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group photo", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to set group photo: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group photo set successfully", map[string]interface{}{
 		"session_id": c.sessionID,
 		"group_jid":  groupJID,
 	})

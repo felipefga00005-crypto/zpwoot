@@ -53,6 +53,8 @@ type WameowManager interface {
 
 	GetProxy(sessionID string) (*session.ProxyConfig, error)
 
+	GetUserJID(sessionID string) (string, error)
+
 	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string) (*message.SendResult, error)
 
 	SendMessageWithContext(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
@@ -149,6 +151,12 @@ type WameowMessage struct {
 	Type      string `json:"type"`
 	MediaURL  string `json:"media_url,omitempty"`
 	Caption   string `json:"caption,omitempty"`
+}
+
+type MessageInfo struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Chat      string    `json:"chat"`
 }
 
 type ChatwootIntegration interface {

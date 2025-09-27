@@ -1,6 +1,7 @@
 package message
 
 import (
+	"errors"
 	"strings"
 	"time"
 )
@@ -16,6 +17,8 @@ const (
 	MessageTypeSticker  MessageType = "sticker"
 	MessageTypeLocation MessageType = "location"
 	MessageTypeContact  MessageType = "contact"
+	MessageTypePoll     MessageType = "poll"
+	MessageTypePollVote MessageType = "poll_vote"
 )
 
 type MediaSource string
@@ -102,4 +105,163 @@ func (req *SendMessageRequest) GetMediaSource() MediaSource {
 	}
 
 	return MediaSourceFile
+}
+
+// Poll domain errors
+var (
+	ErrInvalidPollName         = errors.New("invalid poll name")
+	ErrPollNameTooLong         = errors.New("poll name too long (max 100 characters)")
+	ErrInsufficientOptions     = errors.New("poll must have at least 2 options")
+	ErrTooManyOptions          = errors.New("poll cannot have more than 12 options")
+	ErrInvalidOptionName       = errors.New("invalid option name")
+	ErrOptionNameTooLong       = errors.New("option name too long (max 100 characters)")
+	ErrInvalidSelectableCount  = errors.New("invalid selectable option count")
+	ErrInvalidPollMessageID    = errors.New("invalid poll message ID")
+	ErrNoOptionsSelected       = errors.New("no options selected")
+	ErrPollNotFound            = errors.New("poll not found")
+	ErrDuplicateVote           = errors.New("duplicate vote not allowed")
+	ErrTooManyOptionsSelected  = errors.New("too many options selected")
+	ErrInvalidOptionSelected   = errors.New("invalid option selected")
+	ErrInvalidRecipient        = errors.New("invalid recipient")
+)
+
+// CreatePollRequest represents a request to create a poll
+type CreatePollRequest struct {
+	To                    string
+	Name                  string
+	Options               []string
+	SelectableOptionCount int
+	AllowMultipleAnswers  bool
+}
+
+// VotePollRequest represents a request to vote in a poll
+type VotePollRequest struct {
+	To              string
+	PollMessageID   string
+	SelectedOptions []string
+}
+
+// GetPollResultsRequest represents a request to get poll results
+type GetPollResultsRequest struct {
+	To            string
+	PollMessageID string
+}
+
+// PollInfo represents basic poll information
+type PollInfo struct {
+	MessageID             string
+	Name                  string
+	Options               []string
+	SelectableOptionCount int
+	AllowMultipleAnswers  bool
+	CreatedAt             time.Time
+	To                    string
+}
+
+// PollOption represents a poll option with vote information
+type PollOption struct {
+	Name      string
+	VoteCount int
+	Voters    []string
+}
+
+// PollResults represents poll results with vote counts
+type PollResults struct {
+	PollMessageID         string
+	PollName              string
+	Options               []PollOption
+	TotalVotes            int
+	SelectableOptionCount int
+	AllowMultipleAnswers  bool
+	CreatedAt             time.Time
+	To                    string
+}
+
+// PollVote represents a vote in a poll
+type PollVote struct {
+	PollMessageID   string
+	VoterJID        string
+	SelectedOptions []string
+	VotedAt         time.Time
+}
+
+// Poll represents a complete poll entity
+type Poll struct {
+	MessageID             string
+	Name                  string
+	Options               []string
+	SelectableOptionCount int
+	AllowMultipleAnswers  bool
+	CreatedAt             time.Time
+	To                    string
+	Votes                 []PollVote
+}
+
+// Business logic methods for polls
+
+// ValidateCreatePollRequest validates a poll creation request
+func ValidateCreatePollRequest(req *CreatePollRequest) error {
+	if req.Name == "" {
+		return ErrInvalidPollName
+	}
+
+	if len(req.Name) > 100 {
+		return ErrPollNameTooLong
+	}
+
+	if len(req.Options) < 2 {
+		return ErrInsufficientOptions
+	}
+
+	if len(req.Options) > 12 {
+		return ErrTooManyOptions
+	}
+
+	// Check for duplicate options
+	optionMap := make(map[string]bool)
+	for _, option := range req.Options {
+		if option == "" {
+			return ErrInvalidOptionName
+		}
+		if len(option) > 100 {
+			return ErrOptionNameTooLong
+		}
+		if optionMap[option] {
+			return errors.New("duplicate option names not allowed")
+		}
+		optionMap[option] = true
+	}
+
+	if req.SelectableOptionCount < 1 || req.SelectableOptionCount > len(req.Options) {
+		return ErrInvalidSelectableCount
+	}
+
+	if req.To == "" {
+		return ErrInvalidRecipient
+	}
+
+	return nil
+}
+
+// ValidateVotePollRequest validates a poll vote request
+func ValidateVotePollRequest(req *VotePollRequest) error {
+	if req.PollMessageID == "" {
+		return ErrInvalidPollMessageID
+	}
+
+	if len(req.SelectedOptions) == 0 {
+		return ErrNoOptionsSelected
+	}
+
+	for _, option := range req.SelectedOptions {
+		if option == "" {
+			return ErrInvalidOptionName
+		}
+	}
+
+	if req.To == "" {
+		return ErrInvalidRecipient
+	}
+
+	return nil
 }

@@ -283,3 +283,65 @@ type ContextInfo struct {
 	StanzaID    string `json:"stanzaId" validate:"required" example:"ABCD1234abcd"`
 	Participant string `json:"participant,omitempty" example:"5511999999999@s.whatsapp.net"`
 } //@name ContextInfo
+
+// Poll-related DTOs
+
+// CreatePollRequest represents a request to create a poll
+type CreatePollRequest struct {
+	To                     string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	Name                   string   `json:"name" validate:"required,min=1,max=100" example:"What's your favorite color?"`
+	Options                []string `json:"options" validate:"required,min=2,max=12,dive,required,min=1,max=100" example:"Red,Blue,Green"`
+	SelectableOptionCount  int      `json:"selectableOptionCount" validate:"min=1" example:"1"`
+	AllowMultipleAnswers   bool     `json:"allowMultipleAnswers" example:"false"`
+} //@name CreatePollRequest
+
+// CreatePollResponse represents the response after creating a poll
+type CreatePollResponse struct {
+	MessageID   string    `json:"messageId" example:"3EB0C767D71D"`
+	PollName    string    `json:"pollName" example:"What's your favorite color?"`
+	Options     []string  `json:"options" example:"Red,Blue,Green"`
+	To          string    `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Status      string    `json:"status" example:"sent"`
+	Timestamp   time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+} //@name CreatePollResponse
+
+// VotePollRequest represents a request to vote in a poll
+type VotePollRequest struct {
+	To              string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	PollMessageID   string   `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
+	SelectedOptions []string `json:"selectedOptions" validate:"required,min=1,dive,required" example:"Red"`
+} //@name VotePollRequest
+
+// VotePollResponse represents the response after voting in a poll
+type VotePollResponse struct {
+	PollMessageID   string    `json:"pollMessageId" example:"3EB0C767D71D"`
+	SelectedOptions []string  `json:"selectedOptions" example:"Red"`
+	To              string    `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Status          string    `json:"status" example:"sent"`
+	Timestamp       time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+} //@name VotePollResponse
+
+// GetPollResultsRequest represents a request to get poll results
+type GetPollResultsRequest struct {
+	To            string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	PollMessageID string `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
+} //@name GetPollResultsRequest
+
+// PollOption represents a poll option with vote count
+type PollOption struct {
+	Name      string   `json:"name" example:"Red"`
+	VoteCount int      `json:"voteCount" example:"5"`
+	Voters    []string `json:"voters,omitempty" example:"5511999999999@s.whatsapp.net"`
+} //@name PollOption
+
+// GetPollResultsResponse represents poll results
+type GetPollResultsResponse struct {
+	PollMessageID         string       `json:"pollMessageId" example:"3EB0C767D71D"`
+	PollName              string       `json:"pollName" example:"What's your favorite color?"`
+	Options               []PollOption `json:"options"`
+	TotalVotes            int          `json:"totalVotes" example:"10"`
+	SelectableOptionCount int          `json:"selectableOptionCount" example:"1"`
+	AllowMultipleAnswers  bool         `json:"allowMultipleAnswers" example:"false"`
+	CreatedAt             time.Time    `json:"createdAt" example:"2024-01-01T12:00:00Z"`
+	To                    string       `json:"to" example:"5511999999999@s.whatsapp.net"`
+} //@name GetPollResultsResponse

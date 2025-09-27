@@ -821,8 +821,7 @@ func (m *Manager) SetGroupPhoto(sessionID, groupJID string, photo []byte) error 
 		return fmt.Errorf("session %s is not logged in", sessionID)
 	}
 
-	// TODO: Implement SetGroupPhoto in client
-	return fmt.Errorf("SetGroupPhoto not implemented yet")
+	return client.SetGroupPhotoFromBytes(context.Background(), groupJID, photo)
 }
 
 func (m *Manager) GetGroupInviteLink(sessionID, groupJID string, reset bool) (string, error) {
@@ -882,8 +881,133 @@ func (m *Manager) UpdateGroupSettings(sessionID, groupJID string, announce, lock
 	return client.UpdateGroupSettings(ctx, groupJID, announce, locked)
 }
 
+// Poll management methods
+func (m *Manager) CreatePoll(sessionID, to, name string, options []string, selectableCount int) (*ports.MessageInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	messageInfo, err := client.CreatePoll(ctx, to, name, options, selectableCount)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ports.MessageInfo{
+		ID:        messageInfo.ID,
+		Timestamp: messageInfo.Timestamp,
+		Chat:      to,
+	}, nil
+}
+
+// SendPoll sends a poll message (compatible with message handlers)
+func (m *Manager) SendPoll(sessionID, to, name string, options []string, selectableCount int) (*MessageResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	// Parse recipient JID
+	toJID, err := types.ParseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid recipient JID: %w", err)
+	}
+
+	// Validate poll parameters
+	if name == "" {
+		return nil, fmt.Errorf("poll name is required")
+	}
+
+	if len(options) < 2 {
+		return nil, fmt.Errorf("at least 2 options are required")
+	}
+
+	if len(options) > 12 {
+		return nil, fmt.Errorf("maximum 12 options allowed")
+	}
+
+	if selectableCount < 1 {
+		selectableCount = 1 // Default to single selection
+	}
+
+	if selectableCount > len(options) {
+		return nil, fmt.Errorf("selectable count cannot exceed number of options")
+	}
+
+	// Generate message ID
+	msgID := client.GetClient().GenerateMessageID()
+
+	// Build poll creation message using whatsmeow
+	pollMessage := client.GetClient().BuildPollCreation(name, options, selectableCount)
+
+	// Send the poll
+	resp, err := client.GetClient().SendMessage(context.Background(), toJID, pollMessage, whatsmeow.SendRequestExtra{ID: msgID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send poll: %w", err)
+	}
+
+	return &MessageResult{
+		MessageID: resp.ID,
+		Status:    "sent",
+		Timestamp: resp.Timestamp,
+	}, nil
+}
+
+// GetUserJID returns the current user's JID for the session
+func (m *Manager) GetUserJID(sessionID string) (string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return "", fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return "", fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	userJID := client.GetClient().Store.ID
+	if userJID == nil {
+		return "", fmt.Errorf("user JID not available")
+	}
+
+	return userJID.String(), nil
+}
+
+func (m *Manager) VotePoll(sessionID, to, pollMessageID string, selectedOptions []string) (*ports.MessageInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	messageInfo, err := client.VotePoll(ctx, to, pollMessageID, selectedOptions)
+	if err != nil {
+		return nil, err
+	}
+
+	return &ports.MessageInfo{
+		ID:        messageInfo.ID,
+		Timestamp: messageInfo.Timestamp,
+		Chat:      to,
+	}, nil
+}
+
 func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string) {
 	m.SetupEventHandlers(client, sessionID)
+}
+
+type MessageResult struct {
+	MessageID string
+	Status    string
+	Timestamp time.Time
 }
 
 type ContactListResult struct {
@@ -1267,7 +1391,7 @@ func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string)
 }
 
 // convertToPortsGroupInfo converts domain GroupInfo to ports GroupInfo
-func convertToPortsGroupInfo(domainGroup interface{}) *ports.GroupInfo {
+func convertToPortsGroupInfo(_ interface{}) *ports.GroupInfo {
 	// This is a simplified conversion - in a real implementation,
 	// you would properly convert from the domain GroupInfo type
 	// For now, return a basic structure

@@ -62,6 +62,7 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/messages/send/list", messageHandler.SendListMessage)                 // POST /sessions/:sessionId/messages/send/list
 	sessions.Post("/:sessionId/messages/send/location", messageHandler.SendLocation)                // POST /sessions/:sessionId/messages/send/location
 	sessions.Post("/:sessionId/messages/send/contact", messageHandler.SendContact)                  // POST /sessions/:sessionId/messages/send/contact
+	sessions.Post("/:sessionId/messages/send/poll", messageHandler.SendPoll)                        // POST /sessions/:sessionId/messages/send/poll
 	sessions.Post("/:sessionId/messages/send/reaction", messageHandler.SendReaction)                // POST /sessions/:sessionId/messages/send/reaction
 	sessions.Post("/:sessionId/messages/send/presence", messageHandler.SendPresence)                // POST /sessions/:sessionId/messages/send/presence
 	sessions.Post("/:sessionId/messages/edit", messageHandler.EditMessage)                          // POST /sessions/:sessionId/messages/edit

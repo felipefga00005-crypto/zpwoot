@@ -9,21 +9,20 @@ import (
 
 	"zpwoot/internal/app/common"
 	"zpwoot/internal/app/message"
-	messageApp "zpwoot/internal/app/message"
 	"zpwoot/internal/infra/http/helpers"
 	"zpwoot/internal/infra/wameow"
 	"zpwoot/platform/logger"
 )
 
 type MessageHandler struct {
-	messageUC       messageApp.UseCase
+	messageUC       message.UseCase
 	wameowManager   *wameow.Manager
 	sessionResolver *helpers.SessionResolver
 	logger          *logger.Logger
 }
 
 func NewMessageHandler(
-	messageUC messageApp.UseCase,
+	messageUC message.UseCase,
 	wameowManager *wameow.Manager,
 	sessionRepo helpers.SessionRepository,
 	logger *logger.Logger,
@@ -1418,12 +1417,126 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to send " + messageType + " message"))
 	}
 
-	h.logger.InfoWithFields(strings.Title(messageType)+" message sent successfully", map[string]interface{}{
+	h.logger.InfoWithFields(capitalizeFirst(messageType)+" message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
 		"to":         req.To,
 		"type":       messageType,
 		"message_id": response.ID,
 	})
 
-	return c.JSON(common.NewSuccessResponse(response, strings.Title(messageType)+" message sent successfully"))
+	return c.JSON(common.NewSuccessResponse(response, capitalizeFirst(messageType)+" message sent successfully"))
 }
+
+// @Summary Send poll
+// @Description Send a poll message through WhatsApp
+// @Tags Messages
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param request body message.CreatePollRequest true "Poll request"
+// @Success 200 {object} common.SuccessResponse{data=message.CreatePollResponse} "Poll sent successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
+// @Router /sessions/{sessionId}/messages/send/poll [post]
+func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var pollReq message.CreatePollRequest
+	if err := c.BodyParser(&pollReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+	}
+
+	// Validate required fields
+	if pollReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if pollReq.Name == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'name' field is required"))
+	}
+
+	if len(pollReq.Options) < 2 {
+		return c.Status(400).JSON(common.NewErrorResponse("at least 2 options are required"))
+	}
+
+	if len(pollReq.Options) > 12 {
+		return c.Status(400).JSON(common.NewErrorResponse("maximum 12 options allowed"))
+	}
+
+	// Set default selectable count if not provided
+	if pollReq.SelectableOptionCount < 1 {
+		pollReq.SelectableOptionCount = 1
+	}
+
+	if pollReq.SelectableOptionCount > len(pollReq.Options) {
+		return c.Status(400).JSON(common.NewErrorResponse("selectable count cannot exceed number of options"))
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	h.logger.InfoWithFields("Sending poll", map[string]interface{}{
+		"session_id":      sess.ID.String(),
+		"to":              pollReq.To,
+		"name":            pollReq.Name,
+		"options_count":   len(pollReq.Options),
+		"selectable_count": pollReq.SelectableOptionCount,
+	})
+
+	// Send poll using wameow manager
+	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.To, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         pollReq.To,
+			"name":       pollReq.Name,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		if strings.Contains(err.Error(), "not logged in") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not logged in"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send poll"))
+	}
+
+	h.logger.InfoWithFields("Poll sent successfully", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"to":         pollReq.To,
+		"name":       pollReq.Name,
+		"message_id": result.MessageID,
+	})
+
+	response := &message.CreatePollResponse{
+		MessageID: result.MessageID,
+		PollName:  pollReq.Name,
+		Options:   pollReq.Options,
+		To:        pollReq.To,
+		Status:    result.Status,
+		Timestamp: result.Timestamp,
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Poll sent successfully"))
+}
+
+// capitalizeFirst capitalizes the first letter of a string
+func capitalizeFirst(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+
