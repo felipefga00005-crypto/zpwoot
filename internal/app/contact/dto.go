@@ -50,16 +50,16 @@ type GetUserInfoRequest struct {
 
 // UserInfo represents information about a WhatsApp user
 type UserInfo struct {
-	JID          string    `json:"jid" example:"5511999999999@s.whatsapp.net"`
-	PhoneNumber  string    `json:"phone_number" example:"+5511999999999"`
-	Name         string    `json:"name,omitempty" example:"John Doe"`
-	Status       string    `json:"status,omitempty" example:"Hey there! I am using WhatsApp."`
-	PictureID    string    `json:"picture_id,omitempty" example:"1234567890"`
-	IsBusiness   bool      `json:"is_business" example:"false"`
-	VerifiedName string    `json:"verified_name,omitempty" example:"Company Name"`
-	IsContact    bool      `json:"is_contact" example:"true"`
+	JID          string     `json:"jid" example:"5511999999999@s.whatsapp.net"`
+	PhoneNumber  string     `json:"phone_number" example:"+5511999999999"`
+	Name         string     `json:"name,omitempty" example:"John Doe"`
+	Status       string     `json:"status,omitempty" example:"Hey there! I am using WhatsApp."`
+	PictureID    string     `json:"picture_id,omitempty" example:"1234567890"`
+	IsBusiness   bool       `json:"is_business" example:"false"`
+	VerifiedName string     `json:"verified_name,omitempty" example:"Company Name"`
+	IsContact    bool       `json:"is_contact" example:"true"`
 	LastSeen     *time.Time `json:"last_seen,omitempty" example:"2024-01-01T12:00:00Z"`
-	IsOnline     bool      `json:"is_online" example:"false"`
+	IsOnline     bool       `json:"is_online" example:"false"`
 }
 
 // GetUserInfoResponse represents the response for getting user information
@@ -144,11 +144,11 @@ type BusinessProfileResponse struct {
 
 // ContactStats represents statistics about contacts
 type ContactStats struct {
-	TotalContacts    int       `json:"total_contacts" example:"150"`
-	WhatsAppContacts int       `json:"whatsapp_contacts" example:"120"`
-	BusinessContacts int       `json:"business_contacts" example:"10"`
-	BlockedContacts  int       `json:"blocked_contacts" example:"2"`
-	SyncRate         float64   `json:"sync_rate" example:"0.8"`
+	TotalContacts    int        `json:"total_contacts" example:"150"`
+	WhatsAppContacts int        `json:"whatsapp_contacts" example:"120"`
+	BusinessContacts int        `json:"business_contacts" example:"10"`
+	BlockedContacts  int        `json:"blocked_contacts" example:"2"`
+	SyncRate         float64    `json:"sync_rate" example:"0.8"`
 	LastSyncAt       *time.Time `json:"last_sync_at,omitempty" example:"2024-01-01T12:00:00Z"`
 }
 

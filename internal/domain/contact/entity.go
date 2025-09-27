@@ -21,9 +21,9 @@ var (
 	ErrBusinessNotFound = errors.New("business profile not found")
 
 	// Technical errors
-	ErrSyncFailed      = errors.New("contact sync failed")
-	ErrAPIUnavailable  = errors.New("WhatsApp API unavailable")
-	ErrRateLimited     = errors.New("rate limited")
+	ErrSyncFailed       = errors.New("contact sync failed")
+	ErrAPIUnavailable   = errors.New("WhatsApp API unavailable")
+	ErrRateLimited      = errors.New("rate limited")
 	ErrPermissionDenied = errors.New("permission denied")
 )
 

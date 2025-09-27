@@ -1673,8 +1673,8 @@ func (c *WameowClient) IsOnWhatsApp(ctx context.Context, phoneNumbers []string) 
 	}
 
 	c.logger.InfoWithFields("Checking WhatsApp numbers", map[string]interface{}{
-		"session_id":   c.sessionID,
-		"phone_count":  len(phoneNumbers),
+		"session_id":  c.sessionID,
+		"phone_count": len(phoneNumbers),
 	})
 
 	// Use whatsmeow's IsOnWhatsApp method
@@ -1792,8 +1792,8 @@ func (c *WameowClient) GetUserInfo(ctx context.Context, jids []string) ([]map[st
 			"picture_id":    result.PictureID,
 			"is_business":   result.VerifiedName != nil,
 			"verified_name": getVerifiedNameString(result.VerifiedName),
-			"is_contact":    true, // Assume true if we have info
-			"last_seen":     nil,  // Not available in whatsmeow
+			"is_contact":    true,  // Assume true if we have info
+			"last_seen":     nil,   // Not available in whatsmeow
 			"is_online":     false, // Not available in whatsmeow
 		}
 		userInfos = append(userInfos, userInfo)

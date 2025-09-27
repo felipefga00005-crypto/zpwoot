@@ -364,8 +364,39 @@ func extractMessageIDFromFilename(filename string) string {
 }
 
 func extractMediaTypeFromFilename(filename string) string {
-	// This is a simplified implementation
-	return "unknown"
+	// Extract media type from filename extension
+	if len(filename) == 0 {
+		return "unknown"
+	}
+
+	// Find the last dot in the filename
+	lastDot := -1
+	for i := len(filename) - 1; i >= 0; i-- {
+		if filename[i] == '.' {
+			lastDot = i
+			break
+		}
+	}
+
+	if lastDot == -1 || lastDot == len(filename)-1 {
+		return "unknown"
+	}
+
+	ext := filename[lastDot+1:]
+
+	// Map common extensions to media types
+	switch ext {
+	case "jpg", "jpeg", "png", "gif", "webp":
+		return "image"
+	case "mp4", "avi", "mov", "mkv", "webm":
+		return "video"
+	case "mp3", "wav", "ogg", "m4a", "aac":
+		return "audio"
+	case "pdf", "doc", "docx", "txt", "xls", "xlsx":
+		return "document"
+	default:
+		return "unknown"
+	}
 }
 
 func extractMimeTypeFromFilename(filename string) string {

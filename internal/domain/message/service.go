@@ -82,13 +82,13 @@ func (mp *MediaProcessor) processBase64(data string) (*ProcessedMedia, error) {
 	}
 
 	if _, err := tempFile.Write(decoded); err != nil {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
+		_ = tempFile.Close()
+		_ = os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("failed to write data to temporary file: %w", err)
 	}
 
 	if err := tempFile.Close(); err != nil {
-		os.Remove(tempFile.Name())
+		_ = os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("failed to close temporary file: %w", err)
 	}
 
@@ -128,7 +128,13 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file from URL: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			mp.logger.WarnWithFields("Failed to close response body", map[string]interface{}{
+				"error": err.Error(),
+			})
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("failed to download file: HTTP %d", resp.StatusCode)
@@ -150,19 +156,19 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 
 	written, err := io.CopyN(tempFile, resp.Body, mp.maxSize+1)
 	if err != nil && err != io.EOF {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
+		_ = tempFile.Close()
+		_ = os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("failed to copy data to temporary file: %w", err)
 	}
 
 	if written > mp.maxSize {
-		tempFile.Close()
-		os.Remove(tempFile.Name())
+		_ = tempFile.Close()
+		_ = os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("file size exceeds maximum allowed size of %d bytes", mp.maxSize)
 	}
 
 	if err := tempFile.Close(); err != nil {
-		os.Remove(tempFile.Name())
+		_ = os.Remove(tempFile.Name())
 		return nil, fmt.Errorf("failed to close temporary file: %w", err)
 	}
 

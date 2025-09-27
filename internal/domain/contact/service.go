@@ -49,8 +49,8 @@ func (s *service) CheckWhatsApp(ctx context.Context, req *CheckWhatsAppRequest) 
 	}
 
 	s.logger.InfoWithFields("Checking WhatsApp numbers", map[string]interface{}{
-		"session_id":   req.SessionID,
-		"phone_count":  len(req.PhoneNumbers),
+		"session_id":  req.SessionID,
+		"phone_count": len(req.PhoneNumbers),
 	})
 
 	// Check with WhatsApp using real whatsmeow method

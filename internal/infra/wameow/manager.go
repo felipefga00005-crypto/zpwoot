@@ -468,15 +468,42 @@ func (m *Manager) RegisterEventHandler(sessionID string, handler ports.EventHand
 					To:   e.Info.Chat.String(),
 					Body: e.Message.GetConversation(),
 				}
-				handler.HandleMessage(sessionID, msg)
+				if err := handler.HandleMessage(sessionID, msg); err != nil {
+					m.logger.ErrorWithFields("Failed to handle message event", map[string]interface{}{
+						"session_id": sessionID,
+						"error":      err.Error(),
+					})
+				}
 			case *events.Connected:
-				handler.HandleConnection(sessionID, true)
+				if err := handler.HandleConnection(sessionID, true); err != nil {
+					m.logger.ErrorWithFields("Failed to handle connection event", map[string]interface{}{
+						"session_id": sessionID,
+						"connected":  true,
+						"error":      err.Error(),
+					})
+				}
 			case *events.Disconnected:
-				handler.HandleConnection(sessionID, false)
+				if err := handler.HandleConnection(sessionID, false); err != nil {
+					m.logger.ErrorWithFields("Failed to handle disconnection event", map[string]interface{}{
+						"session_id": sessionID,
+						"connected":  false,
+						"error":      err.Error(),
+					})
+				}
 			case *events.QR:
-				handler.HandleQRCode(sessionID, e.Codes[0])
+				if err := handler.HandleQRCode(sessionID, e.Codes[0]); err != nil {
+					m.logger.ErrorWithFields("Failed to handle QR code event", map[string]interface{}{
+						"session_id": sessionID,
+						"error":      err.Error(),
+					})
+				}
 			case *events.PairSuccess:
-				handler.HandlePairSuccess(sessionID)
+				if err := handler.HandlePairSuccess(sessionID); err != nil {
+					m.logger.ErrorWithFields("Failed to handle pair success event", map[string]interface{}{
+						"session_id": sessionID,
+						"error":      err.Error(),
+					})
+				}
 			}
 		})
 	}

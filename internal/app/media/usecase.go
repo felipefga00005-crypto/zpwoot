@@ -55,7 +55,13 @@ func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequ
 
 			// Update last access time
 			cached.LastAccess = time.Now()
-			uc.mediaRepo.UpdateCachedMedia(ctx, cached)
+			if err := uc.mediaRepo.UpdateCachedMedia(ctx, cached); err != nil {
+				uc.logger.WarnWithFields("Failed to update cached media access time", map[string]interface{}{
+					"session_id": req.SessionID,
+					"message_id": req.MessageID,
+					"error":      err.Error(),
+				})
+			}
 
 			// Read cached file
 			data, err := uc.mediaService.ReadCachedFile(ctx, cached.FilePath)

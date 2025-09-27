@@ -35,8 +35,8 @@ func NewUseCase(contactService contact.Service, logger *logger.Logger) UseCase {
 // CheckWhatsApp checks if phone numbers are registered on WhatsApp
 func (uc *useCaseImpl) CheckWhatsApp(ctx context.Context, req *CheckWhatsAppRequest) (*CheckWhatsAppResponse, error) {
 	uc.logger.InfoWithFields("Checking WhatsApp numbers", map[string]interface{}{
-		"session_id":   req.SessionID,
-		"phone_count":  len(req.PhoneNumbers),
+		"session_id":  req.SessionID,
+		"phone_count": len(req.PhoneNumbers),
 	})
 
 	domainReq := &contact.CheckWhatsAppRequest{
