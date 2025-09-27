@@ -1484,10 +1484,10 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoWithFields("Sending poll", map[string]interface{}{
-		"session_id":      sess.ID.String(),
-		"to":              pollReq.To,
-		"name":            pollReq.Name,
-		"options_count":   len(pollReq.Options),
+		"session_id":       sess.ID.String(),
+		"to":               pollReq.To,
+		"name":             pollReq.Name,
+		"options_count":    len(pollReq.Options),
 		"selectable_count": pollReq.SelectableOptionCount,
 	})
 
@@ -1531,6 +1531,153 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 	return c.JSON(common.NewSuccessResponse(response, "Poll sent successfully"))
 }
 
+// @Summary Revoke message
+// @Description Revoke (delete for everyone) a previously sent message
+// @Tags Messages
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param request body message.RevokeMessageRequest true "Revoke message request"
+// @Success 200 {object} common.SuccessResponse{data=message.RevokeMessageResponse} "Message revoked successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/messages/revoke [post]
+func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var req message.RevokeMessageRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.Error("Failed to parse revoke message request: " + err.Error())
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+	}
+
+	// Validate request
+	if req.MessageID == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Message ID is required"))
+	}
+
+	if req.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("To field is required"))
+	}
+
+	h.logger.InfoWithFields("Revoking message", map[string]interface{}{
+		"session":    sessionIdentifier,
+		"message_id": req.MessageID,
+		"to":         req.To,
+	})
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		h.logger.WarnWithFields("Failed to resolve session", map[string]interface{}{
+			"identifier": sessionIdentifier,
+			"error":      err.Error(),
+		})
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Set session ID in request
+	req.SessionID = sess.ID.String()
+
+	// Revoke message using use case
+	response, err := h.messageUC.RevokeMessage(c.Context(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to revoke message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"message_id": req.MessageID,
+			"to":         req.To,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not found") {
+			return c.Status(404).JSON(common.NewErrorResponse("Message not found"))
+		}
+		if strings.Contains(err.Error(), "too old") {
+			return c.Status(400).JSON(common.NewErrorResponse("Message is too old to be revoked"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to revoke message"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Message revoked successfully"))
+}
+
+// @Summary Get poll results
+// @Description Get voting results for a poll message
+// @Tags Messages
+// @Security ApiKeyAuth
+// @Produce json
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param messageId path string true "Poll Message ID" example("3EB0C431C26A1916E07E")
+// @Param chatJid query string true "Chat JID where the poll was sent" example("5511999999999@s.whatsapp.net"
+// @Success 200 {object} common.SuccessResponse{data=message.PollResultsResponse} "Poll results retrieved successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session or poll not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/messages/poll/{messageId}/results [get]
+func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	messageID := c.Params("messageId")
+	if messageID == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Message ID is required"))
+	}
+
+	chatJID := c.Query("chatJid")
+	if chatJID == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Chat JID is required"))
+	}
+
+	h.logger.InfoWithFields("Getting poll results", map[string]interface{}{
+		"session":    sessionIdentifier,
+		"message_id": messageID,
+		"chat_jid":   chatJID,
+	})
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		h.logger.WarnWithFields("Failed to resolve session", map[string]interface{}{
+			"identifier": sessionIdentifier,
+			"error":      err.Error(),
+		})
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Create request
+	req := &message.GetPollResultsRequest{
+		To:            chatJID,
+		PollMessageID: messageID,
+	}
+
+	// Get poll results using use case
+	response, err := h.messageUC.GetPollResults(c.Context(), req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to get poll results", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"message_id": messageID,
+			"chat_jid":   chatJID,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not found") {
+			return c.Status(404).JSON(common.NewErrorResponse("Poll not found"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to get poll results"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Poll results retrieved successfully"))
+}
+
 // capitalizeFirst capitalizes the first letter of a string
 func capitalizeFirst(s string) string {
 	if len(s) == 0 {
@@ -1538,5 +1685,3 @@ func capitalizeFirst(s string) string {
 	}
 	return strings.ToUpper(s[:1]) + s[1:]
 }
-
-

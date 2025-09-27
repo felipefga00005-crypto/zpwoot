@@ -1622,6 +1622,243 @@ func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, 
 	return nil
 }
 
+// RevokeMessage revokes a message using whatsmeow's BuildRevoke method
+func (c *WameowClient) RevokeMessage(ctx context.Context, to, messageID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return fmt.Errorf("invalid JID: %w", err)
+	}
+
+	if messageID == "" {
+		return fmt.Errorf("message ID is required")
+	}
+
+	c.logger.InfoWithFields("Revoking message", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": messageID,
+	})
+
+	// Use whatsmeow's BuildRevoke method to create a revoke message
+	message := c.client.BuildRevoke(jid, jid, messageID)
+
+	_, err = c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to revoke message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"message_id": messageID,
+			"error":      err.Error(),
+		})
+		return err
+	}
+
+	c.logger.InfoWithFields("Message revoked successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": messageID,
+	})
+
+	return nil
+}
+
+// IsOnWhatsApp checks if phone numbers are registered on WhatsApp
+func (c *WameowClient) IsOnWhatsApp(ctx context.Context, phoneNumbers []string) (map[string]interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Checking WhatsApp numbers", map[string]interface{}{
+		"session_id":   c.sessionID,
+		"phone_count":  len(phoneNumbers),
+	})
+
+	// Use whatsmeow's IsOnWhatsApp method
+	results, err := c.client.IsOnWhatsApp(phoneNumbers)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to check WhatsApp numbers", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Convert results to map[string]interface{} for compatibility
+	resultMap := make(map[string]interface{})
+	for _, result := range results {
+		resultMap[result.Query] = map[string]interface{}{
+			"phone_number":   result.Query,
+			"is_on_whatsapp": result.IsIn,
+			"jid":            result.JID.String(),
+			"is_business":    result.VerifiedName != nil,
+			"verified_name":  getVerifiedNameString(result.VerifiedName),
+		}
+	}
+
+	return resultMap, nil
+}
+
+// GetProfilePictureInfo gets profile picture information for a contact
+func (c *WameowClient) GetProfilePictureInfo(ctx context.Context, jid string, preview bool) (map[string]interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting profile picture info", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"preview":    preview,
+	})
+
+	// Use whatsmeow's GetProfilePictureInfo method
+	var params *whatsmeow.GetProfilePictureParams
+	if preview {
+		params = &whatsmeow.GetProfilePictureParams{
+			Preview: true,
+		}
+	}
+
+	result, err := c.client.GetProfilePictureInfo(parsedJID, params)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get profile picture info", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Convert result to map for compatibility
+	return map[string]interface{}{
+		"jid":         jid,
+		"url":         result.URL,
+		"id":          result.ID,
+		"type":        result.Type,
+		"direct_path": result.DirectPath,
+		"updated_at":  time.Now(),
+		"has_picture": result.URL != "",
+	}, nil
+}
+
+// GetUserInfo gets detailed information about WhatsApp users
+func (c *WameowClient) GetUserInfo(ctx context.Context, jids []string) ([]map[string]interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Getting user info", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid_count":  len(jids),
+	})
+
+	// Parse JIDs
+	parsedJIDs := make([]types.JID, len(jids))
+	for i, jid := range jids {
+		parsedJID, err := c.parseJID(jid)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JID %s: %w", jid, err)
+		}
+		parsedJIDs[i] = parsedJID
+	}
+
+	// Use whatsmeow's GetUserInfo method
+	results, err := c.client.GetUserInfo(parsedJIDs)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get user info", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Convert results to slice of maps for compatibility
+	// Note: results is a map[types.JID]types.UserInfo, not a slice
+	userInfos := make([]map[string]interface{}, 0, len(results))
+	for jid, result := range results {
+		userInfo := map[string]interface{}{
+			"jid":           jid.String(),
+			"phone_number":  jid.User,
+			"name":          "", // Not available in UserInfo
+			"status":        result.Status,
+			"picture_id":    result.PictureID,
+			"is_business":   result.VerifiedName != nil,
+			"verified_name": getVerifiedNameString(result.VerifiedName),
+			"is_contact":    true, // Assume true if we have info
+			"last_seen":     nil,  // Not available in whatsmeow
+			"is_online":     false, // Not available in whatsmeow
+		}
+		userInfos = append(userInfos, userInfo)
+	}
+
+	return userInfos, nil
+}
+
+// GetBusinessProfile gets business profile information
+func (c *WameowClient) GetBusinessProfile(ctx context.Context, jid string) (map[string]interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting business profile", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	// Use whatsmeow's GetBusinessProfile method
+	result, err := c.client.GetBusinessProfile(parsedJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get business profile", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Convert result to map for compatibility
+	// BusinessProfile fields: JID, Address, Email, Categories, ProfileOptions, BusinessHoursTimeZone, BusinessHours
+	return map[string]interface{}{
+		"jid":         jid,
+		"name":        "", // Not available in BusinessProfile
+		"category":    getCategoriesString(result.Categories),
+		"description": "", // Not available in BusinessProfile
+		"website":     "", // Not available in BusinessProfile
+		"email":       result.Email,
+		"address":     result.Address,
+		"verified":    len(result.Categories) > 0, // Assume verified if has categories
+	}, nil
+}
+
+// Helper function to extract verified name string
+func getVerifiedNameString(verifiedName *types.VerifiedName) string {
+	if verifiedName == nil || verifiedName.Details == nil {
+		return ""
+	}
+	return verifiedName.Details.GetVerifiedName()
+}
+
+// Helper function to extract categories string
+func getCategoriesString(categories []types.Category) string {
+	if len(categories) == 0 {
+		return ""
+	}
+	return categories[0].Name // Return first category name
+}
+
 func (c *WameowClient) MarkRead(ctx context.Context, to, messageID string) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
@@ -2262,6 +2499,47 @@ func (c *WameowClient) SetGroupPhoto(ctx context.Context, groupJID, photoPath st
 	})
 
 	return nil
+}
+
+// DownloadMedia downloads media from a WhatsApp message
+func (c *WameowClient) DownloadMedia(ctx context.Context, messageID string, mediaType string) ([]byte, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if messageID == "" {
+		return nil, fmt.Errorf("message ID is required")
+	}
+
+	c.logger.InfoWithFields("Downloading media", map[string]interface{}{
+		"session_id": c.sessionID,
+		"message_id": messageID,
+		"media_type": mediaType,
+	})
+
+	// Note: This is a simplified implementation
+	// In a real implementation, you would need to:
+	// 1. Get the message by ID from the store
+	// 2. Extract the media info from the message
+	// 3. Use client.Download() with the media info
+
+	// For now, return an error indicating the feature needs message context
+	return nil, fmt.Errorf("download media requires message context - feature needs enhancement")
+}
+
+// DownloadMediaFromMessage downloads media from a specific message object
+func (c *WameowClient) DownloadMediaFromMessage(ctx context.Context, msg interface{}) ([]byte, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Downloading media from message", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	// Note: This would need proper message type handling
+	// The actual implementation would depend on the whatsmeow message structure
+	return nil, fmt.Errorf("download media from message not fully implemented - requires whatsmeow message handling")
 }
 
 // SetGroupPhotoFromBytes sets a group's photo from byte data

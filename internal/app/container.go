@@ -147,6 +147,16 @@ func (c *Container) GetGroupUseCase() group.UseCase {
 	return c.GroupUseCase
 }
 
+func (c *Container) GetMediaUseCase() message.UseCase {
+	return c.MessageUseCase
+}
+
+func (c *Container) GetContactUseCase() message.UseCase {
+	// Contact functionality is handled by MessageUseCase for now
+	// TODO: Implement proper contact domain and use case
+	return c.MessageUseCase
+}
+
 func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowManager, error) {
 	return func(sessionID string) (ports.WameowManager, error) {
 		return nil, fmt.Errorf("session resolver not properly implemented")

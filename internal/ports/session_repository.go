@@ -75,6 +75,9 @@ type WameowManager interface {
 
 	MarkRead(sessionID, to, messageID string) error
 
+	// Advanced message operations
+	RevokeMessage(sessionID, to, messageID string) (*message.SendResult, error)
+
 	// Group management methods
 	CreateGroup(sessionID, name string, participants []string, description string) (*GroupInfo, error)
 

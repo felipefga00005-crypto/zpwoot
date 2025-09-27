@@ -218,10 +218,42 @@ type PresenceMessageRequest struct {
 } //@name PresenceMessageRequest
 
 type EditMessageRequest struct {
+	SessionID string `json:"sessionId" validate:"required" example:"mySession"`
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	NewBody   string `json:"newBody" validate:"required" example:"Updated message text"`
 } //@name EditMessageRequest
+
+type EditMessageResponse struct {
+	ID        string    `json:"id" example:"3EB0C767D71D"`
+	Status    string    `json:"status" example:"edited"`
+	NewBody   string    `json:"newBody" example:"Updated message text"`
+	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+} //@name EditMessageResponse
+
+type RevokeMessageRequest struct {
+	SessionID string `json:"sessionId" validate:"required" example:"mySession"`
+	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
+} //@name RevokeMessageRequest
+
+type RevokeMessageResponse struct {
+	ID        string    `json:"id" example:"3EB0C767D71D"`
+	Status    string    `json:"status" example:"revoked"`
+	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+} //@name RevokeMessageResponse
+
+type MarkAsReadRequest struct {
+	SessionID  string   `json:"sessionId" validate:"required" example:"mySession"`
+	To         string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	MessageIDs []string `json:"messageIds" validate:"required,min=1" example:"3EB0C767D71D,3EB0C767D71E"`
+} //@name MarkAsReadRequest
+
+type MarkAsReadResponse struct {
+	MessageIDs []string  `json:"messageIds" example:"3EB0C767D71D,3EB0C767D71E"`
+	Status     string    `json:"status" example:"read"`
+	Timestamp  time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+} //@name MarkAsReadResponse
 
 type DeleteMessageRequest struct {
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
@@ -288,21 +320,21 @@ type ContextInfo struct {
 
 // CreatePollRequest represents a request to create a poll
 type CreatePollRequest struct {
-	To                     string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	Name                   string   `json:"name" validate:"required,min=1,max=100" example:"What's your favorite color?"`
-	Options                []string `json:"options" validate:"required,min=2,max=12,dive,required,min=1,max=100" example:"Red,Blue,Green"`
-	SelectableOptionCount  int      `json:"selectableOptionCount" validate:"min=1" example:"1"`
-	AllowMultipleAnswers   bool     `json:"allowMultipleAnswers" example:"false"`
+	To                    string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	Name                  string   `json:"name" validate:"required,min=1,max=100" example:"What's your favorite color?"`
+	Options               []string `json:"options" validate:"required,min=2,max=12,dive,required,min=1,max=100" example:"Red,Blue,Green"`
+	SelectableOptionCount int      `json:"selectableOptionCount" validate:"min=1" example:"1"`
+	AllowMultipleAnswers  bool     `json:"allowMultipleAnswers" example:"false"`
 } //@name CreatePollRequest
 
 // CreatePollResponse represents the response after creating a poll
 type CreatePollResponse struct {
-	MessageID   string    `json:"messageId" example:"3EB0C767D71D"`
-	PollName    string    `json:"pollName" example:"What's your favorite color?"`
-	Options     []string  `json:"options" example:"Red,Blue,Green"`
-	To          string    `json:"to" example:"5511999999999@s.whatsapp.net"`
-	Status      string    `json:"status" example:"sent"`
-	Timestamp   time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
+	MessageID string    `json:"messageId" example:"3EB0C767D71D"`
+	PollName  string    `json:"pollName" example:"What's your favorite color?"`
+	Options   []string  `json:"options" example:"Red,Blue,Green"`
+	To        string    `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Status    string    `json:"status" example:"sent"`
+	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name CreatePollResponse
 
 // VotePollRequest represents a request to vote in a poll

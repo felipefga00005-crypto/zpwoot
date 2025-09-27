@@ -713,6 +713,33 @@ func (m *Manager) MarkRead(sessionID, to, messageID string) error {
 	return client.MarkRead(ctx, to, messageID)
 }
 
+// RevokeMessage revokes a message using whatsmeow's RevokeMessage method
+func (m *Manager) RevokeMessage(sessionID, to, messageID string) (*message.SendResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	err := client.RevokeMessage(ctx, to, messageID)
+	if err != nil {
+		return &message.SendResult{
+			Status:    "failed",
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		}, err
+	}
+
+	return &message.SendResult{
+		MessageID: messageID,
+		Status:    "revoked",
+		Timestamp: time.Now(),
+	}, nil
+}
+
 // Group management methods
 func (m *Manager) CreateGroup(sessionID, name string, participants []string, description string) (*ports.GroupInfo, error) {
 	client := m.getClient(sessionID)

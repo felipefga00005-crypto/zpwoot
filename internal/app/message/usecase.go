@@ -3,6 +3,7 @@ package message
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"zpwoot/internal/domain/message"
 	"zpwoot/internal/ports"
@@ -11,6 +12,10 @@ import (
 
 type UseCase interface {
 	SendMessage(ctx context.Context, sessionID string, req *SendMessageRequest) (*SendMessageResponse, error)
+	GetPollResults(ctx context.Context, req *GetPollResultsRequest) (*GetPollResultsResponse, error)
+	RevokeMessage(ctx context.Context, req *RevokeMessageRequest) (*RevokeMessageResponse, error)
+	EditMessage(ctx context.Context, req *EditMessageRequest) (*EditMessageResponse, error)
+	MarkAsRead(ctx context.Context, req *MarkAsReadRequest) (*MarkAsReadResponse, error)
 }
 
 type useCaseImpl struct {
@@ -139,4 +144,98 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 	}
 
 	return response, nil
+}
+
+// GetPollResults retrieves poll results for a specific poll message
+func (uc *useCaseImpl) GetPollResults(ctx context.Context, req *GetPollResultsRequest) (*GetPollResultsResponse, error) {
+	uc.logger.InfoWithFields("Getting poll results", map[string]interface{}{
+		"to":              req.To,
+		"poll_message_id": req.PollMessageID,
+	})
+
+	// Note: whatsmeow doesn't have a direct GetPollResults method
+	// Poll results are typically collected via events (DecryptPollVote)
+	// This is a placeholder implementation that would need to be enhanced
+	// with actual poll vote collection from events
+
+	return &GetPollResultsResponse{
+		PollMessageID:         req.PollMessageID,
+		PollName:              "Poll results not yet implemented",
+		Options:               []PollOption{},
+		TotalVotes:            0,
+		SelectableOptionCount: 1,
+		AllowMultipleAnswers:  false,
+		To:                    req.To,
+	}, fmt.Errorf("poll results collection not yet implemented - requires event handling")
+}
+
+// RevokeMessage revokes a message using whatsmeow's RevokeMessage method
+func (uc *useCaseImpl) RevokeMessage(ctx context.Context, req *RevokeMessageRequest) (*RevokeMessageResponse, error) {
+	uc.logger.InfoWithFields("Revoking message", map[string]interface{}{
+		"to":         req.To,
+		"message_id": req.MessageID,
+	})
+
+	// Use whatsmeow's RevokeMessage method
+	result, err := uc.wameowManager.RevokeMessage(req.SessionID, req.To, req.MessageID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to revoke message: %w", err)
+	}
+
+	return &RevokeMessageResponse{
+		ID:        result.MessageID,
+		Status:    "revoked",
+		Timestamp: result.Timestamp,
+	}, nil
+}
+
+// EditMessage edits a message using whatsmeow's BuildEdit method
+func (uc *useCaseImpl) EditMessage(ctx context.Context, req *EditMessageRequest) (*EditMessageResponse, error) {
+	uc.logger.InfoWithFields("Editing message", map[string]interface{}{
+		"to":         req.To,
+		"message_id": req.MessageID,
+		"new_body":   req.NewBody,
+	})
+
+	// Use whatsmeow's BuildEdit method
+	err := uc.wameowManager.EditMessage(req.SessionID, req.To, req.MessageID, req.NewBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to edit message: %w", err)
+	}
+
+	return &EditMessageResponse{
+		ID:        req.MessageID,
+		Status:    "edited",
+		NewBody:   req.NewBody,
+		Timestamp: time.Now(),
+	}, nil
+}
+
+// MarkAsRead marks messages as read using whatsmeow's MarkRead method
+func (uc *useCaseImpl) MarkAsRead(ctx context.Context, req *MarkAsReadRequest) (*MarkAsReadResponse, error) {
+	uc.logger.InfoWithFields("Marking messages as read", map[string]interface{}{
+		"to":          req.To,
+		"message_ids": req.MessageIDs,
+	})
+
+	// Use whatsmeow's MarkRead method (currently supports single message)
+	// For multiple messages, we'll mark each one individually
+	for _, messageID := range req.MessageIDs {
+		err := uc.wameowManager.MarkRead(req.SessionID, req.To, messageID)
+		if err != nil {
+			uc.logger.WarnWithFields("Failed to mark message as read", map[string]interface{}{
+				"session_id": req.SessionID,
+				"to":         req.To,
+				"message_id": messageID,
+				"error":      err.Error(),
+			})
+			// Continue with other messages even if one fails
+		}
+	}
+
+	return &MarkAsReadResponse{
+		MessageIDs: req.MessageIDs,
+		Status:     "read",
+		Timestamp:  time.Now(),
+	}, nil
 }
