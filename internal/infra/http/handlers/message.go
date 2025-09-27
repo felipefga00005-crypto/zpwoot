@@ -531,6 +531,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 		0,
 		contactReq.ContactName,
 		contactReq.ContactPhone,
+		nil,
 	)
 
 	if err != nil {

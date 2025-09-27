@@ -526,9 +526,10 @@ func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, capti
 	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeVideo, options)
 }
 
-func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, filename string) (*whatsmeow.SendResponse, error) {
+func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, filename, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
 	options := MediaOptions{
 		Filename: filename,
+		Caption:  caption,
 		MimeType: "application/octet-stream",
 	}
 	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeDocument, options)

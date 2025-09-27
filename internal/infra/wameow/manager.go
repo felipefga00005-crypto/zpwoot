@@ -573,55 +573,7 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 	return nil
 }
 
-func (m *Manager) SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string) (*message.SendResult, error) {
-	client := m.getClient(sessionID)
-	if client == nil {
-		return nil, fmt.Errorf("session %s not found", sessionID)
-	}
 
-	if !client.IsLoggedIn() {
-		return nil, fmt.Errorf("session %s is not logged in", sessionID)
-	}
-
-	ctx := context.Background()
-	var resp *whatsmeow.SendResponse
-	var err error
-
-	switch messageType {
-	case "text":
-		resp, err = client.SendTextMessage(ctx, to, body)
-	case "image":
-		resp, err = client.SendImageMessage(ctx, to, file, caption)
-	case "audio":
-		resp, err = client.SendAudioMessage(ctx, to, file)
-	case "video":
-		resp, err = client.SendVideoMessage(ctx, to, file, caption)
-	case "document":
-		resp, err = client.SendDocumentMessage(ctx, to, file, filename)
-	case "location":
-		resp, err = client.SendLocationMessage(ctx, to, latitude, longitude, body)
-	case "contact":
-		resp, err = client.SendContactMessage(ctx, to, contactName, contactPhone)
-	case "sticker":
-		resp, err = client.SendStickerMessage(ctx, to, file)
-	default:
-		return nil, fmt.Errorf("unsupported message type: %s", messageType)
-	}
-
-	if err != nil {
-		return &message.SendResult{
-			Status:    "failed",
-			Error:     err.Error(),
-			Timestamp: time.Now(),
-		}, err
-	}
-
-	return &message.SendResult{
-		MessageID: resp.ID,
-		Status:    "sent",
-		Timestamp: resp.Timestamp,
-	}, nil
-}
 
 func (m *Manager) SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
