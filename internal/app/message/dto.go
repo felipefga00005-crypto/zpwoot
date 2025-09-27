@@ -32,7 +32,7 @@ type SendMessageResponse struct {
 
 func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 	return &SendMessageRequest{
-		To:           req.To,
+		Phone:        req.To,
 		Type:         string(req.Type),
 		Body:         req.Body,
 		Caption:      req.Caption,
@@ -57,7 +57,7 @@ func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 	}
 
 	return &message.SendMessageRequest{
-		To:           r.To,
+		To:           r.Phone,
 		Type:         message.MessageType(r.Type),
 		Body:         r.Body,
 		Caption:      r.Caption,
@@ -346,7 +346,7 @@ type VotePollResponse struct {
 
 // GetPollResultsRequest represents a request to get poll results
 type GetPollResultsRequest struct {
-	To            string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	Phone         string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	PollMessageID string `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
 } //@name GetPollResultsRequest
 
