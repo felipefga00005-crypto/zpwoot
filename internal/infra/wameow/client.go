@@ -18,7 +18,6 @@ import (
 	waTypes "go.mau.fi/whatsmeow/types"
 )
 
-// WameowClient wraps whatsmeow.Client with additional functionality
 type WameowClient struct {
 	sessionID   string
 	client      *whatsmeow.Client
@@ -39,14 +38,12 @@ type WameowClient struct {
 	qrStopChannel chan bool
 }
 
-// NewWameowClient creates a new WameowClient
 func NewWameowClient(
 	sessionID string,
 	container *sqlstore.Container,
 	sessionRepo ports.SessionRepository,
 	logger *logger.Logger,
 ) (*WameowClient, error) {
-	// Get session from repository to check for existing deviceJid
 	ctx := context.Background()
 	sess, err := sessionRepo.GetByID(ctx, sessionID)
 	var deviceJid string
@@ -62,16 +59,13 @@ func NewWameowClient(
 		})
 	}
 
-	// Get device store for session with the correct deviceJid
 	deviceStore := GetDeviceStoreForSession(sessionID, deviceJid, container)
 	if deviceStore == nil {
 		return nil, fmt.Errorf("failed to create device store for session %s", sessionID)
 	}
 
-	// Create whatsmeow logger
 	waLogger := NewWameowLogger(logger)
 
-	// Create whatsmeow client
 	client := whatsmeow.NewClient(deviceStore, waLogger)
 	if client == nil {
 		return nil, fmt.Errorf("failed to create WhatsApp client for session %s", sessionID)
@@ -95,7 +89,6 @@ func NewWameowClient(
 	return wameowClient, nil
 }
 
-// Connect starts the connection process
 func (c *WameowClient) Connect() error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -104,10 +97,8 @@ func (c *WameowClient) Connect() error {
 		"session_id": c.sessionID,
 	})
 
-	// Always stop any existing QR loop first
 	c.stopQRLoop()
 
-	// If client is connected, disconnect first to restart the process
 	if c.client.IsConnected() {
 		c.logger.InfoWithFields("Client already connected, disconnecting to restart", map[string]interface{}{
 			"session_id": c.sessionID,
@@ -115,7 +106,6 @@ func (c *WameowClient) Connect() error {
 		c.client.Disconnect()
 	}
 
-	// Cancel any existing context and create a new one
 	if c.cancel != nil {
 		c.cancel()
 	}
@@ -123,13 +113,11 @@ func (c *WameowClient) Connect() error {
 
 	c.setStatus("connecting")
 
-	// Start connection process in background
 	go c.startClientLoop()
 
 	return nil
 }
 
-// Disconnect stops the connection
 func (c *WameowClient) Disconnect() error {
 	c.logger.InfoWithFields("Disconnecting client", map[string]interface{}{
 		"session_id": c.sessionID,
@@ -152,19 +140,16 @@ func (c *WameowClient) Disconnect() error {
 	return nil
 }
 
-// IsConnected returns connection status
 func (c *WameowClient) IsConnected() bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	return c.client.IsConnected()
 }
 
-// IsLoggedIn returns login status
 func (c *WameowClient) IsLoggedIn() bool {
 	return c.client.IsLoggedIn()
 }
 
-// GetQRCode returns the current QR code
 func (c *WameowClient) GetQRCode() (string, error) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -176,12 +161,10 @@ func (c *WameowClient) GetQRCode() (string, error) {
 	return c.qrCode, nil
 }
 
-// GetClient returns the underlying whatsmeow client
 func (c *WameowClient) GetClient() *whatsmeow.Client {
 	return c.client
 }
 
-// GetJID returns the device JID
 func (c *WameowClient) GetJID() waTypes.JID {
 	if c.client.Store.ID == nil {
 		return waTypes.EmptyJID
@@ -189,7 +172,6 @@ func (c *WameowClient) GetJID() waTypes.JID {
 	return *c.client.Store.ID
 }
 
-// setStatus sets the internal status
 func (c *WameowClient) setStatus(status string) {
 	c.status = status
 	c.lastActivity = time.Now()
@@ -198,7 +180,6 @@ func (c *WameowClient) setStatus(status string) {
 		"status":     status,
 	})
 
-	// Update database when status changes to connected or disconnected
 	switch status {
 	case "connected":
 		c.sessionMgr.UpdateConnectionStatus(c.sessionID, true)
@@ -207,7 +188,6 @@ func (c *WameowClient) setStatus(status string) {
 	}
 }
 
-// startClientLoop handles the connection logic
 func (c *WameowClient) startClientLoop() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -231,7 +211,6 @@ func (c *WameowClient) startClientLoop() {
 	}
 }
 
-// handleNewDeviceRegistration handles QR code generation for new devices
 func (c *WameowClient) handleNewDeviceRegistration() {
 	qrChan, err := c.client.GetQRChannel(context.Background())
 	if err != nil {
@@ -256,7 +235,6 @@ func (c *WameowClient) handleNewDeviceRegistration() {
 	c.handleQRLoop(qrChan)
 }
 
-// handleExistingDeviceConnection handles connection for registered devices
 func (c *WameowClient) handleExistingDeviceConnection() {
 	err := c.client.Connect()
 	if err != nil {
@@ -283,7 +261,6 @@ func (c *WameowClient) handleExistingDeviceConnection() {
 	}
 }
 
-// handleQRLoop handles QR code events
 func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 	if qrChan == nil {
 		c.logger.ErrorWithFields("QR channel is nil", map[string]interface{}{
@@ -340,7 +317,6 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 				}
 				c.mu.Unlock()
 
-				// Display compact QR code in terminal (only once)
 				if c.qrGenerator != nil {
 					c.qrGenerator.DisplayQRCodeInTerminal(evt.Code, c.sessionID)
 				}
@@ -354,7 +330,6 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 				c.logger.InfoWithFields("QR code scanned successfully", map[string]interface{}{
 					"session_id": c.sessionID,
 				})
-				// Clear QR code from client memory
 				c.mu.Lock()
 				c.qrCode = ""
 				c.qrCodeBase64 = ""
@@ -383,7 +358,6 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 	}
 }
 
-// stopQRLoop stops the QR code loop
 func (c *WameowClient) stopQRLoop() {
 	if c.qrLoopActive {
 		c.logger.InfoWithFields("Stopping existing QR loop", map[string]interface{}{
@@ -399,12 +373,10 @@ func (c *WameowClient) stopQRLoop() {
 				"session_id": c.sessionID,
 			})
 		}
-		// Wait a bit for the loop to stop
 		time.Sleep(100 * time.Millisecond)
 	}
 }
 
-// Logout logs out the session
 func (c *WameowClient) Logout() error {
 	c.logger.InfoWithFields("Logging out session", map[string]interface{}{
 		"session_id": c.sessionID,
@@ -430,7 +402,6 @@ func (c *WameowClient) Logout() error {
 	return nil
 }
 
-// SendTextMessage sends a text message
 func (c *WameowClient) SendTextMessage(ctx context.Context, to, body string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -470,7 +441,6 @@ func (c *WameowClient) SendTextMessage(ctx context.Context, to, body string) (*w
 	return &resp, nil
 }
 
-// SendImageMessage sends an image message
 func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -481,19 +451,16 @@ func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, capti
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read image file: %w", err)
 	}
 
-	// Upload media
 	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaImage)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload image: %w", err)
 	}
 
-	// Create image message
 	mimetype := "image/jpeg" // Default mimetype
 	message := &waE2E.Message{
 		ImageMessage: &waE2E.ImageMessage{
@@ -534,7 +501,6 @@ func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, capti
 	return &resp, nil
 }
 
-// SendAudioMessage sends an audio message
 func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -545,19 +511,16 @@ func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read audio file: %w", err)
 	}
 
-	// Upload media
 	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaAudio)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload audio: %w", err)
 	}
 
-	// Create audio message
 	mimetype := "audio/ogg; codecs=opus" // Default mimetype
 	message := &waE2E.Message{
 		AudioMessage: &waE2E.AudioMessage{
@@ -596,7 +559,6 @@ func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string
 	return &resp, nil
 }
 
-// SendVideoMessage sends a video message
 func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -607,19 +569,16 @@ func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, capti
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read video file: %w", err)
 	}
 
-	// Upload media
 	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaVideo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload video: %w", err)
 	}
 
-	// Create video message
 	mimetype := "video/mp4" // Default mimetype
 	message := &waE2E.Message{
 		VideoMessage: &waE2E.VideoMessage{
@@ -660,7 +619,6 @@ func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, capti
 	return &resp, nil
 }
 
-// SendDocumentMessage sends a document message
 func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, filename string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -671,19 +629,16 @@ func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, fi
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read document file: %w", err)
 	}
 
-	// Upload media
 	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaDocument)
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload document: %w", err)
 	}
 
-	// Create document message
 	mimetype := "application/octet-stream" // Default mimetype
 	message := &waE2E.Message{
 		DocumentMessage: &waE2E.DocumentMessage{
@@ -725,7 +680,6 @@ func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, fi
 	return &resp, nil
 }
 
-// SendLocationMessage sends a location message
 func (c *WameowClient) SendLocationMessage(ctx context.Context, to string, latitude, longitude float64, address string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -736,7 +690,6 @@ func (c *WameowClient) SendLocationMessage(ctx context.Context, to string, latit
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Create location message
 	message := &waE2E.Message{
 		LocationMessage: &waE2E.LocationMessage{
 			DegreesLatitude:  &latitude,
@@ -772,7 +725,6 @@ func (c *WameowClient) SendLocationMessage(ctx context.Context, to string, latit
 	return &resp, nil
 }
 
-// SendContactMessage sends a contact message
 func (c *WameowClient) SendContactMessage(ctx context.Context, to, contactName, contactPhone string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -783,10 +735,8 @@ func (c *WameowClient) SendContactMessage(ctx context.Context, to, contactName, 
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Create vCard
 	vcard := fmt.Sprintf("BEGIN:VCARD\nVERSION:3.0\nFN:%s\nTEL:%s\nEND:VCARD", contactName, contactPhone)
 
-	// Create contact message
 	message := &waE2E.Message{
 		ContactMessage: &waE2E.ContactMessage{
 			DisplayName: &contactName,
@@ -820,7 +770,6 @@ func (c *WameowClient) SendContactMessage(ctx context.Context, to, contactName, 
 	return &resp, nil
 }
 
-// ContactInfo represents detailed contact information for vCard
 type ContactInfo struct {
 	Name         string
 	Phone        string
@@ -831,7 +780,6 @@ type ContactInfo struct {
 	Address      string
 }
 
-// SendDetailedContactMessage sends a contact message with detailed information
 func (c *WameowClient) SendDetailedContactMessage(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -842,7 +790,6 @@ func (c *WameowClient) SendDetailedContactMessage(ctx context.Context, to string
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Create detailed vCard
 	vcard := fmt.Sprintf("BEGIN:VCARD\nVERSION:3.0\nFN:%s\nTEL:%s", contact.Name, contact.Phone)
 
 	if contact.Email != "" {
@@ -863,7 +810,6 @@ func (c *WameowClient) SendDetailedContactMessage(ctx context.Context, to string
 
 	vcard += "\nEND:VCARD"
 
-	// Create contact message
 	message := &waE2E.Message{
 		ContactMessage: &waE2E.ContactMessage{
 			DisplayName: &contact.Name,
@@ -899,7 +845,6 @@ func (c *WameowClient) SendDetailedContactMessage(ctx context.Context, to string
 	return &resp, nil
 }
 
-// SendContactListMessage sends multiple contacts using ContactsArrayMessage (like WhatsApp native)
 func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, contacts []ContactInfo) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -914,30 +859,24 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 		return nil, fmt.Errorf("at least one contact is required")
 	}
 
-	// Create display name for the contact list
 	displayName := fmt.Sprintf("%d contatos", len(contacts))
 	if len(contacts) == 1 {
 		displayName = contacts[0].Name
 	}
 
-	// Create individual contact messages for ContactsArrayMessage
 	var contactMessages []*waE2E.ContactMessage
 
 	for _, contact := range contacts {
-		// Create optimized vCard for WhatsApp (only supported fields)
 		vcard := "BEGIN:VCARD\n"
 		vcard += "VERSION:3.0\n"
 		vcard += fmt.Sprintf("FN:%s\n", contact.Name)
 		vcard += fmt.Sprintf("N:%s;;;;\n", contact.Name)
 		vcard += fmt.Sprintf("TEL:%s\n", contact.Phone)
 
-		// Only include fields that WhatsApp actually supports and displays
 		if contact.Organization != "" {
 			vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
 		}
 
-		// Note: EMAIL, TITLE, URL, ADR are not displayed by WhatsApp
-		// but we'll include them as optional for compatibility with other apps
 		if contact.Email != "" {
 			vcard += fmt.Sprintf("EMAIL:%s\n", contact.Email)
 		}
@@ -953,14 +892,12 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 
 		vcard += "END:VCARD"
 
-		// Log the generated vCard for analysis
 		c.logger.InfoWithFields("📋 Generated vCard for contact", map[string]interface{}{
 			"session_id":    c.sessionID,
 			"contact_name":  contact.Name,
 			"vcard_content": vcard,
 		})
 
-		// Create individual contact message
 		contactMessage := &waE2E.ContactMessage{
 			DisplayName: &contact.Name,
 			Vcard:       &vcard,
@@ -969,7 +906,6 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 		contactMessages = append(contactMessages, contactMessage)
 	}
 
-	// Create ContactsArrayMessage with all contacts
 	message := &waE2E.Message{
 		ContactsArrayMessage: &waE2E.ContactsArrayMessage{
 			DisplayName: &displayName,
@@ -1004,7 +940,6 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 	return &resp, nil
 }
 
-// SendContactListMessageBusiness sends multiple contacts using Business format
 func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to string, contacts []ContactInfo) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1019,17 +954,14 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 		return nil, fmt.Errorf("at least one contact is required")
 	}
 
-	// Create display name for the contact list
 	displayName := fmt.Sprintf("%d contatos", len(contacts))
 	if len(contacts) == 1 {
 		displayName = contacts[0].Name
 	}
 
-	// Create individual contact messages for ContactsArrayMessage using WhatsApp Business format
 	var contactMessages []*waE2E.ContactMessage
 
 	for _, contact := range contacts {
-		// Create WhatsApp Business style vCard
 		vcard := "BEGIN:VCARD\n"
 		vcard += "VERSION:3.0\n"
 		vcard += fmt.Sprintf("N:;%s;;;\n", contact.Name)
@@ -1039,32 +971,27 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 			vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
 		}
 
-		// WhatsApp Business style TITLE (empty if not provided)
 		if contact.Title != "" {
 			vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
 		} else {
 			vcard += "TITLE:\n"
 		}
 
-		// WhatsApp Business style phone with waid
 		phoneClean := strings.ReplaceAll(strings.ReplaceAll(contact.Phone, "+", ""), " ", "")
 		phoneFormatted := contact.Phone
 		vcard += fmt.Sprintf("item1.TEL;waid=%s:%s\n", phoneClean, phoneFormatted)
 		vcard += "item1.X-ABLabel:Celular\n"
 
-		// WhatsApp Business name field
 		vcard += fmt.Sprintf("X-WA-BIZ-NAME:%s\n", contact.Name)
 
 		vcard += "END:VCARD"
 
-		// Log the generated Business style vCard
 		c.logger.InfoWithFields("📋 Generated Business style vCard", map[string]interface{}{
 			"session_id":    c.sessionID,
 			"contact_name":  contact.Name,
 			"vcard_content": vcard,
 		})
 
-		// Create individual contact message
 		contactMessage := &waE2E.ContactMessage{
 			DisplayName: &contact.Name,
 			Vcard:       &vcard,
@@ -1073,7 +1000,6 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 		contactMessages = append(contactMessages, contactMessage)
 	}
 
-	// Create ContactsArrayMessage with all contacts
 	message := &waE2E.Message{
 		ContactsArrayMessage: &waE2E.ContactsArrayMessage{
 			DisplayName: &displayName,
@@ -1108,7 +1034,6 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 	return &resp, nil
 }
 
-// SendSingleContactMessage sends a single contact using ContactMessage (standard format)
 func (c *WameowClient) SendSingleContactMessage(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1119,7 +1044,6 @@ func (c *WameowClient) SendSingleContactMessage(ctx context.Context, to string, 
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Create standard vCard
 	vcard := "BEGIN:VCARD\n"
 	vcard += "VERSION:3.0\n"
 	vcard += fmt.Sprintf("FN:%s\n", contact.Name)
@@ -1144,7 +1068,6 @@ func (c *WameowClient) SendSingleContactMessage(ctx context.Context, to string, 
 
 	vcard += "END:VCARD"
 
-	// Create single ContactMessage
 	message := &waE2E.Message{
 		ContactMessage: &waE2E.ContactMessage{
 			DisplayName: &contact.Name,
@@ -1179,7 +1102,6 @@ func (c *WameowClient) SendSingleContactMessage(ctx context.Context, to string, 
 	return &resp, nil
 }
 
-// SendSingleContactMessageBusiness sends a single contact using Business format
 func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1190,7 +1112,6 @@ func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to 
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Create Business style vCard
 	vcard := "BEGIN:VCARD\n"
 	vcard += "VERSION:3.0\n"
 	vcard += fmt.Sprintf("N:;%s;;;\n", contact.Name)
@@ -1200,25 +1121,21 @@ func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to 
 		vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
 	}
 
-	// Business style TITLE (empty if not provided)
 	if contact.Title != "" {
 		vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
 	} else {
 		vcard += "TITLE:\n"
 	}
 
-	// Business style phone with waid
 	phoneClean := strings.ReplaceAll(strings.ReplaceAll(contact.Phone, "+", ""), " ", "")
 	phoneFormatted := contact.Phone
 	vcard += fmt.Sprintf("item1.TEL;waid=%s:%s\n", phoneClean, phoneFormatted)
 	vcard += "item1.X-ABLabel:Celular\n"
 
-	// Business name field
 	vcard += fmt.Sprintf("X-WA-BIZ-NAME:%s\n", contact.Name)
 
 	vcard += "END:VCARD"
 
-	// Create single ContactMessage with Business format
 	message := &waE2E.Message{
 		ContactMessage: &waE2E.ContactMessage{
 			DisplayName: &contact.Name,
@@ -1253,13 +1170,11 @@ func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to 
 	return &resp, nil
 }
 
-// parseJID parses a JID string into a types.JID
 func (c *WameowClient) parseJID(jidStr string) (waTypes.JID, error) {
 	if jidStr == "" {
 		return waTypes.EmptyJID, fmt.Errorf("JID cannot be empty")
 	}
 
-	// If it doesn't contain @, assume it's a phone number and add @s.whatsapp.net
 	if !strings.Contains(jidStr, "@") {
 		jidStr = jidStr + "@s.whatsapp.net"
 	}
@@ -1272,12 +1187,10 @@ func (c *WameowClient) parseJID(jidStr string) (waTypes.JID, error) {
 	return jid, nil
 }
 
-// AddEventHandler adds an event handler
 func (c *WameowClient) AddEventHandler(handler whatsmeow.EventHandler) uint32 {
 	return c.client.AddEventHandler(handler)
 }
 
-// SendStickerMessage sends a sticker message
 func (c *WameowClient) SendStickerMessage(ctx context.Context, to, filePath string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1288,19 +1201,16 @@ func (c *WameowClient) SendStickerMessage(ctx context.Context, to, filePath stri
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Read file
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read sticker file: %w", err)
 	}
 
-	// Upload media
 	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaImage) // Stickers use image media type
 	if err != nil {
 		return nil, fmt.Errorf("failed to upload sticker: %w", err)
 	}
 
-	// Create sticker message
 	mimetype := "image/webp" // Stickers are typically WebP
 	message := &waE2E.Message{
 		StickerMessage: &waE2E.StickerMessage{
@@ -1339,7 +1249,6 @@ func (c *WameowClient) SendStickerMessage(ctx context.Context, to, filePath stri
 	return &resp, nil
 }
 
-// SendButtonMessage sends a message with interactive buttons (fallback to text with options)
 func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, buttons []map[string]string) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1350,7 +1259,6 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Since interactive buttons may not be fully supported, create a text message with options
 	buttonText := body + "\n\n📋 *Options:*"
 	for i, button := range buttons {
 		if i >= 3 { // Limit to 3 options for readability
@@ -1359,7 +1267,6 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 		buttonText += fmt.Sprintf("\n%d. %s", i+1, button["text"])
 	}
 
-	// Create text message
 	message := &waE2E.Message{
 		Conversation: &buttonText,
 	}
@@ -1390,7 +1297,6 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 	return &resp, nil
 }
 
-// SendListMessage sends a message with interactive list (fallback to text with sections)
 func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText string, sections []map[string]interface{}) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
@@ -1401,7 +1307,6 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Since interactive lists may not be fully supported, create a text message with sections
 	listText := body + "\n\n📋 *" + buttonText + ":*"
 
 	for _, section := range sections {
@@ -1432,7 +1337,6 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 		}
 	}
 
-	// Create text message
 	message := &waE2E.Message{
 		Conversation: &listText,
 	}
@@ -1463,7 +1367,6 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 	return &resp, nil
 }
 
-// SendReaction sends a reaction to a message
 func (c *WameowClient) SendReaction(ctx context.Context, to, messageID, reaction string) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
@@ -1485,8 +1388,6 @@ func (c *WameowClient) SendReaction(ctx context.Context, to, messageID, reaction
 		"reaction":   reaction,
 	})
 
-	// Build reaction message using WhatsMeow's BuildReaction
-	// Parameters: chat JID, sender JID, message ID, reaction emoji
 	message := c.client.BuildReaction(jid, jid, types.MessageID(messageID), reaction)
 
 	_, err = c.client.SendMessage(ctx, jid, message)
@@ -1510,7 +1411,6 @@ func (c *WameowClient) SendReaction(ctx context.Context, to, messageID, reaction
 	return nil
 }
 
-// SendPresence sends presence information (typing, online, etc.)
 func (c *WameowClient) SendPresence(ctx context.Context, to, presence string) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
@@ -1527,7 +1427,6 @@ func (c *WameowClient) SendPresence(ctx context.Context, to, presence string) er
 		"presence":   presence,
 	})
 
-	// Use the available presence methods in WhatsMeow
 	switch presence {
 	case "typing":
 		err = c.client.SendChatPresence(jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
@@ -1560,7 +1459,6 @@ func (c *WameowClient) SendPresence(ctx context.Context, to, presence string) er
 	return nil
 }
 
-// EditMessage edits an existing message
 func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText string) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
@@ -1582,7 +1480,6 @@ func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText s
 		"new_text":   newText,
 	})
 
-	// Create edit message
 	editMessage := &waE2E.Message{
 		EditedMessage: &waE2E.FutureProofMessage{
 			Message: &waE2E.Message{
@@ -1591,8 +1488,6 @@ func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText s
 		},
 	}
 
-	// Note: Message editing in WhatsApp is complex and may require the original message key
-	// This is a simplified implementation
 	_, err = c.client.SendMessage(ctx, jid, editMessage)
 	if err != nil {
 		c.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
@@ -1613,7 +1508,6 @@ func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText s
 	return nil
 }
 
-// DeleteMessage deletes an existing message
 func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, forAll bool) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
@@ -1635,7 +1529,6 @@ func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, 
 		"for_all":    forAll,
 	})
 
-	// Build revoke message using WhatsMeow's BuildRevoke
 	message := c.client.BuildRevoke(jid, jid, messageID)
 
 	_, err = c.client.SendMessage(ctx, jid, message)
@@ -1659,7 +1552,6 @@ func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, 
 	return nil
 }
 
-// IsDeviceRegistered checks if the device is registered (has a store ID)
 func IsDeviceRegistered(client *whatsmeow.Client) bool {
 	if client == nil || client.Store == nil {
 		return false

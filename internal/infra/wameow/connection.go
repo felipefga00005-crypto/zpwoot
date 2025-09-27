@@ -16,19 +16,16 @@ import (
 	"go.mau.fi/whatsmeow"
 )
 
-// ConnectionManager handles Wameow client connections
 type ConnectionManager struct {
 	logger *logger.Logger
 }
 
-// NewConnectionManager creates a new connection manager
 func NewConnectionManager(logger *logger.Logger) *ConnectionManager {
 	return &ConnectionManager{
 		logger: logger,
 	}
 }
 
-// SafeConnect safely connects a Wameow client
 func (c *ConnectionManager) SafeConnect(client *whatsmeow.Client, sessionID string) error {
 	if err := ValidateClientAndStore(client, sessionID); err != nil {
 		return newConnectionError(sessionID, "connect", err)
@@ -53,7 +50,6 @@ func (c *ConnectionManager) SafeConnect(client *whatsmeow.Client, sessionID stri
 	return nil
 }
 
-// SafeDisconnect safely disconnects a Wameow client
 func (c *ConnectionManager) SafeDisconnect(client *whatsmeow.Client, sessionID string) {
 	if client == nil {
 		c.logger.WarnWithFields("Cannot disconnect nil client", map[string]interface{}{
@@ -75,7 +71,6 @@ func (c *ConnectionManager) SafeDisconnect(client *whatsmeow.Client, sessionID s
 	client.Disconnect()
 }
 
-// ConnectWithRetry connects with retry logic
 func (c *ConnectionManager) ConnectWithRetry(client *whatsmeow.Client, sessionID string, config *RetryConfig) error {
 	if config == nil {
 		config = defaultRetryConfig()
@@ -112,19 +107,16 @@ func (c *ConnectionManager) ConnectWithRetry(client *whatsmeow.Client, sessionID
 	return fmt.Errorf("failed to connect after %d attempts: %w", config.MaxRetries+1, lastErr)
 }
 
-// QRCodeGenerator handles QR code generation and display
 type QRCodeGenerator struct {
 	logger *logger.Logger
 }
 
-// NewQRCodeGenerator creates a new QR code generator
 func NewQRCodeGenerator(logger *logger.Logger) *QRCodeGenerator {
 	return &QRCodeGenerator{
 		logger: logger,
 	}
 }
 
-// GenerateQRCodeImage generates a base64 encoded QR code image
 func (q *QRCodeGenerator) GenerateQRCodeImage(qrText string) string {
 	if qrText == "" {
 		q.logger.Warn("Empty QR text provided")
@@ -143,7 +135,6 @@ func (q *QRCodeGenerator) GenerateQRCodeImage(qrText string) string {
 	return "data:image/png;base64," + base64String
 }
 
-// DisplayQRCodeInTerminal displays QR code in terminal
 func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 	if qrCode == "" {
 		q.logger.WarnWithFields("Empty QR code", map[string]interface{}{
@@ -156,7 +147,6 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 		"session_id": sessionID,
 	})
 
-	// Add defer to capture panics
 	defer func() {
 		if r := recover(); r != nil {
 			q.logger.ErrorWithFields("Panic in DisplayQRCodeInTerminal", map[string]interface{}{
@@ -169,17 +159,14 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 		})
 	}()
 
-	// Use GenerateHalfBlock for compact half-size QR code
 	qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
 }
 
-// SessionManager handles session state management
 type SessionManager struct {
 	sessionRepo ports.SessionRepository
 	logger      *logger.Logger
 }
 
-// NewSessionManager creates a new session manager
 func NewSessionManager(sessionRepo ports.SessionRepository, logger *logger.Logger) *SessionManager {
 	return &SessionManager{
 		sessionRepo: sessionRepo,
@@ -187,7 +174,6 @@ func NewSessionManager(sessionRepo ports.SessionRepository, logger *logger.Logge
 	}
 }
 
-// UpdateConnectionStatus updates session connection status
 func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bool) {
 	s.logger.InfoWithFields("Updating session connection status", map[string]interface{}{
 		"session_id":   sessionID,
@@ -222,10 +208,8 @@ func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bo
 		return
 	}
 
-	// Update connection status
 	sessionEntity.SetConnected(isConnected)
 
-	// Clear QR code when successfully connected
 	if isConnected {
 		s.logger.InfoWithFields("Clearing QR code after successful connection", map[string]interface{}{
 			"session_id": sessionID,
@@ -249,7 +233,6 @@ func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bo
 	})
 }
 
-// GetSession retrieves a session by ID
 func (s *SessionManager) GetSession(sessionID string) (*session.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -257,13 +240,11 @@ func (s *SessionManager) GetSession(sessionID string) (*session.Session, error) 
 	return s.sessionRepo.GetByID(ctx, sessionID)
 }
 
-// RetryConfig defines retry configuration
 type RetryConfig struct {
 	MaxRetries    int
 	RetryInterval time.Duration
 }
 
-// defaultRetryConfig returns default retry configuration
 func defaultRetryConfig() *RetryConfig {
 	return &RetryConfig{
 		MaxRetries:    5,

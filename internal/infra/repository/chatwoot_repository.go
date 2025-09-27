@@ -14,13 +14,11 @@ import (
 	"zpwoot/platform/logger"
 )
 
-// chatwootRepository implements the ChatwootRepository interface
 type chatwootRepository struct {
 	db     *sqlx.DB
 	logger *logger.Logger
 }
 
-// NewChatwootRepository creates a new chatwoot repository
 func NewChatwootRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootRepository {
 	return &chatwootRepository{
 		db:     db,
@@ -28,7 +26,6 @@ func NewChatwootRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootRep
 	}
 }
 
-// chatwootConfigModel represents the database model for chatwoot config
 type chatwootConfigModel struct {
 	ID        string         `db:"id"`
 	URL       string         `db:"url"`
@@ -40,12 +37,8 @@ type chatwootConfigModel struct {
 	UpdatedAt time.Time      `db:"updatedAt"`
 }
 
-// Note: Only zpChatwoot table is used for configuration
-// Other Chatwoot entities (contacts, conversations, messages) are handled via API calls
 
-// Config operations
 
-// CreateConfig creates a new chatwoot configuration
 func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootdomain.ChatwootConfig) error {
 	r.logger.InfoWithFields("Creating chatwoot config", map[string]interface{}{
 		"config_id": config.ID.String(),
@@ -71,7 +64,6 @@ func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootd
 	return nil
 }
 
-// GetConfig retrieves the chatwoot configuration
 func (r *chatwootRepository) GetConfig(ctx context.Context) (*chatwootdomain.ChatwootConfig, error) {
 	r.logger.Info("Getting chatwoot config")
 
@@ -97,7 +89,6 @@ func (r *chatwootRepository) GetConfig(ctx context.Context) (*chatwootdomain.Cha
 	return config, nil
 }
 
-// UpdateConfig updates the chatwoot configuration
 func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *chatwootdomain.ChatwootConfig) error {
 	r.logger.InfoWithFields("Updating chatwoot config", map[string]interface{}{
 		"config_id": config.ID.String(),
@@ -134,7 +125,6 @@ func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *chatwootd
 	return nil
 }
 
-// DeleteConfig removes the chatwoot configuration
 func (r *chatwootRepository) DeleteConfig(ctx context.Context) error {
 	r.logger.Info("Deleting chatwoot config")
 
@@ -151,120 +141,82 @@ func (r *chatwootRepository) DeleteConfig(ctx context.Context) error {
 	return nil
 }
 
-// Contact operations - These are handled via Chatwoot API, not stored locally
 
-// CreateContact creates a new chatwoot contact via API
 func (r *chatwootRepository) CreateContact(ctx context.Context, contact *chatwootdomain.ChatwootContact) error {
 	r.logger.InfoWithFields("Contact operations handled via Chatwoot API", map[string]interface{}{
 		"chatwoot_id":  contact.ID,
 		"phone_number": contact.PhoneNumber,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return success as contacts are managed via API
 	return nil
 }
 
-// GetContactByID retrieves a contact by its ID via API
 func (r *chatwootRepository) GetContactByID(ctx context.Context, id int) (*chatwootdomain.ChatwootContact, error) {
 	r.logger.InfoWithFields("Getting contact via Chatwoot API", map[string]interface{}{
 		"contact_id": id,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return not found as contacts are managed via API
 	return nil, chatwootdomain.ErrContactNotFound
 }
 
-// GetContactByPhone retrieves a contact by phone number via API
 func (r *chatwootRepository) GetContactByPhone(ctx context.Context, phoneNumber string) (*chatwootdomain.ChatwootContact, error) {
 	r.logger.InfoWithFields("Getting contact by phone via Chatwoot API", map[string]interface{}{
 		"phone_number": phoneNumber,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return not found as contacts are managed via API
 	return nil, chatwootdomain.ErrContactNotFound
 }
 
-// UpdateContact updates an existing contact via API
 func (r *chatwootRepository) UpdateContact(ctx context.Context, contact *chatwootdomain.ChatwootContact) error {
 	r.logger.InfoWithFields("Updating contact via Chatwoot API", map[string]interface{}{
 		"contact_id": contact.ID,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return success as contacts are managed via API
 	return nil
 }
 
-// DeleteContact removes a contact by ID via API
 func (r *chatwootRepository) DeleteContact(ctx context.Context, id int) error {
 	r.logger.InfoWithFields("Deleting contact via Chatwoot API", map[string]interface{}{
 		"contact_id": id,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return success as contacts are managed via API
 	return nil
 }
 
-// ListContacts retrieves contacts with pagination via API
 func (r *chatwootRepository) ListContacts(ctx context.Context, limit, offset int) ([]*chatwootdomain.ChatwootContact, int, error) {
 	r.logger.InfoWithFields("Listing contacts via Chatwoot API", map[string]interface{}{
 		"limit":  limit,
 		"offset": offset,
 	})
 
-	// This would typically make an API call to Chatwoot
-	// For now, return empty list as contacts are managed via API
 	return []*chatwootdomain.ChatwootContact{}, 0, nil
 }
 
-// Statistics operations - These would typically come from Chatwoot API
 
-// GetContactCount retrieves the total number of contacts via API
 func (r *chatwootRepository) GetContactCount(ctx context.Context) (int, error) {
-	// This would typically make an API call to Chatwoot
-	// For now, return 0 as statistics are managed via API
 	return 0, nil
 }
 
-// GetConversationCount retrieves the total number of conversations via API
 func (r *chatwootRepository) GetConversationCount(ctx context.Context) (int, error) {
-	// This would typically make an API call to Chatwoot
-	// For now, return 0 as statistics are managed via API
 	return 0, nil
 }
 
-// GetActiveConversationCount retrieves the number of active conversations via API
 func (r *chatwootRepository) GetActiveConversationCount(ctx context.Context) (int, error) {
-	// This would typically make an API call to Chatwoot
-	// For now, return 0 as statistics are managed via API
 	return 0, nil
 }
 
-// GetMessageCount retrieves the total number of messages via API
 func (r *chatwootRepository) GetMessageCount(ctx context.Context) (int, error) {
-	// This would typically make an API call to Chatwoot
-	// For now, return 0 as statistics are managed via API
 	return 0, nil
 }
 
-// GetMessageCountByType retrieves the number of messages by type via API
 func (r *chatwootRepository) GetMessageCountByType(ctx context.Context, messageType string) (int, error) {
-	// This would typically make an API call to Chatwoot
-	// For now, return 0 as statistics are managed via API
 	return 0, nil
 }
 
-// GetStatsForPeriod retrieves statistics for a specific time period via API
 func (r *chatwootRepository) GetStatsForPeriod(ctx context.Context, from, to int64) (*ports.ChatwootStats, error) {
 	fromTime := time.Unix(from, 0)
 	toTime := time.Unix(to, 0)
 
-	// This would typically make API calls to Chatwoot to get real statistics
-	// For now, return basic stats structure
 	stats := &ports.ChatwootStats{
 		From:                from,
 		To:                  to,
@@ -284,7 +236,6 @@ func (r *chatwootRepository) GetStatsForPeriod(ctx context.Context, from, to int
 	return stats, nil
 }
 
-// Placeholder implementations for other methods
 func (r *chatwootRepository) CreateConversation(ctx context.Context, conversation *chatwootdomain.ChatwootConversation) error {
 	return fmt.Errorf("not implemented")
 }
@@ -357,9 +308,7 @@ func (r *chatwootRepository) GetSyncRecordsBySession(ctx context.Context, sessio
 	return nil, fmt.Errorf("not implemented")
 }
 
-// Helper methods
 
-// configToModel converts domain config to database model
 func (r *chatwootRepository) configToModel(config *chatwootdomain.ChatwootConfig) *chatwootConfigModel {
 	model := &chatwootConfigModel{
 		ID:        config.ID.String(),
@@ -378,7 +327,6 @@ func (r *chatwootRepository) configToModel(config *chatwootdomain.ChatwootConfig
 	return model
 }
 
-// configFromModel converts database model to domain config
 func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatwootdomain.ChatwootConfig, error) {
 	id, err := uuid.Parse(model.ID)
 	if err != nil {
@@ -402,4 +350,3 @@ func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatw
 	return config, nil
 }
 
-// Note: Contact model conversion methods removed as contacts are handled via API

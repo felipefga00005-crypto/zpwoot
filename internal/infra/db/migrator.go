@@ -14,10 +14,8 @@ import (
 	"zpwoot/platform/logger"
 )
 
-//go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-// Migration represents a database migration
 type Migration struct {
 	Version   int
 	Name      string
@@ -26,13 +24,11 @@ type Migration struct {
 	AppliedAt *time.Time
 }
 
-// Migrator handles database migrations
 type Migrator struct {
 	db     *sql.DB
 	logger *logger.Logger
 }
 
-// NewMigrator creates a new migrator instance
 func NewMigrator(db *sql.DB, logger *logger.Logger) *Migrator {
 	return &Migrator{
 		db:     db,
@@ -40,28 +36,23 @@ func NewMigrator(db *sql.DB, logger *logger.Logger) *Migrator {
 	}
 }
 
-// RunMigrations executes all pending migrations
 func (m *Migrator) RunMigrations() error {
 	m.logger.Info("Starting database migrations...")
 
-	// Create migrations table if it doesn't exist
 	if err := m.createMigrationsTable(); err != nil {
 		return fmt.Errorf("failed to create migrations table: %w", err)
 	}
 
-	// Load migrations from embedded files
 	migrations, err := m.loadMigrations()
 	if err != nil {
 		return fmt.Errorf("failed to load migrations: %w", err)
 	}
 
-	// Get applied migrations
 	appliedMigrations, err := m.getAppliedMigrations()
 	if err != nil {
 		return fmt.Errorf("failed to get applied migrations: %w", err)
 	}
 
-	// Execute pending migrations
 	pendingCount := 0
 	for _, migration := range migrations {
 		if !m.isMigrationApplied(migration.Version, appliedMigrations) {
@@ -84,7 +75,6 @@ func (m *Migrator) RunMigrations() error {
 	return nil
 }
 
-// createMigrationsTable creates the migrations tracking table
 func (m *Migrator) createMigrationsTable() error {
 	query := `
 		CREATE TABLE IF NOT EXISTS "zpMigrations" (
@@ -108,17 +98,14 @@ func (m *Migrator) createMigrationsTable() error {
 	return nil
 }
 
-// loadMigrations loads all migration files from embedded filesystem
 func (m *Migrator) loadMigrations() ([]*Migration, error) {
 	var migrations []*Migration
 
-	// Read migration files
 	entries, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read migrations directory: %w", err)
 	}
 
-	// Group files by version
 	migrationFiles := make(map[int]map[string]string)
 
 	for _, entry := range entries {
@@ -126,7 +113,6 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 			continue
 		}
 
-		// Parse filename: 001_create_sessions_table.up.sql
 		parts := strings.Split(entry.Name(), "_")
 		if len(parts) < 2 {
 			continue
@@ -141,21 +127,17 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 			continue
 		}
 
-		// Read file content
 		content, err := fs.ReadFile(migrationsFS, filepath.Join("migrations", entry.Name()))
 		if err != nil {
 			return nil, fmt.Errorf("failed to read migration file %s: %w", entry.Name(), err)
 		}
 
-		// Initialize map for this version if needed
 		if migrationFiles[version] == nil {
 			migrationFiles[version] = make(map[string]string)
 		}
 
-		// Determine if it's up or down migration
 		if strings.Contains(entry.Name(), ".up.sql") {
 			migrationFiles[version]["up"] = string(content)
-			// Extract name from filename
 			nameParts := strings.Split(entry.Name(), "_")
 			if len(nameParts) > 1 {
 				name := strings.Join(nameParts[1:], "_")
@@ -167,7 +149,6 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 		}
 	}
 
-	// Convert to Migration structs
 	for version, files := range migrationFiles {
 		migration := &Migration{
 			Version: version,
@@ -186,7 +167,6 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 		migrations = append(migrations, migration)
 	}
 
-	// Sort by version
 	sort.Slice(migrations, func(i, j int) bool {
 		return migrations[i].Version < migrations[j].Version
 	})
@@ -194,7 +174,6 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 	return migrations, nil
 }
 
-// getAppliedMigrations returns list of applied migration versions
 func (m *Migrator) getAppliedMigrations() (map[int]bool, error) {
 	query := `SELECT "version" FROM "zpMigrations" ORDER BY "version"`
 
@@ -220,25 +199,21 @@ func (m *Migrator) getAppliedMigrations() (map[int]bool, error) {
 	return applied, nil
 }
 
-// isMigrationApplied checks if a migration version has been applied
 func (m *Migrator) isMigrationApplied(version int, appliedMigrations map[int]bool) bool {
 	return appliedMigrations[version]
 }
 
-// executeMigration executes a single migration
 func (m *Migrator) executeMigration(migration *Migration) error {
 	m.logger.InfoWithFields("Applying migration", map[string]interface{}{
 		"version": migration.Version,
 		"name":    migration.Name,
 	})
 
-	// Start transaction
 	tx, err := m.db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	// Use a flag to track if transaction was committed
 	var committed bool
 	defer func() {
 		if !committed {
@@ -248,12 +223,10 @@ func (m *Migrator) executeMigration(migration *Migration) error {
 		}
 	}()
 
-	// Execute migration SQL
 	if _, err := tx.Exec(migration.UpSQL); err != nil {
 		return fmt.Errorf("failed to execute migration SQL: %w", err)
 	}
 
-	// Record migration as applied
 	insertQuery := `
 		INSERT INTO "zpMigrations" ("version", "name", "appliedAt")
 		VALUES ($1, $2, NOW())
@@ -262,7 +235,6 @@ func (m *Migrator) executeMigration(migration *Migration) error {
 		return fmt.Errorf("failed to record migration: %w", err)
 	}
 
-	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit migration: %w", err)
 	}
@@ -276,11 +248,9 @@ func (m *Migrator) executeMigration(migration *Migration) error {
 	return nil
 }
 
-// Rollback rolls back the last applied migration
 func (m *Migrator) Rollback() error {
 	m.logger.Info("Rolling back last migration...")
 
-	// Get last applied migration
 	query := `
 		SELECT "version", "name" 
 		FROM "zpMigrations" 
@@ -299,13 +269,11 @@ func (m *Migrator) Rollback() error {
 		return fmt.Errorf("failed to get last migration: %w", err)
 	}
 
-	// Load migrations to get down SQL
 	migrations, err := m.loadMigrations()
 	if err != nil {
 		return fmt.Errorf("failed to load migrations: %w", err)
 	}
 
-	// Find the migration to rollback
 	var targetMigration *Migration
 	for _, migration := range migrations {
 		if migration.Version == version {
@@ -327,13 +295,11 @@ func (m *Migrator) Rollback() error {
 		"name":    name,
 	})
 
-	// Start transaction
 	tx, err := m.db.Begin()
 	if err != nil {
 		return fmt.Errorf("failed to start transaction: %w", err)
 	}
 
-	// Use a flag to track if transaction was committed
 	var committed bool
 	defer func() {
 		if !committed {
@@ -343,18 +309,15 @@ func (m *Migrator) Rollback() error {
 		}
 	}()
 
-	// Execute rollback SQL
 	if _, err := tx.Exec(targetMigration.DownSQL); err != nil {
 		return fmt.Errorf("failed to execute rollback SQL: %w", err)
 	}
 
-	// Remove migration record
 	deleteQuery := `DELETE FROM "zpMigrations" WHERE "version" = $1`
 	if _, err := tx.Exec(deleteQuery, version); err != nil {
 		return fmt.Errorf("failed to remove migration record: %w", err)
 	}
 
-	// Commit transaction
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("failed to commit rollback: %w", err)
 	}
@@ -368,7 +331,6 @@ func (m *Migrator) Rollback() error {
 	return nil
 }
 
-// GetMigrationStatus returns the current migration status
 func (m *Migrator) GetMigrationStatus() ([]*Migration, error) {
 	migrations, err := m.loadMigrations()
 	if err != nil {
@@ -380,7 +342,6 @@ func (m *Migrator) GetMigrationStatus() ([]*Migration, error) {
 		return nil, fmt.Errorf("failed to get applied migrations: %w", err)
 	}
 
-	// Mark applied migrations
 	for _, migration := range migrations {
 		if appliedMigrations[migration.Version] {
 			now := time.Now()

@@ -6,7 +6,6 @@ import (
 	"zpwoot/internal/domain/webhook"
 )
 
-// SetConfigRequest represents the request to create a webhook
 type SetConfigRequest struct {
 	SessionID *string  `json:"sessionId,omitempty" validate:"omitempty,uuid" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
 	URL       string   `json:"url" validate:"required,url" example:"https://myapp.com/webhook/whatsapp"`
@@ -14,7 +13,6 @@ type SetConfigRequest struct {
 	Events    []string `json:"events" validate:"required,min=1" example:"message,status,connection"`
 } //@name SetConfigRequest
 
-// SetConfigResponse represents the response after creating a webhook
 type SetConfigResponse struct {
 	ID        string    `json:"id" example:"webhook-456def"`
 	SessionID *string   `json:"sessionId,omitempty" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
@@ -24,7 +22,6 @@ type SetConfigResponse struct {
 	CreatedAt time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 } //@name SetConfigResponse
 
-// UpdateWebhookRequest represents the request to update a webhook
 type UpdateWebhookRequest struct {
 	URL    *string  `json:"url,omitempty" validate:"omitempty,url" example:"https://myapp.com/webhook/whatsapp/v2"`
 	Secret *string  `json:"secret,omitempty" example:"updated-webhook-secret-456"`
@@ -32,7 +29,6 @@ type UpdateWebhookRequest struct {
 	Active *bool    `json:"active,omitempty" example:"false"`
 } //@name UpdateWebhookRequest
 
-// ListWebhooksRequest represents the request to list webhooks
 type ListWebhooksRequest struct {
 	SessionID *string `json:"sessionId,omitempty" query:"sessionId" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
 	Active    *bool   `json:"active,omitempty" query:"active" example:"true"`
@@ -40,7 +36,6 @@ type ListWebhooksRequest struct {
 	Offset    int     `json:"offset,omitempty" query:"offset" validate:"omitempty,min=0" example:"0"`
 } //@name ListWebhooksRequest
 
-// ListWebhooksResponse represents the response for listing webhooks
 type ListWebhooksResponse struct {
 	Webhooks []WebhookResponse `json:"webhooks"`
 	Total    int               `json:"total" example:"5"`
@@ -48,7 +43,6 @@ type ListWebhooksResponse struct {
 	Offset   int               `json:"offset" example:"0"`
 } //@name ListWebhooksResponse
 
-// WebhookResponse represents a webhook in responses
 type WebhookResponse struct {
 	ID        string    `json:"id" example:"webhook-123"`
 	SessionID *string   `json:"sessionId,omitempty" example:"session-123"`
@@ -59,7 +53,6 @@ type WebhookResponse struct {
 	UpdatedAt time.Time `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 } //@name WebhookResponse
 
-// WebhookEventResponse represents a webhook event in responses
 type WebhookEventResponse struct {
 	ID        string                 `json:"id" example:"event-123"`
 	SessionID string                 `json:"sessionId" example:"session-123"`
@@ -68,13 +61,11 @@ type WebhookEventResponse struct {
 	Data      map[string]interface{} `json:"data"`
 }
 
-// TestWebhookRequest represents the request to test a webhook
 type TestWebhookRequest struct {
 	EventType string                 `json:"event_type" validate:"required" example:"message"`
 	TestData  map[string]interface{} `json:"test_data,omitempty"`
 }
 
-// TestWebhookResponse represents the response after testing a webhook
 type TestWebhookResponse struct {
 	Success      bool   `json:"success" example:"true"`
 	StatusCode   int    `json:"status_code" example:"200"`
@@ -82,21 +73,17 @@ type TestWebhookResponse struct {
 	Error        string `json:"error,omitempty"`
 }
 
-// WebhookEventsResponse represents the list of supported webhook events
 type WebhookEventsResponse struct {
 	Events []WebhookEventInfo `json:"events"`
 }
 
-// WebhookEventInfo represents information about a webhook event type
 type WebhookEventInfo struct {
 	Type        string `json:"type" example:"message"`
 	Description string `json:"description" example:"Triggered when a message is received or sent"`
 	DataSchema  string `json:"data_schema,omitempty" example:"MessageEventData"`
 }
 
-// Conversion methods
 
-// ToSetConfigRequest converts to domain request
 func (r *SetConfigRequest) ToSetConfigRequest() *webhook.SetConfigRequest {
 	return &webhook.SetConfigRequest{
 		SessionID: r.SessionID,
@@ -106,7 +93,6 @@ func (r *SetConfigRequest) ToSetConfigRequest() *webhook.SetConfigRequest {
 	}
 }
 
-// ToUpdateWebhookRequest converts to domain request
 func (r *UpdateWebhookRequest) ToUpdateWebhookRequest() *webhook.UpdateWebhookRequest {
 	return &webhook.UpdateWebhookRequest{
 		URL:    r.URL,
@@ -116,7 +102,6 @@ func (r *UpdateWebhookRequest) ToUpdateWebhookRequest() *webhook.UpdateWebhookRe
 	}
 }
 
-// ToListWebhooksRequest converts to domain request
 func (r *ListWebhooksRequest) ToListWebhooksRequest() *webhook.ListWebhooksRequest {
 	return &webhook.ListWebhooksRequest{
 		SessionID: r.SessionID,
@@ -126,7 +111,6 @@ func (r *ListWebhooksRequest) ToListWebhooksRequest() *webhook.ListWebhooksReque
 	}
 }
 
-// FromWebhook converts from domain webhook to response
 func FromWebhook(w *webhook.WebhookConfig) *WebhookResponse {
 	return &WebhookResponse{
 		ID:        w.ID.String(),
@@ -139,7 +123,6 @@ func FromWebhook(w *webhook.WebhookConfig) *WebhookResponse {
 	}
 }
 
-// FromWebhookEvent converts from domain webhook event to response
 func FromWebhookEvent(we *webhook.WebhookEvent) *WebhookEventResponse {
 	return &WebhookEventResponse{
 		ID:        we.ID,
@@ -150,7 +133,6 @@ func FromWebhookEvent(we *webhook.WebhookEvent) *WebhookEventResponse {
 	}
 }
 
-// GetSupportedEvents returns information about supported webhook events
 func GetSupportedEvents() *WebhookEventsResponse {
 	return &WebhookEventsResponse{
 		Events: []WebhookEventInfo{

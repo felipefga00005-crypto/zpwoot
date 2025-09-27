@@ -15,13 +15,11 @@ import (
 	"zpwoot/platform/logger"
 )
 
-// webhookRepository implements the WebhookRepository interface
 type webhookRepository struct {
 	db     *sqlx.DB
 	logger *logger.Logger
 }
 
-// NewWebhookRepository creates a new webhook repository
 func NewWebhookRepository(db *sqlx.DB, logger *logger.Logger) ports.WebhookRepository {
 	return &webhookRepository{
 		db:     db,
@@ -29,7 +27,6 @@ func NewWebhookRepository(db *sqlx.DB, logger *logger.Logger) ports.WebhookRepos
 	}
 }
 
-// webhookModel represents the database model for webhooks
 type webhookModel struct {
 	ID        string         `db:"id"`
 	SessionID sql.NullString `db:"sessionId"`
@@ -41,7 +38,6 @@ type webhookModel struct {
 	UpdatedAt time.Time      `db:"updatedAt"`
 }
 
-// Create creates a new webhook configuration
 func (r *webhookRepository) Create(ctx context.Context, wh *webhook.WebhookConfig) error {
 	r.logger.InfoWithFields("Creating webhook", map[string]interface{}{
 		"webhook_id": wh.ID.String(),
@@ -72,7 +68,6 @@ func (r *webhookRepository) Create(ctx context.Context, wh *webhook.WebhookConfi
 	return nil
 }
 
-// GetByID retrieves a webhook by its ID
 func (r *webhookRepository) GetByID(ctx context.Context, id string) (*webhook.WebhookConfig, error) {
 	r.logger.InfoWithFields("Getting webhook by ID", map[string]interface{}{
 		"webhook_id": id,
@@ -101,7 +96,6 @@ func (r *webhookRepository) GetByID(ctx context.Context, id string) (*webhook.We
 	return wh, nil
 }
 
-// GetBySessionID retrieves webhooks for a specific session
 func (r *webhookRepository) GetBySessionID(ctx context.Context, sessionID string) ([]*webhook.WebhookConfig, error) {
 	r.logger.InfoWithFields("Getting webhooks by session ID", map[string]interface{}{
 		"session_id": sessionID,
@@ -135,7 +129,6 @@ func (r *webhookRepository) GetBySessionID(ctx context.Context, sessionID string
 	return webhooks, nil
 }
 
-// GetGlobalWebhooks retrieves global webhooks (no session ID)
 func (r *webhookRepository) GetGlobalWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error) {
 	r.logger.Info("Getting global webhooks")
 
@@ -166,7 +159,6 @@ func (r *webhookRepository) GetGlobalWebhooks(ctx context.Context) ([]*webhook.W
 	return webhooks, nil
 }
 
-// List retrieves webhooks with optional filters
 func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksRequest) ([]*webhook.WebhookConfig, int, error) {
 	r.logger.InfoWithFields("Listing webhooks", map[string]interface{}{
 		"session_id": req.SessionID,
@@ -175,7 +167,6 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 		"offset":     req.Offset,
 	})
 
-	// Build WHERE clause
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
 	argIndex := 1
@@ -192,7 +183,6 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 		argIndex++
 	}
 
-	// Count total records
 	countQuery := fmt.Sprintf("SELECT COUNT(*) FROM \"zpWebhooks\" %s", whereClause)
 	var total int
 	err := r.db.GetContext(ctx, &total, countQuery, args...)
@@ -203,7 +193,6 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 		return nil, 0, fmt.Errorf("failed to count webhooks: %w", err)
 	}
 
-	// Get webhooks with pagination
 	query := fmt.Sprintf(`
 		SELECT * FROM "zpWebhooks" %s
 		ORDER BY "createdAt" DESC
@@ -221,7 +210,6 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 		return nil, 0, fmt.Errorf("failed to list webhooks: %w", err)
 	}
 
-	// Convert models to domain entities
 	webhooks := make([]*webhook.WebhookConfig, len(models))
 	for i, model := range models {
 		wh, err := r.fromModel(&model)
@@ -238,7 +226,6 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 	return webhooks, total, nil
 }
 
-// Update updates an existing webhook configuration
 func (r *webhookRepository) Update(ctx context.Context, wh *webhook.WebhookConfig) error {
 	r.logger.InfoWithFields("Updating webhook", map[string]interface{}{
 		"webhook_id": wh.ID.String(),
@@ -275,7 +262,6 @@ func (r *webhookRepository) Update(ctx context.Context, wh *webhook.WebhookConfi
 	return nil
 }
 
-// Delete removes a webhook by ID
 func (r *webhookRepository) Delete(ctx context.Context, id string) error {
 	r.logger.InfoWithFields("Deleting webhook", map[string]interface{}{
 		"webhook_id": id,
@@ -304,7 +290,6 @@ func (r *webhookRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// UpdateStatus updates only the active status of a webhook
 func (r *webhookRepository) UpdateStatus(ctx context.Context, id string, active bool) error {
 	r.logger.InfoWithFields("Updating webhook status", map[string]interface{}{
 		"webhook_id": id,
@@ -334,7 +319,6 @@ func (r *webhookRepository) UpdateStatus(ctx context.Context, id string, active 
 	return nil
 }
 
-// GetActiveWebhooks retrieves all active webhooks
 func (r *webhookRepository) GetActiveWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error) {
 	r.logger.Info("Getting active webhooks")
 
@@ -365,7 +349,6 @@ func (r *webhookRepository) GetActiveWebhooks(ctx context.Context) ([]*webhook.W
 	return webhooks, nil
 }
 
-// GetWebhooksByEvent retrieves webhooks that listen to a specific event
 func (r *webhookRepository) GetWebhooksByEvent(ctx context.Context, eventType string) ([]*webhook.WebhookConfig, error) {
 	r.logger.InfoWithFields("Getting webhooks by event", map[string]interface{}{
 		"event_type": eventType,
@@ -399,7 +382,6 @@ func (r *webhookRepository) GetWebhooksByEvent(ctx context.Context, eventType st
 	return webhooks, nil
 }
 
-// CountByStatus counts webhooks by active status
 func (r *webhookRepository) CountByStatus(ctx context.Context, active bool) (int, error) {
 	query := `SELECT COUNT(*) FROM "zpWebhooks" WHERE active = $1`
 
@@ -412,19 +394,13 @@ func (r *webhookRepository) CountByStatus(ctx context.Context, active bool) (int
 	return count, nil
 }
 
-// GetWebhookStats retrieves webhook statistics
 func (r *webhookRepository) GetWebhookStats(ctx context.Context, webhookID string) (*ports.WebhookStats, error) {
-	// This would typically join with a webhook_stats table
-	// For now, return empty stats
 	return &ports.WebhookStats{
 		WebhookID: webhookID,
 	}, nil
 }
 
-// UpdateWebhookStats updates webhook statistics
 func (r *webhookRepository) UpdateWebhookStats(ctx context.Context, webhookID string, stats *ports.WebhookStats) error {
-	// This would typically update a webhook_stats table
-	// For now, just log the operation
 	r.logger.InfoWithFields("Updating webhook stats", map[string]interface{}{
 		"webhook_id": webhookID,
 		"stats":      stats,
@@ -432,9 +408,7 @@ func (r *webhookRepository) UpdateWebhookStats(ctx context.Context, webhookID st
 	return nil
 }
 
-// Helper methods
 
-// toModel converts domain entity to database model
 func (r *webhookRepository) toModel(wh *webhook.WebhookConfig) *webhookModel {
 	model := &webhookModel{
 		ID:        wh.ID.String(),
@@ -452,7 +426,6 @@ func (r *webhookRepository) toModel(wh *webhook.WebhookConfig) *webhookModel {
 		model.Secret = sql.NullString{String: wh.Secret, Valid: true}
 	}
 
-	// Convert events slice to JSON
 	if len(wh.Events) > 0 {
 		eventsJSON, err := json.Marshal(wh.Events)
 		if err == nil {
@@ -465,7 +438,6 @@ func (r *webhookRepository) toModel(wh *webhook.WebhookConfig) *webhookModel {
 	return model
 }
 
-// fromModel converts database model to domain entity
 func (r *webhookRepository) fromModel(model *webhookModel) (*webhook.WebhookConfig, error) {
 	id, err := uuid.Parse(model.ID)
 	if err != nil {
@@ -488,13 +460,11 @@ func (r *webhookRepository) fromModel(model *webhookModel) (*webhook.WebhookConf
 		wh.Secret = model.Secret.String
 	}
 
-	// Parse events from JSON
 	if model.Events != "" {
 		var events []string
 		if err := json.Unmarshal([]byte(model.Events), &events); err == nil {
 			wh.Events = events
 		} else {
-			// Fallback to empty array if JSON parsing fails
 			wh.Events = []string{}
 		}
 	} else {

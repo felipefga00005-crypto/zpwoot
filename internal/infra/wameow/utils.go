@@ -11,7 +11,6 @@ import (
 	waTypes "go.mau.fi/whatsmeow/types"
 )
 
-// ConnectionError represents a connection-related error
 type ConnectionError struct {
 	SessionID string
 	Operation string
@@ -26,7 +25,6 @@ func (e *ConnectionError) Unwrap() error {
 	return e.Err
 }
 
-// newConnectionError creates a new connection error
 func newConnectionError(sessionID, operation string, err error) *ConnectionError {
 	return &ConnectionError{
 		SessionID: sessionID,
@@ -35,7 +33,6 @@ func newConnectionError(sessionID, operation string, err error) *ConnectionError
 	}
 }
 
-// ValidateClientAndStore validates Wameow client and store
 func ValidateClientAndStore(client *whatsmeow.Client, sessionID string) error {
 	if client == nil {
 		return fmt.Errorf("client is nil for session %s", sessionID)
@@ -52,7 +49,6 @@ func ValidateClientAndStore(client *whatsmeow.Client, sessionID string) error {
 	return nil
 }
 
-// GetDeviceStoreForSession gets or creates a device store for a session
 func GetDeviceStoreForSession(sessionID, expectedDeviceJID string, container *sqlstore.Container) *store.Device {
 	var deviceStore *store.Device
 
@@ -91,7 +87,6 @@ func GetDeviceStoreForSession(sessionID, expectedDeviceJID string, container *sq
 	return deviceStore
 }
 
-// IsValidJID checks if a JID string is valid
 func IsValidJID(jidStr string) bool {
 	if jidStr == "" {
 		return false
@@ -101,7 +96,6 @@ func IsValidJID(jidStr string) bool {
 	return err == nil
 }
 
-// FormatJID formats a JID for display
 func FormatJID(jid waTypes.JID) string {
 	if jid.IsEmpty() {
 		return ""
@@ -109,7 +103,6 @@ func FormatJID(jid waTypes.JID) string {
 	return jid.String()
 }
 
-// GetClientInfo returns basic client information
 func GetClientInfo(client *whatsmeow.Client) map[string]interface{} {
 	if client == nil {
 		return map[string]interface{}{
@@ -130,7 +123,6 @@ func GetClientInfo(client *whatsmeow.Client) map[string]interface{} {
 	return info
 }
 
-// ValidateSessionID checks if session ID is valid
 func ValidateSessionID(sessionID string) error {
 	if sessionID == "" {
 		return fmt.Errorf("session ID cannot be empty")
@@ -147,7 +139,6 @@ func ValidateSessionID(sessionID string) error {
 	return nil
 }
 
-// SafeClientOperation executes an operation on a client with error handling
 func SafeClientOperation(client *whatsmeow.Client, sessionID string, operation func() error) error {
 	if err := ValidateClientAndStore(client, sessionID); err != nil {
 		return newConnectionError(sessionID, "validate", err)
@@ -166,7 +157,6 @@ func SafeClientOperation(client *whatsmeow.Client, sessionID string, operation f
 	return operation()
 }
 
-// GetStoreInfo returns information about a device store
 func GetStoreInfo(deviceStore *store.Device) map[string]interface{} {
 	if deviceStore == nil {
 		return map[string]interface{}{
@@ -185,7 +175,6 @@ func GetStoreInfo(deviceStore *store.Device) map[string]interface{} {
 	return info
 }
 
-// ConnectionStatus represents the status of a Wameow connection
 type ConnectionStatus struct {
 	SessionID string                 `json:"session_id"`
 	Connected bool                   `json:"connected"`
@@ -196,7 +185,6 @@ type ConnectionStatus struct {
 	UpdatedAt int64                  `json:"updated_at"`
 }
 
-// GetConnectionStatus returns the current connection status
 func GetConnectionStatus(client *whatsmeow.Client, sessionID string) *ConnectionStatus {
 	status := &ConnectionStatus{
 		SessionID: sessionID,
@@ -216,35 +204,28 @@ func GetConnectionStatus(client *whatsmeow.Client, sessionID string) *Connection
 		status.DeviceJID = FormatJID(*client.Store.ID)
 	}
 
-	// Add client info to metadata
 	status.Metadata = GetClientInfo(client)
 
 	return status
 }
 
-// getCurrentTimestamp returns current Unix timestamp
 func getCurrentTimestamp() int64 {
 	return time.Now().Unix()
 }
 
-// Helper function to check if error is recoverable
 func IsRecoverableError(err error) bool {
 	if err == nil {
 		return false
 	}
 
-	// Add logic to determine if error is recoverable
-	// For now, assume most errors are recoverable
 	return true
 }
 
-// Helper function to get error category
 func GetErrorCategory(err error) string {
 	if err == nil {
 		return "none"
 	}
 
-	// Categorize common Wameow errors
 	errStr := err.Error()
 
 	if contains(errStr, "connection") {
@@ -263,7 +244,6 @@ func GetErrorCategory(err error) string {
 	return "unknown"
 }
 
-// contains checks if a string contains a substring (case-insensitive)
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) &&
 		(s == substr ||
@@ -273,7 +253,6 @@ func contains(s, substr string) bool {
 					containsSubstring(s, substr))))
 }
 
-// containsSubstring checks if string contains substring
 func containsSubstring(s, substr string) bool {
 	for i := 0; i <= len(s)-len(substr); i++ {
 		if s[i:i+len(substr)] == substr {

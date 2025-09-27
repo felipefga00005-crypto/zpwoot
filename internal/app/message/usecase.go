@@ -9,12 +9,10 @@ import (
 	"zpwoot/platform/logger"
 )
 
-// UseCase defines the message use case interface
 type UseCase interface {
 	SendMessage(ctx context.Context, sessionID string, req *SendMessageRequest) (*SendMessageResponse, error)
 }
 
-// useCaseImpl implements the message use case
 type useCaseImpl struct {
 	sessionRepo    ports.SessionRepository
 	wameowManager  ports.WameowManager
@@ -22,7 +20,6 @@ type useCaseImpl struct {
 	logger         *logger.Logger
 }
 
-// NewUseCase creates a new message use case
 func NewUseCase(
 	sessionRepo ports.SessionRepository,
 	wameowManager ports.WameowManager,
@@ -36,7 +33,6 @@ func NewUseCase(
 	}
 }
 
-// SendMessage sends a message through WhatsApp
 func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *SendMessageRequest) (*SendMessageResponse, error) {
 	uc.logger.InfoWithFields("Sending message", map[string]interface{}{
 		"session_id": sessionID,
@@ -44,7 +40,6 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		"type":       req.Type,
 	})
 
-	// Validate session exists and is connected
 	sess, err := uc.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get session: %w", err)
@@ -58,15 +53,12 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		return nil, fmt.Errorf("session is not connected")
 	}
 
-	// Convert to domain request
 	domainReq := req.ToDomainRequest()
 
-	// Validate request
 	if err := message.ValidateMessageRequest(domainReq); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
 
-	// Process media if needed
 	var filePath string
 	var cleanup func() error
 
@@ -79,17 +71,14 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		filePath = processedMedia.FilePath
 		cleanup = processedMedia.Cleanup
 
-		// Set MIME type if not provided
 		if domainReq.MimeType == "" {
 			domainReq.MimeType = processedMedia.MimeType
 		}
 
-		// Set filename if not provided for documents
 		if domainReq.Type == message.MessageTypeDocument && domainReq.Filename == "" {
 			domainReq.Filename = "document"
 		}
 
-		// Ensure cleanup happens
 		defer func() {
 			if cleanup != nil {
 				if cleanupErr := cleanup(); cleanupErr != nil {
@@ -102,7 +91,6 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		}()
 	}
 
-	// Send message through WhatsMeow manager
 	result, err := uc.wameowManager.SendMessage(
 		sessionID,
 		domainReq.To,
@@ -134,7 +122,6 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		"message_id": result.MessageID,
 	})
 
-	// Convert result to response
 	response := &SendMessageResponse{
 		ID:        result.MessageID,
 		Status:    result.Status,

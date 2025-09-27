@@ -33,7 +33,6 @@ func NewChatwootHandler(chatwootUC chatwoot.UseCase, logger *logger.Logger) *Cha
 	}
 }
 
-// CreateConfig creates Chatwoot configuration
 // @Summary Create Chatwoot configuration
 // @Description Creates a new Chatwoot integration configuration. This enables synchronization between Wameow and Chatwoot. Requires API key authentication.
 // @Tags Chatwoot
@@ -73,8 +72,6 @@ func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
 	})
 }
 
-// GetConfig gets Chatwoot configuration
-// GET /chatwoot/config
 func (h *ChatwootHandler) GetConfig(c *fiber.Ctx) error {
 	config, err := h.chatwootUC.GetConfig(c.Context())
 	if err != nil {
@@ -94,8 +91,6 @@ func (h *ChatwootHandler) GetConfig(c *fiber.Ctx) error {
 	})
 }
 
-// UpdateConfig updates Chatwoot configuration
-// PUT /chatwoot/config
 func (h *ChatwootHandler) UpdateConfig(c *fiber.Ctx) error {
 	var req chatwoot.UpdateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -117,7 +112,6 @@ func (h *ChatwootHandler) UpdateConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	// config is already a response DTO
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -125,8 +119,6 @@ func (h *ChatwootHandler) UpdateConfig(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteConfig deletes Chatwoot configuration
-// DELETE /chatwoot/config
 func (h *ChatwootHandler) DeleteConfig(c *fiber.Ctx) error {
 	err := h.chatwootUC.DeleteConfig(c.Context())
 	if err != nil {
@@ -146,8 +138,6 @@ func (h *ChatwootHandler) DeleteConfig(c *fiber.Ctx) error {
 	})
 }
 
-// SyncContacts synchronizes contacts with Chatwoot
-// POST /chatwoot/sync/contacts
 func (h *ChatwootHandler) SyncContacts(c *fiber.Ctx) error {
 	var req chatwoot.SyncContactRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -175,8 +165,6 @@ func (h *ChatwootHandler) SyncContacts(c *fiber.Ctx) error {
 	})
 }
 
-// SyncConversations synchronizes conversations with Chatwoot
-// POST /chatwoot/sync/conversations
 func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
 	var req chatwoot.SyncConversationRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -204,8 +192,6 @@ func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
 	})
 }
 
-// ReceiveWebhook receives webhook from Chatwoot
-// POST /chatwoot/webhook
 func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	var payload chatwoot.ChatwootWebhookPayload
 	if err := c.BodyParser(&payload); err != nil {
@@ -214,7 +200,6 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		})
 	}
 
-	// Validate event type
 	if !domainChatwoot.IsValidChatwootEvent(payload.Event) {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid event type",
@@ -242,14 +227,10 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	})
 }
 
-// TestConnection tests Chatwoot API connection
-// POST /chatwoot/test
 func (h *ChatwootHandler) TestConnection(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-	// Test the connection directly without getting config first
 
-	// Test the connection using the use case
 	result, err := h.chatwootUC.TestConnection(ctx)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -268,12 +249,9 @@ func (h *ChatwootHandler) TestConnection(c *fiber.Ctx) error {
 	})
 }
 
-// GetStats gets Chatwoot integration statistics
-// GET /chatwoot/stats
 func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-	// Get statistics from the use case
 	stats, err := h.chatwootUC.GetStats(ctx)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -289,10 +267,7 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 	})
 }
 
-// SetConfig sets/updates Chatwoot configuration (create or update)
-// POST /sessions/{sessionId}/chatwoot/set
 func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
-	// sessionID := c.Params("sessionId") // Not used in current implementation
 
 	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -303,15 +278,12 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	// Note: SessionID is handled internally, not part of the request
 
 	ctx := c.Context()
 
-	// Try to get existing config first
 	_, err := h.chatwootUC.GetConfig(ctx)
 
 	if err != nil {
-		// Config doesn't exist, create new one
 		result, createErr := h.chatwootUC.CreateConfig(ctx, &req)
 		if createErr != nil {
 			return c.Status(500).JSON(fiber.Map{
@@ -328,7 +300,6 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	// Config exists, update it
 	updateReq := chatwoot.UpdateChatwootConfigRequest{
 		URL:       &req.URL,
 		APIKey:    &req.APIKey,
@@ -352,8 +323,6 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 	})
 }
 
-// FindConfig finds the Chatwoot configuration
-// GET /sessions/{sessionId}/chatwoot/find
 func (h *ChatwootHandler) FindConfig(c *fiber.Ctx) error {
 	sessionID := c.Params("sessionId")
 

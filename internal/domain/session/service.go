@@ -45,18 +45,14 @@ func NewService(repo Repository, Wameow WameowManager) *Service {
 }
 
 func (s *Service) CreateSession(ctx context.Context, req *CreateSessionRequest) (*Session, error) {
-	// DeviceJid will be set when the session connects to Wameow
 
-	// Create new session
 	session := NewSession(req.Name)
 	session.ProxyConfig = req.ProxyConfig
 
-	// Save to database
 	if err := s.repo.Create(ctx, session); err != nil {
 		return nil, errors.Wrap(err, "failed to create session")
 	}
 
-	// Initialize Wameow session
 	if err := s.Wameow.CreateSession(session.ID.String(), req.ProxyConfig); err != nil {
 		return nil, errors.Wrap(err, "failed to initialize Wameow session")
 	}
@@ -87,7 +83,6 @@ func (s *Service) GetSession(ctx context.Context, id string) (*SessionInfo, erro
 }
 
 func (s *Service) ListSessions(ctx context.Context, req *ListSessionsRequest) ([]*Session, int, error) {
-	// Set default values
 	if req.Limit == 0 {
 		req.Limit = 20
 	}
@@ -110,16 +105,12 @@ func (s *Service) DeleteSession(ctx context.Context, id string) error {
 		return errors.ErrNotFound
 	}
 
-	// Disconnect and cleanup Wameow session
 	if session.IsActive() {
 		if err := s.Wameow.DisconnectSession(id); err != nil {
-			// Log error but continue with deletion
-			// We don't want to fail deletion just because disconnect failed
 			_ = err // Explicitly ignore error
 		}
 	}
 
-	// Delete from database
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return errors.Wrap(err, "failed to delete session")
 	}
@@ -137,25 +128,20 @@ func (s *Service) ConnectSession(ctx context.Context, id string) error {
 		return errors.ErrNotFound
 	}
 
-	// Always allow connection attempts to enable QR code restart
-	// Mark as connecting (will be updated to connected after successful QR scan)
 	session.SetConnected(false)   // Ensure it starts as disconnected during QR process
 	session.ConnectionError = nil // Clear any previous errors
 	if err := s.repo.Update(ctx, session); err != nil {
 		return errors.Wrap(err, "failed to update session status to connecting")
 	}
 
-	// Connect to Wameow (this will start QR code process if needed)
 	if err := s.Wameow.ConnectSession(id); err != nil {
 		session.SetConnectionError(err.Error())
 		if updateErr := s.repo.Update(ctx, session); updateErr != nil {
-			// Log the update error but return the original connection error
 			_ = updateErr // Explicitly ignore update error
 		}
 		return errors.Wrap(err, "failed to connect to Wameow")
 	}
 
-	// Don't mark as connected here - let the QR code success event handle that
 
 	return nil
 }
@@ -174,12 +160,10 @@ func (s *Service) LogoutSession(ctx context.Context, id string) error {
 		return errors.NewWithDetails(400, "Cannot logout session", "Session is not connected")
 	}
 
-	// Logout from Wameow
 	if err := s.Wameow.LogoutSession(id); err != nil {
 		return errors.Wrap(err, "failed to logout from Wameow")
 	}
 
-	// Update status to disconnected
 	session.SetConnected(false)
 	if err := s.repo.Update(ctx, session); err != nil {
 		return errors.Wrap(err, "failed to update session status")
@@ -216,12 +200,10 @@ func (s *Service) PairPhone(ctx context.Context, id string, req *PairPhoneReques
 		return errors.ErrNotFound
 	}
 
-	// Pair phone with Wameow
 	if err := s.Wameow.PairPhone(id, req.PhoneNumber); err != nil {
 		return errors.Wrap(err, "failed to pair phone")
 	}
 
-	// Update session with device JID (will be set by Wameow manager)
 	session.UpdatedAt = time.Now()
 	if err := s.repo.Update(ctx, session); err != nil {
 		return errors.Wrap(err, "failed to update session")
@@ -240,12 +222,10 @@ func (s *Service) SetProxy(ctx context.Context, id string, config *ProxyConfig) 
 		return errors.ErrNotFound
 	}
 
-	// Set proxy in Wameow
 	if err := s.Wameow.SetProxy(id, config); err != nil {
 		return errors.Wrap(err, "failed to set proxy")
 	}
 
-	// Update session
 	session.ProxyConfig = config
 	session.UpdatedAt = time.Now()
 	if err := s.repo.Update(ctx, session); err != nil {

@@ -6,7 +6,6 @@ import (
 	"zpwoot/internal/domain/message"
 )
 
-// SendMessageRequest represents the request to send a message
 type SendMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Type     string `json:"type" validate:"required,oneof=text image audio video document sticker location contact" example:"text"`
@@ -16,24 +15,20 @@ type SendMessageRequest struct {
 	Filename string `json:"filename,omitempty" example:"document.pdf"`
 	MimeType string `json:"mimeType,omitempty" example:"image/jpeg"`
 
-	// Location specific fields
 	Latitude  float64 `json:"latitude,omitempty" example:"-23.5505"`
 	Longitude float64 `json:"longitude,omitempty" example:"-46.6333"`
 	Address   string  `json:"address,omitempty" example:"São Paulo, SP"`
 
-	// Contact specific fields
 	ContactName  string `json:"contactName,omitempty" example:"John Doe"`
 	ContactPhone string `json:"contactPhone,omitempty" example:"+5511999999999"`
 } //@name SendMessageRequest
 
-// SendMessageResponse represents the response after sending a message
 type SendMessageResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Status    string    `json:"status" example:"sent"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name SendMessageResponse
 
-// FromDomainRequest converts domain request to DTO request
 func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 	return &SendMessageRequest{
 		To:           req.To,
@@ -51,7 +46,6 @@ func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 	}
 }
 
-// ToDomainRequest converts DTO request to domain request
 func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 	return &message.SendMessageRequest{
 		To:           r.To,
@@ -69,7 +63,6 @@ func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 	}
 }
 
-// FromDomainResponse converts domain response to DTO response
 func FromDomainResponse(resp *message.SendMessageResponse) *SendMessageResponse {
 	return &SendMessageResponse{
 		ID:        resp.MessageID,
@@ -78,7 +71,6 @@ func FromDomainResponse(resp *message.SendMessageResponse) *SendMessageResponse 
 	}
 }
 
-// ToDomainResponse converts DTO response to domain response
 func (r *SendMessageResponse) ToDomainResponse() *message.SendMessageResponse {
 	return &message.SendMessageResponse{
 		MessageID: r.ID,
@@ -87,20 +79,17 @@ func (r *SendMessageResponse) ToDomainResponse() *message.SendMessageResponse {
 	}
 }
 
-// ButtonMessageRequest represents a button message request
 type ButtonMessageRequest struct {
 	To      string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body    string   `json:"body" validate:"required" example:"Please choose one of the options below:"`
 	Buttons []Button `json:"buttons" validate:"required,min=1,max=3"`
 } //@name ButtonMessageRequest
 
-// Button represents a button in a button message
 type Button struct {
 	ID   string `json:"id" example:"btn_yes"`
 	Text string `json:"text" validate:"required" example:"Yes, I agree"`
 } //@name Button
 
-// ListMessageRequest represents a list message request
 type ListMessageRequest struct {
 	To         string    `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body       string    `json:"body" validate:"required" example:"Please select one of the available options:"`
@@ -108,13 +97,11 @@ type ListMessageRequest struct {
 	Sections   []Section `json:"sections" validate:"required,min=1"`
 } //@name ListMessageRequest
 
-// Section represents a section in a list message
 type Section struct {
 	Title string `json:"title" example:"Available Services"`
 	Rows  []Row  `json:"rows" validate:"required,min=1,max=10"`
 } //@name Section
 
-// Row represents a row in a list section
 type Row struct {
 	ID          string `json:"id" example:"service_support"`
 	Title       string `json:"title" validate:"required" example:"Customer Support"`
@@ -123,7 +110,6 @@ type Row struct {
 
 
 
-// MediaMessageRequest represents a generic media message request
 type MediaMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/media.file"`
@@ -132,7 +118,6 @@ type MediaMessageRequest struct {
 	Filename string `json:"filename" example:"media.file"`
 } //@name MediaMessageRequest
 
-// ImageMessageRequest represents an image message request
 type ImageMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/image.jpg"`
@@ -141,7 +126,6 @@ type ImageMessageRequest struct {
 	Filename string `json:"filename" example:"sunset.jpg"`
 } //@name ImageMessageRequest
 
-// VideoMessageRequest represents a video message request
 type VideoMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/video.mp4"`
@@ -150,7 +134,6 @@ type VideoMessageRequest struct {
 	Filename string `json:"filename" example:"amazing_video.mp4"`
 } //@name VideoMessageRequest
 
-// AudioMessageRequest represents an audio message request
 type AudioMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/audio.ogg"`
@@ -159,7 +142,6 @@ type AudioMessageRequest struct {
 	Filename string `json:"filename" example:"voice_message.ogg"`
 } //@name AudioMessageRequest
 
-// DocumentMessageRequest represents a document message request
 type DocumentMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/document.pdf"`
@@ -168,7 +150,6 @@ type DocumentMessageRequest struct {
 	Filename string `json:"filename" validate:"required" example:"important_document.pdf"`
 } //@name DocumentMessageRequest
 
-// LocationMessageRequest represents a location message request
 type LocationMessageRequest struct {
 	To        string  `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Latitude  float64 `json:"latitude" validate:"required" example:"-23.5505"`
@@ -176,15 +157,12 @@ type LocationMessageRequest struct {
 	Address   string  `json:"address" example:"Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"`
 } //@name LocationMessageRequest
 
-// ContactMessageRequest represents a contact message request
 type ContactMessageRequest struct {
 	To           string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	ContactName  string `json:"contactName" validate:"required" example:"Maria Silva"`
 	ContactPhone string `json:"contactPhone" validate:"required" example:"+5511987654321"`
 } //@name ContactMessageRequest
 
-// ContactInfo represents detailed contact information
-// Note: WhatsApp only displays name, phone, and organization. Other fields are included for compatibility.
 type ContactInfo struct {
 	Name         string `json:"name" validate:"required" example:"João Santos"`
 	Phone        string `json:"phone" validate:"required" example:"+5511987654321"`
@@ -195,13 +173,11 @@ type ContactInfo struct {
 	Address      string `json:"address,omitempty" example:"Rua das Flores, 123 - São Paulo, SP"` // Not displayed in WhatsApp
 } //@name ContactInfo
 
-// ContactListMessageRequest represents a request to send multiple contacts
 type ContactListMessageRequest struct {
 	To       string        `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Contacts []ContactInfo `json:"contacts" validate:"required,min=1,max=10"`
 } //@name ContactListMessageRequest
 
-// ContactListMessageResponse represents the response after sending multiple contacts
 type ContactListMessageResponse struct {
 	TotalContacts int                 `json:"totalContacts" example:"3"`
 	SuccessCount  int                 `json:"successCount" example:"3"`
@@ -210,7 +186,6 @@ type ContactListMessageResponse struct {
 	Timestamp     string              `json:"timestamp" example:"2024-01-01T00:00:00Z"`
 } //@name ContactListMessageResponse
 
-// ContactSendResult represents the result of sending a single contact
 type ContactSendResult struct {
 	ContactName string `json:"contactName" example:"João Santos"`
 	MessageID   string `json:"messageId,omitempty" example:"3EB07F264CA1B4AD714A3F"`
@@ -218,41 +193,35 @@ type ContactSendResult struct {
 	Error       string `json:"error,omitempty"`
 } //@name ContactSendResult
 
-// ReactionMessageRequest represents a reaction message request
 type ReactionMessageRequest struct {
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	Reaction  string `json:"reaction" validate:"required" example:"👍"`
 } //@name ReactionMessageRequest
 
-// PresenceMessageRequest represents a presence message request
 type PresenceMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Presence string `json:"presence" validate:"required,oneof=typing recording online offline paused" example:"typing"`
 } //@name PresenceMessageRequest
 
-// EditMessageRequest represents an edit message request
 type EditMessageRequest struct {
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	NewBody   string `json:"newBody" validate:"required" example:"Updated message text"`
 } //@name EditMessageRequest
 
-// DeleteMessageRequest represents a delete message request
 type DeleteMessageRequest struct {
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	ForAll    bool   `json:"forAll" example:"true"`
 } //@name DeleteMessageRequest
 
-// MessageResponse represents a standard message response
 type MessageResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Status    string    `json:"status" example:"sent"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name MessageResponse
 
-// ReactionResponse represents a reaction response
 type ReactionResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Reaction  string    `json:"reaction" example:"👍"`
@@ -260,14 +229,12 @@ type ReactionResponse struct {
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name ReactionResponse
 
-// PresenceResponse represents a presence response
 type PresenceResponse struct {
 	Status    string    `json:"status" example:"sent"`
 	Presence  string    `json:"presence" example:"typing"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name PresenceResponse
 
-// EditResponse represents an edit message response
 type EditResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Status    string    `json:"status" example:"edited"`
@@ -275,7 +242,6 @@ type EditResponse struct {
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name EditResponse
 
-// DeleteResponse represents a delete message response
 type DeleteResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Status    string    `json:"status" example:"deleted"`
@@ -283,7 +249,6 @@ type DeleteResponse struct {
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name DeleteResponse
 
-// BusinessProfileRequest represents a business profile contact request
 type BusinessProfileRequest struct {
 	To           string `json:"to" validate:"required" example:"5511987654321@s.whatsapp.net"`
 	Name         string `json:"name" validate:"required" example:"Empresa Teste Ltda"`
@@ -295,14 +260,12 @@ type BusinessProfileRequest struct {
 	Address      string `json:"address,omitempty" example:"Rua Teste, 123 - São Paulo, SP"`
 } //@name BusinessProfileRequest
 
-// TextMessageRequest represents a text message request with optional reply
 type TextMessageRequest struct {
 	To          string       `json:"to" validate:"required" example:"5511987654321@s.whatsapp.net"`
 	Body        string       `json:"body" validate:"required" example:"Hello, this is a text message"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name TextMessageRequest
 
-// ContextInfo represents context information for message replies
 type ContextInfo struct {
 	StanzaID    string `json:"stanzaId" validate:"required" example:"ABCD1234abcd"`
 	Participant string `json:"participant,omitempty" example:"5511999999999@s.whatsapp.net"`

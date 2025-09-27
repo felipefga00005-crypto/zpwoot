@@ -1,5 +1,3 @@
-// Package main provides the entry point for zpwoot application
-//
 // @title zpwoot - WhatsApp Multi-Session API
 // @version 1.0
 // @description A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.
@@ -7,17 +5,13 @@
 // @description ## Authentication
 // @description All API endpoints (except /health and /swagger/*) require API key authentication.
 // @description Provide your API key in the `Authorization` header.
-//
 // @contact.name zpwoot Support
 // @contact.url https://github.com/your-org/zpwoot
 // @contact.email support@zpwoot.com
-//
 // @license.name MIT
 // @license.url https://opensource.org/licenses/MIT
-//
 // @host localhost:8080
 // @BasePath /
-//
 // @securityDefinitions.apikey ApiKeyAuth
 // @in header
 // @name Authorization
@@ -52,7 +46,6 @@ import (
 	"zpwoot/platform/logger"
 )
 
-// Build information - set via ldflags during build
 var (
 	Version   = "dev"
 	BuildTime = "unknown"
@@ -60,7 +53,6 @@ var (
 )
 
 func main() {
-	// Define command line flags
 	var (
 		migrateUp     = flag.Bool("migrate-up", false, "Run database migrations up")
 		migrateDown   = flag.Bool("migrate-down", false, "Rollback last migration")
@@ -70,16 +62,13 @@ func main() {
 	)
 	flag.Parse()
 
-	// Handle version flag
 	if *version {
 		showVersion()
 		return
 	}
 
-	// Load configuration
 	cfg := config.Load()
 
-	// Initialize logger with configuration based on environment
 	loggerConfig := &logger.LogConfig{
 		Level:      cfg.LogLevel,
 		Format:     cfg.LogFormat,
@@ -87,7 +76,6 @@ func main() {
 		Caller:     cfg.IsDevelopment(), // Show caller info in development
 	}
 
-	// Use production config if in production
 	if cfg.IsProduction() {
 		loggerConfig = logger.ProductionConfig()
 		loggerConfig.Level = cfg.LogLevel // Override with env setting
@@ -95,7 +83,6 @@ func main() {
 
 	appLogger := logger.NewWithConfig(loggerConfig)
 
-	// Initialize database with automatic migrations
 	database, err := platformDB.NewWithMigrations(cfg.DatabaseURL, appLogger)
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database and run migrations: " + err.Error())
@@ -106,7 +93,6 @@ func main() {
 		}
 	}()
 
-	// Handle migration and seeding flags
 	migrator := db.NewMigrator(database.GetDB().DB, appLogger)
 
 	if *migrateUp {
@@ -142,10 +128,8 @@ func main() {
 		return
 	}
 
-	// Initialize repositories
 	repositories := repository.NewRepositories(database.GetDB(), appLogger)
 
-	// Initialize WhatsApp manager and create whatsmeow tables
 	appLogger.Info("Initializing WhatsApp manager and creating whatsmeow tables...")
 	whatsappManager, err := initializeWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
 	if err != nil {
@@ -153,7 +137,6 @@ func main() {
 	}
 	appLogger.Info("WhatsApp manager initialized successfully with whatsmeow tables created")
 
-	// Initialize application container with dependencies
 	container := app.NewContainer(&app.ContainerConfig{
 		SessionRepo:         repositories.GetSessionRepository(),
 		WebhookRepo:         repositories.GetWebhookRepository(),
@@ -167,7 +150,6 @@ func main() {
 		GitCommit:           GitCommit,
 	})
 
-	// Initialize Fiber app
 	app := fiber.New(fiber.Config{
 		DisableStartupMessage: true, // Disable the Fiber startup banner
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
@@ -181,7 +163,6 @@ func main() {
 		},
 	})
 
-	// Middleware
 	app.Use(recover.New())
 	app.Use(middleware.RequestID(appLogger))
 	app.Use(middleware.HTTPLogger(appLogger))
@@ -189,13 +170,10 @@ func main() {
 	app.Use(cors.New())
 	app.Use(middleware.APIKeyAuth(cfg, appLogger))
 
-	// Setup routes with dependencies
 	routers.SetupRoutes(app, database, appLogger, whatsappManager, container)
 
-	// Connect existing sessions on startup
 	go connectOnStartup(container, appLogger)
 
-	// Graceful shutdown
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
@@ -207,7 +185,6 @@ func main() {
 		}
 	}()
 
-	// Start server
 	appLogger.InfoWithFields("Starting zpwoot server", map[string]interface{}{
 		"port":        cfg.Port,
 		"server_host": cfg.ServerHost,
@@ -219,12 +196,9 @@ func main() {
 	}
 }
 
-// initializeWhatsAppManager creates and initializes the WhatsApp manager
-// This will automatically create the whatsmeow tables in the database
 func initializeWhatsAppManager(database *platformDB.DB, sessionRepo ports.SessionRepository, appLogger *logger.Logger) (*wameow.Manager, error) {
 	appLogger.Info("Creating WhatsApp manager factory...")
 
-	// Create factory with the session repository
 	factory := wameow.NewFactory(appLogger, sessionRepo)
 
 	appLogger.Info("Creating WhatsApp manager with database connection...")
@@ -237,7 +211,6 @@ func initializeWhatsAppManager(database *platformDB.DB, sessionRepo ports.Sessio
 	return manager, nil
 }
 
-// showVersion displays version information
 func showVersion() {
 	fmt.Printf("zpwoot - WhatsApp Multi-Session API\n")
 	fmt.Printf("Version: %s\n", Version)
@@ -247,7 +220,6 @@ func showVersion() {
 	fmt.Printf("OS/Arch: %s/%s\n", runtime.GOOS, runtime.GOARCH)
 }
 
-// showMigrationStatus displays the current migration status
 func showMigrationStatus(migrations []*db.Migration, logger *logger.Logger) {
 	fmt.Printf("Migration Status:\n")
 	fmt.Printf("================\n\n")
@@ -272,11 +244,9 @@ func showMigrationStatus(migrations []*db.Migration, logger *logger.Logger) {
 	fmt.Printf("\n")
 }
 
-// seedDatabase seeds the database with sample data
 func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 	logger.Info("Starting database seeding...")
 
-	// Sample session data
 	sampleSessions := []map[string]interface{}{
 		{
 			"id":         "sample-session-1",
@@ -288,7 +258,6 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 		},
 	}
 
-	// Sample webhook data
 	sampleWebhooks := []map[string]interface{}{
 		{
 			"id":         "sample-webhook-1",
@@ -301,7 +270,6 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 		},
 	}
 
-	// Insert sample sessions
 	for _, session := range sampleSessions {
 		query := `
 			INSERT INTO "zpSessions" ("id", "name", "deviceJid", "status", "createdAt", "updatedAt")
@@ -316,7 +284,6 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 		}
 	}
 
-	// Insert sample webhooks
 	for _, webhook := range sampleWebhooks {
 		query := `
 			INSERT INTO "zpWebhooks" ("id", "sessionId", "url", "events", "enabled", "createdAt", "updatedAt")
@@ -339,32 +306,26 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 	return nil
 }
 
-// connectOnStartup automatically connects all existing sessions that have been previously paired
 func connectOnStartup(container *app.Container, logger *logger.Logger) {
 	logger.Info("Starting connection process for all sessions on startup")
 
-	// Wait a bit for the server to fully start
 	time.Sleep(3 * time.Second)
 
-	// Get session use case from container
 	sessionUC := container.GetSessionUseCase()
 	if sessionUC == nil {
 		logger.Error("Session use case not available, skipping auto-connect")
 		return
 	}
 
-	// Get session repository from container
 	sessionRepo := container.GetSessionRepository()
 	if sessionRepo == nil {
 		logger.Error("Session repository not available, skipping auto-connect")
 		return
 	}
 
-	// Create context with timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	// Get all sessions from repository
 	sessions, _, err := sessionRepo.List(ctx, &session.ListSessionsRequest{
 		Limit:  100, // Get up to 100 sessions
 		Offset: 0,
@@ -385,14 +346,12 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 		"total_sessions": len(sessions),
 	})
 
-	// Connect sessions that have been previously paired (have deviceJid)
 	connectedCount := 0
 	skippedCount := 0
 
 	for _, sess := range sessions {
 		sessionID := sess.ID.String()
 
-		// Only try to connect sessions that have been previously paired
 		if sess.DeviceJid == "" {
 			logger.InfoWithFields("Skipping session without device JID (never paired)", map[string]interface{}{
 				"session_id":   sessionID,
@@ -402,8 +361,6 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 			continue
 		}
 
-		// Always attempt to reconnect sessions with device JID, regardless of stored connection status
-		// The IsConnected flag in database may be stale after server restart
 		logger.InfoWithFields("Attempting to reconnect session with saved credentials", map[string]interface{}{
 			"session_id":    sessionID,
 			"session_name":  sess.Name,
@@ -411,7 +368,6 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 			"was_connected": sess.IsConnected,
 		})
 
-		// Try to connect the session using session use case
 		err := sessionUC.ConnectSession(ctx, sessionID)
 		if err != nil {
 			logger.ErrorWithFields("Failed to auto-connect session", map[string]interface{}{
@@ -428,7 +384,6 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 			"session_name": sess.Name,
 		})
 
-		// Add a small delay between connections to avoid overwhelming the system
 		time.Sleep(1 * time.Second)
 	}
 

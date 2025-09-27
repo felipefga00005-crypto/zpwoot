@@ -10,7 +10,6 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
-// EventHandler handles Wameow events
 type EventHandler struct {
 	manager    *Manager
 	sessionMgr *SessionManager
@@ -18,7 +17,6 @@ type EventHandler struct {
 	logger     *logger.Logger
 }
 
-// NewEventHandler creates a new event handler
 func NewEventHandler(manager *Manager, sessionMgr *SessionManager, qrGen *QRCodeGenerator, logger *logger.Logger) *EventHandler {
 	return &EventHandler{
 		manager:    manager,
@@ -28,9 +26,7 @@ func NewEventHandler(manager *Manager, sessionMgr *SessionManager, qrGen *QRCode
 	}
 }
 
-// SetupEventHandlers is now defined in manager.go to avoid circular imports
 
-// HandleEvent handles all Wameow events
 func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 	switch v := evt.(type) {
 	case *events.Connected:
@@ -55,7 +51,6 @@ func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 		h.handleChatPresence(v, sessionID)
 	case *events.HistorySync:
 		h.handleHistorySync(v, sessionID)
-	// Add more common event types to reduce noise
 	case *events.AppState:
 		h.handleAppState(v, sessionID)
 	case *events.AppStateSyncComplete:
@@ -93,7 +88,6 @@ func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 	case *events.OfflineSyncCompleted:
 		h.handleOfflineSyncCompleted(v, sessionID)
 	default:
-		// Use DEBUG level instead of INFO to reduce noise for truly unknown events
 		h.logger.DebugWithFields("Unhandled event", map[string]interface{}{
 			"session_id": sessionID,
 			"event_type": getEventType(evt),
@@ -101,7 +95,6 @@ func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 	}
 }
 
-// handleConnected handles connection events
 func (h *EventHandler) handleConnected(evt *events.Connected, sessionID string) {
 	h.logger.InfoWithFields("Wameow connected", map[string]interface{}{
 		"session_id":   sessionID,
@@ -109,13 +102,11 @@ func (h *EventHandler) handleConnected(evt *events.Connected, sessionID string) 
 		"connected_at": time.Now().Unix(),
 	})
 
-	// Use evt to avoid unused parameter warning
 	_ = evt
 
 	h.sessionMgr.UpdateConnectionStatus(sessionID, true)
 }
 
-// handleDisconnected handles disconnection events
 func (h *EventHandler) handleDisconnected(evt *events.Disconnected, sessionID string) {
 	h.logger.InfoWithFields("Wameow disconnected", map[string]interface{}{
 		"session_id":      sessionID,
@@ -123,13 +114,11 @@ func (h *EventHandler) handleDisconnected(evt *events.Disconnected, sessionID st
 		"disconnected_at": time.Now().Unix(),
 	})
 
-	// Use evt to avoid unused parameter warning
 	_ = evt
 
 	h.sessionMgr.UpdateConnectionStatus(sessionID, false)
 }
 
-// handleLoggedOut handles logout events
 func (h *EventHandler) handleLoggedOut(evt *events.LoggedOut, sessionID string) {
 	h.logger.InfoWithFields("Wameow logged out", map[string]interface{}{
 		"session_id": sessionID,
@@ -139,23 +128,18 @@ func (h *EventHandler) handleLoggedOut(evt *events.LoggedOut, sessionID string) 
 	h.sessionMgr.UpdateConnectionStatus(sessionID, false)
 }
 
-// handleQR handles QR code events
 func (h *EventHandler) handleQR(evt *events.QR, sessionID string) {
 	h.logger.InfoWithFields("QR code received", map[string]interface{}{
 		"session_id":  sessionID,
 		"codes_count": len(evt.Codes),
 	})
 
-	// Generate QR code image
 	qrImage := h.qrGen.GenerateQRCodeImage(evt.Codes[0])
 
-	// Update session with QR code
 	h.updateSessionQRCode(sessionID, qrImage)
 
-	// Note: QR code display is handled in client.go to avoid duplication
 }
 
-// handlePairSuccess handles successful pairing
 func (h *EventHandler) handlePairSuccess(evt *events.PairSuccess, sessionID string) {
 	h.logger.InfoWithFields("Pairing successful", map[string]interface{}{
 		"session_id": sessionID,
@@ -164,14 +148,11 @@ func (h *EventHandler) handlePairSuccess(evt *events.PairSuccess, sessionID stri
 
 	h.sessionMgr.UpdateConnectionStatus(sessionID, true)
 
-	// Update session with device JID
 	h.updateSessionDeviceJID(sessionID, evt.ID.String())
 
-	// Clear QR code after successful pairing
 	h.clearSessionQRCode(sessionID)
 }
 
-// handlePairError handles pairing errors
 func (h *EventHandler) handlePairError(evt *events.PairError, sessionID string) {
 	h.logger.ErrorWithFields("Pairing failed", map[string]interface{}{
 		"session_id": sessionID,
@@ -181,9 +162,7 @@ func (h *EventHandler) handlePairError(evt *events.PairError, sessionID string) 
 	h.sessionMgr.UpdateConnectionStatus(sessionID, false)
 }
 
-// handleMessage handles incoming messages
 func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
-	// Basic message info
 	messageInfo := map[string]interface{}{
 		"session_id": sessionID,
 		"from":       evt.Info.Sender.String(),
@@ -191,7 +170,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 		"timestamp":  evt.Info.Timestamp,
 	}
 
-	// DETAILED MESSAGE ANALYSIS - Print ALL message fields for debugging
 	h.logger.InfoWithFields("🔍 DETAILED MESSAGE ANALYSIS", map[string]interface{}{
 		"session_id":                sessionID,
 		"from":                      evt.Info.Sender.String(),
@@ -211,7 +189,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 		"has_buttons_message":       evt.Message.ButtonsMessage != nil,
 	})
 
-	// Check if it's a contact message and add detailed logging
 	if evt.Message.ContactMessage != nil {
 		contactMsg := evt.Message.ContactMessage
 		messageInfo["message_type"] = "contact"
@@ -227,7 +204,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 
 		h.logger.InfoWithFields("📞 CONTACT MESSAGE RECEIVED", messageInfo)
 
-		// Print the full vCard for analysis
 		if contactMsg.Vcard != nil {
 			h.logger.InfoWithFields("📋 FULL VCARD CONTENT", map[string]interface{}{
 				"session_id": sessionID,
@@ -236,7 +212,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 			})
 		}
 	} else if evt.Message.ContactsArrayMessage != nil {
-		// Check for ContactsArrayMessage (multiple contacts)
 		contactsMsg := evt.Message.ContactsArrayMessage
 		messageInfo["message_type"] = "contacts_array"
 
@@ -250,7 +225,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 
 		h.logger.InfoWithFields("📞📞📞 CONTACTS ARRAY MESSAGE RECEIVED", messageInfo)
 
-		// Print details of each contact
 		if contactsMsg.Contacts != nil {
 			for i, contact := range contactsMsg.Contacts {
 				contactInfo := map[string]interface{}{
@@ -272,7 +246,6 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 			}
 		}
 	} else {
-		// For non-contact messages, just log basic info
 		messageType := "text"
 		if evt.Message.ImageMessage != nil {
 			messageType = "image"
@@ -297,17 +270,10 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 		h.logger.InfoWithFields("Message received", messageInfo)
 	}
 
-	// Update last seen
 	h.updateSessionLastSeen(sessionID)
 
-	// Here you would typically:
-	// 1. Process the message
-	// 2. Send to webhooks
-	// 3. Forward to Chatwoot if configured
-	// 4. Store in database if needed
 }
 
-// handleReceipt handles message receipts
 func (h *EventHandler) handleReceipt(evt *events.Receipt, sessionID string) {
 	h.logger.InfoWithFields("Receipt received", map[string]interface{}{
 		"session_id": sessionID,
@@ -317,7 +283,6 @@ func (h *EventHandler) handleReceipt(evt *events.Receipt, sessionID string) {
 	})
 }
 
-// handlePresence handles presence updates
 func (h *EventHandler) handlePresence(evt *events.Presence, sessionID string) {
 	h.logger.InfoWithFields("Presence update", map[string]interface{}{
 		"session_id":  sessionID,
@@ -327,7 +292,6 @@ func (h *EventHandler) handlePresence(evt *events.Presence, sessionID string) {
 	})
 }
 
-// handleChatPresence handles chat presence updates
 func (h *EventHandler) handleChatPresence(evt *events.ChatPresence, sessionID string) {
 	h.logger.InfoWithFields("Chat presence update", map[string]interface{}{
 		"session_id": sessionID,
@@ -336,7 +300,6 @@ func (h *EventHandler) handleChatPresence(evt *events.ChatPresence, sessionID st
 	})
 }
 
-// handleHistorySync handles history sync events
 func (h *EventHandler) handleHistorySync(evt *events.HistorySync, sessionID string) {
 	h.logger.InfoWithFields("History sync", map[string]interface{}{
 		"session_id": sessionID,
@@ -344,7 +307,6 @@ func (h *EventHandler) handleHistorySync(evt *events.HistorySync, sessionID stri
 	})
 }
 
-// handleAppState handles app state events
 func (h *EventHandler) handleAppState(evt *events.AppState, sessionID string) {
 	h.logger.DebugWithFields("App state update", map[string]interface{}{
 		"session_id": sessionID,
@@ -352,7 +314,6 @@ func (h *EventHandler) handleAppState(evt *events.AppState, sessionID string) {
 	_ = evt // Avoid unused parameter warning
 }
 
-// handleAppStateSyncComplete handles app state sync completion
 func (h *EventHandler) handleAppStateSyncComplete(evt *events.AppStateSyncComplete, sessionID string) {
 	h.logger.DebugWithFields("App state sync complete", map[string]interface{}{
 		"session_id": sessionID,
@@ -360,7 +321,6 @@ func (h *EventHandler) handleAppStateSyncComplete(evt *events.AppStateSyncComple
 	})
 }
 
-// handleKeepAliveTimeout handles keep alive timeout events
 func (h *EventHandler) handleKeepAliveTimeout(evt *events.KeepAliveTimeout, sessionID string) {
 	h.logger.DebugWithFields("Keep alive timeout", map[string]interface{}{
 		"session_id": sessionID,
@@ -368,7 +328,6 @@ func (h *EventHandler) handleKeepAliveTimeout(evt *events.KeepAliveTimeout, sess
 	_ = evt // Avoid unused parameter warning
 }
 
-// handleKeepAliveRestored handles keep alive restored events
 func (h *EventHandler) handleKeepAliveRestored(evt *events.KeepAliveRestored, sessionID string) {
 	h.logger.DebugWithFields("Keep alive restored", map[string]interface{}{
 		"session_id": sessionID,
@@ -376,7 +335,6 @@ func (h *EventHandler) handleKeepAliveRestored(evt *events.KeepAliveRestored, se
 	_ = evt // Avoid unused parameter warning
 }
 
-// handleContact handles contact events
 func (h *EventHandler) handleContact(evt *events.Contact, sessionID string) {
 	h.logger.DebugWithFields("Contact update", map[string]interface{}{
 		"session_id": sessionID,
@@ -384,7 +342,6 @@ func (h *EventHandler) handleContact(evt *events.Contact, sessionID string) {
 	})
 }
 
-// handleGroupInfo handles group info events
 func (h *EventHandler) handleGroupInfo(evt *events.GroupInfo, sessionID string) {
 	h.logger.DebugWithFields("Group info update", map[string]interface{}{
 		"session_id": sessionID,
@@ -392,7 +349,6 @@ func (h *EventHandler) handleGroupInfo(evt *events.GroupInfo, sessionID string) 
 	})
 }
 
-// handlePicture handles picture events
 func (h *EventHandler) handlePicture(evt *events.Picture, sessionID string) {
 	h.logger.DebugWithFields("Picture update", map[string]interface{}{
 		"session_id": sessionID,
@@ -400,7 +356,6 @@ func (h *EventHandler) handlePicture(evt *events.Picture, sessionID string) {
 	})
 }
 
-// handleBusinessName handles business name events
 func (h *EventHandler) handleBusinessName(evt *events.BusinessName, sessionID string) {
 	h.logger.DebugWithFields("Business name update", map[string]interface{}{
 		"session_id": sessionID,
@@ -408,7 +363,6 @@ func (h *EventHandler) handleBusinessName(evt *events.BusinessName, sessionID st
 	})
 }
 
-// handlePushName handles push name events
 func (h *EventHandler) handlePushName(evt *events.PushName, sessionID string) {
 	h.logger.DebugWithFields("Push name update", map[string]interface{}{
 		"session_id": sessionID,
@@ -416,7 +370,6 @@ func (h *EventHandler) handlePushName(evt *events.PushName, sessionID string) {
 	})
 }
 
-// handleArchive handles archive events
 func (h *EventHandler) handleArchive(evt *events.Archive, sessionID string) {
 	h.logger.DebugWithFields("Archive update", map[string]interface{}{
 		"session_id": sessionID,
@@ -424,7 +377,6 @@ func (h *EventHandler) handleArchive(evt *events.Archive, sessionID string) {
 	})
 }
 
-// handlePin handles pin events
 func (h *EventHandler) handlePin(evt *events.Pin, sessionID string) {
 	h.logger.DebugWithFields("Pin update", map[string]interface{}{
 		"session_id": sessionID,
@@ -432,7 +384,6 @@ func (h *EventHandler) handlePin(evt *events.Pin, sessionID string) {
 	})
 }
 
-// handleMute handles mute events
 func (h *EventHandler) handleMute(evt *events.Mute, sessionID string) {
 	h.logger.DebugWithFields("Mute update", map[string]interface{}{
 		"session_id": sessionID,
@@ -440,7 +391,6 @@ func (h *EventHandler) handleMute(evt *events.Mute, sessionID string) {
 	})
 }
 
-// handleStar handles star events
 func (h *EventHandler) handleStar(evt *events.Star, sessionID string) {
 	h.logger.DebugWithFields("Star update", map[string]interface{}{
 		"session_id": sessionID,
@@ -448,7 +398,6 @@ func (h *EventHandler) handleStar(evt *events.Star, sessionID string) {
 	_ = evt // Avoid unused parameter warning
 }
 
-// handleDeleteForMe handles delete for me events
 func (h *EventHandler) handleDeleteForMe(evt *events.DeleteForMe, sessionID string) {
 	h.logger.DebugWithFields("Delete for me", map[string]interface{}{
 		"session_id": sessionID,
@@ -456,7 +405,6 @@ func (h *EventHandler) handleDeleteForMe(evt *events.DeleteForMe, sessionID stri
 	})
 }
 
-// handleMarkChatAsRead handles mark chat as read events
 func (h *EventHandler) handleMarkChatAsRead(evt *events.MarkChatAsRead, sessionID string) {
 	h.logger.DebugWithFields("Mark chat as read", map[string]interface{}{
 		"session_id": sessionID,
@@ -464,7 +412,6 @@ func (h *EventHandler) handleMarkChatAsRead(evt *events.MarkChatAsRead, sessionI
 	})
 }
 
-// handleUndecryptableMessage handles undecryptable message events
 func (h *EventHandler) handleUndecryptableMessage(evt *events.UndecryptableMessage, sessionID string) {
 	h.logger.DebugWithFields("Undecryptable message", map[string]interface{}{
 		"session_id": sessionID,
@@ -472,7 +419,6 @@ func (h *EventHandler) handleUndecryptableMessage(evt *events.UndecryptableMessa
 	})
 }
 
-// handleOfflineSyncPreview handles offline sync preview events
 func (h *EventHandler) handleOfflineSyncPreview(evt *events.OfflineSyncPreview, sessionID string) {
 	h.logger.DebugWithFields("Offline sync preview", map[string]interface{}{
 		"session_id": sessionID,
@@ -480,7 +426,6 @@ func (h *EventHandler) handleOfflineSyncPreview(evt *events.OfflineSyncPreview, 
 	})
 }
 
-// handleOfflineSyncCompleted handles offline sync completed events
 func (h *EventHandler) handleOfflineSyncCompleted(evt *events.OfflineSyncCompleted, sessionID string) {
 	h.logger.DebugWithFields("Offline sync completed", map[string]interface{}{
 		"session_id": sessionID,
@@ -488,7 +433,6 @@ func (h *EventHandler) handleOfflineSyncCompleted(evt *events.OfflineSyncComplet
 	})
 }
 
-// updateSessionQRCode updates the QR code for a session
 func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -502,7 +446,6 @@ func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 		return
 	}
 
-	// Update QR code
 	sess.QRCode = qrCode
 	sess.UpdatedAt = time.Now()
 
@@ -514,7 +457,6 @@ func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 	}
 }
 
-// updateSessionDeviceJID updates the device JID for a session
 func (h *EventHandler) updateSessionDeviceJID(sessionID, deviceJID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -539,7 +481,6 @@ func (h *EventHandler) updateSessionDeviceJID(sessionID, deviceJID string) {
 	}
 }
 
-// updateSessionLastSeen updates the last seen timestamp for a session
 func (h *EventHandler) updateSessionLastSeen(sessionID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -565,7 +506,6 @@ func (h *EventHandler) updateSessionLastSeen(sessionID string) {
 	}
 }
 
-// clearSessionQRCode clears the QR code for a session after successful connection
 func (h *EventHandler) clearSessionQRCode(sessionID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -579,7 +519,6 @@ func (h *EventHandler) clearSessionQRCode(sessionID string) {
 		return
 	}
 
-	// Clear QR code and expiration
 	sess.QRCode = ""
 	sess.QRCodeExpiresAt = nil
 	sess.UpdatedAt = time.Now()
@@ -596,7 +535,6 @@ func (h *EventHandler) clearSessionQRCode(sessionID string) {
 	}
 }
 
-// getEventType returns the type name of an event
 func getEventType(evt interface{}) string {
 	switch evt.(type) {
 	case *events.Connected:

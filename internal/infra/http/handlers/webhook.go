@@ -20,7 +20,6 @@ func NewWebhookHandler(webhookUC webhook.UseCase, appLogger *logger.Logger) *Web
 	}
 }
 
-// SetConfig creates a new webhook configuration
 // @Summary Create webhook configuration
 // @Description Creates a new webhook configuration for a specific session. Webhooks will receive real-time events from Wameow. Requires API key authentication.
 // @Tags Webhooks
@@ -41,17 +40,14 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 		"session_id": sessionID,
 	})
 
-	// Parse request body
 	var req webhook.SetConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Error("Failed to parse webhook request: " + err.Error())
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	// Set session ID from URL parameter
 	req.SessionID = &sessionID
 
-	// Call use case to create webhook
 	ctx := c.Context()
 	result, err := h.webhookUC.SetConfig(ctx, &req)
 	if err != nil {
@@ -59,12 +55,10 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to create webhook"))
 	}
 
-	// Return success response
 	response := common.NewSuccessResponse(result, "Webhook configuration created successfully")
 	return c.Status(201).JSON(response)
 }
 
-// FindConfig gets webhook configuration
 // @Summary Get webhook configuration
 // @Description Retrieves the current webhook configuration for a specific session. Requires API key authentication.
 // @Tags Webhooks
@@ -82,7 +76,6 @@ func (h *WebhookHandler) FindConfig(c *fiber.Ctx) error {
 	h.logger.InfoWithFields("Getting webhook config", map[string]interface{}{
 		"session_id": sessionID,
 	})
-	// Get webhook configuration for the session
 	ctx := c.Context()
 	webhook, err := h.webhookUC.FindConfig(ctx, sessionID)
 	if err != nil {
@@ -90,7 +83,6 @@ func (h *WebhookHandler) FindConfig(c *fiber.Ctx) error {
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to get webhook configuration"))
 	}
 
-	// Return success response
 	response := common.NewSuccessResponse(webhook, "Webhook configuration retrieved successfully")
 	return c.JSON(response)
 }

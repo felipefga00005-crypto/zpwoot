@@ -17,13 +17,11 @@ import (
 	"zpwoot/platform/logger"
 )
 
-// sessionRepository implements the SessionRepository interface
 type sessionRepository struct {
 	db     *sqlx.DB
 	logger *logger.Logger
 }
 
-// NewSessionRepository creates a new session repository
 func NewSessionRepository(db *sqlx.DB, logger *logger.Logger) ports.SessionRepository {
 	return &sessionRepository{
 		db:     db,
@@ -31,7 +29,6 @@ func NewSessionRepository(db *sqlx.DB, logger *logger.Logger) ports.SessionRepos
 	}
 }
 
-// sessionModel represents the database model for sessions
 type sessionModel struct {
 	ID              string         `db:"id"`
 	Name            string         `db:"name"`
@@ -47,7 +44,6 @@ type sessionModel struct {
 	LastSeen        sql.NullTime   `db:"lastSeen"`
 }
 
-// Create creates a new session
 func (r *sessionRepository) Create(ctx context.Context, sess *session.Session) error {
 	r.logger.InfoWithFields("Creating session", map[string]interface{}{
 		"session_id": sess.ID.String(),
@@ -68,7 +64,6 @@ func (r *sessionRepository) Create(ctx context.Context, sess *session.Session) e
 			"error":      err.Error(),
 		})
 
-		// Check if it's a unique constraint violation for session name
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") &&
 			strings.Contains(err.Error(), "zpSessions_name_key") {
 			return errors.NewWithDetails(409, "Session already exists", fmt.Sprintf("A session with the name '%s' already exists", sess.Name))
@@ -84,7 +79,6 @@ func (r *sessionRepository) Create(ctx context.Context, sess *session.Session) e
 	return nil
 }
 
-// GetByID retrieves a session by its ID
 func (r *sessionRepository) GetByID(ctx context.Context, id string) (*session.Session, error) {
 	r.logger.InfoWithFields("Getting session by ID", map[string]interface{}{
 		"session_id": id,
@@ -113,7 +107,6 @@ func (r *sessionRepository) GetByID(ctx context.Context, id string) (*session.Se
 	return sess, nil
 }
 
-// GetByName retrieves a session by name
 func (r *sessionRepository) GetByName(ctx context.Context, name string) (*session.Session, error) {
 	r.logger.InfoWithFields("Getting session by name", map[string]interface{}{
 		"session_name": name,
@@ -142,7 +135,6 @@ func (r *sessionRepository) GetByName(ctx context.Context, name string) (*sessio
 	return sess, nil
 }
 
-// GetByDeviceJid retrieves a session by device JID
 func (r *sessionRepository) GetByDeviceJid(ctx context.Context, deviceJid string) (*session.Session, error) {
 	r.logger.InfoWithFields("Getting session by device JID", map[string]interface{}{
 		"device_jid": deviceJid,
@@ -171,7 +163,6 @@ func (r *sessionRepository) GetByDeviceJid(ctx context.Context, deviceJid string
 	return sess, nil
 }
 
-// List retrieves sessions with optional filters
 func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsRequest) ([]*session.Session, int, error) {
 	r.logger.InfoWithFields("Listing sessions", map[string]interface{}{
 		"is_connected": req.IsConnected,
@@ -180,7 +171,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 		"offset":       req.Offset,
 	})
 
-	// Build WHERE clause
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
 	argIndex := 1
@@ -197,7 +187,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 		argIndex++
 	}
 
-	// Count total records
 	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM "zpSessions" %s`, whereClause)
 	var total int
 	err := r.db.GetContext(ctx, &total, countQuery, args...)
@@ -208,7 +197,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 		return nil, 0, fmt.Errorf("failed to count sessions: %w", err)
 	}
 
-	// Get sessions with pagination
 	query := fmt.Sprintf(`
 		SELECT * FROM "zpSessions" %s
 		ORDER BY "createdAt" DESC
@@ -226,7 +214,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 		return nil, 0, fmt.Errorf("failed to list sessions: %w", err)
 	}
 
-	// Convert models to domain entities
 	sessions := make([]*session.Session, len(models))
 	for i, model := range models {
 		sess, err := r.fromModel(&model)
@@ -243,7 +230,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 	return sessions, total, nil
 }
 
-// Update updates an existing session
 func (r *sessionRepository) Update(ctx context.Context, sess *session.Session) error {
 	r.logger.InfoWithFields("Updating session", map[string]interface{}{
 		"session_id": sess.ID.String(),
@@ -282,7 +268,6 @@ func (r *sessionRepository) Update(ctx context.Context, sess *session.Session) e
 	return nil
 }
 
-// Delete removes a session by ID
 func (r *sessionRepository) Delete(ctx context.Context, id string) error {
 	r.logger.InfoWithFields("Deleting session", map[string]interface{}{
 		"session_id": id,
@@ -311,7 +296,6 @@ func (r *sessionRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-// UpdateConnectionStatus updates only the connection status of a session
 func (r *sessionRepository) UpdateConnectionStatus(ctx context.Context, id string, isConnected bool) error {
 	r.logger.InfoWithFields("Updating session connection status", map[string]interface{}{
 		"session_id":   id,
@@ -345,7 +329,6 @@ func (r *sessionRepository) UpdateConnectionStatus(ctx context.Context, id strin
 	return nil
 }
 
-// UpdateLastSeen updates the last seen timestamp
 func (r *sessionRepository) UpdateLastSeen(ctx context.Context, id string) error {
 	query := `UPDATE "zpSessions" SET "lastSeen" = $1, "updatedAt" = $2 WHERE id = $3`
 
@@ -367,7 +350,6 @@ func (r *sessionRepository) UpdateLastSeen(ctx context.Context, id string) error
 	return nil
 }
 
-// GetActiveSessions retrieves all active sessions
 func (r *sessionRepository) GetActiveSessions(ctx context.Context) ([]*session.Session, error) {
 	r.logger.Info("Getting active sessions")
 
@@ -398,7 +380,6 @@ func (r *sessionRepository) GetActiveSessions(ctx context.Context) ([]*session.S
 	return sessions, nil
 }
 
-// CountByConnectionStatus counts sessions by connection status
 func (r *sessionRepository) CountByConnectionStatus(ctx context.Context, isConnected bool) (int, error) {
 	query := `SELECT COUNT(*) FROM "zpSessions" WHERE "isConnected" = $1`
 
@@ -411,9 +392,7 @@ func (r *sessionRepository) CountByConnectionStatus(ctx context.Context, isConne
 	return count, nil
 }
 
-// Helper methods
 
-// toModel converts domain entity to database model
 func (r *sessionRepository) toModel(sess *session.Session) *sessionModel {
 	model := &sessionModel{
 		ID:          sess.ID.String(),
@@ -457,7 +436,6 @@ func (r *sessionRepository) toModel(sess *session.Session) *sessionModel {
 	return model
 }
 
-// fromModel converts database model to domain entity
 func (r *sessionRepository) fromModel(model *sessionModel) (*session.Session, error) {
 	id, err := uuid.Parse(model.ID)
 	if err != nil {

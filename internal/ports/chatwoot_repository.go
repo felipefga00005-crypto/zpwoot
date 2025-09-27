@@ -6,15 +6,12 @@ import (
 	"zpwoot/internal/domain/chatwoot"
 )
 
-// ChatwootRepository defines the interface for Chatwoot data persistence
 type ChatwootRepository interface {
-	// Config operations
 	CreateConfig(ctx context.Context, config *chatwoot.ChatwootConfig) error
 	GetConfig(ctx context.Context) (*chatwoot.ChatwootConfig, error)
 	UpdateConfig(ctx context.Context, config *chatwoot.ChatwootConfig) error
 	DeleteConfig(ctx context.Context) error
 
-	// Contact operations
 	CreateContact(ctx context.Context, contact *chatwoot.ChatwootContact) error
 	GetContactByID(ctx context.Context, id int) (*chatwoot.ChatwootContact, error)
 	GetContactByPhone(ctx context.Context, phoneNumber string) (*chatwoot.ChatwootContact, error)
@@ -22,7 +19,6 @@ type ChatwootRepository interface {
 	DeleteContact(ctx context.Context, id int) error
 	ListContacts(ctx context.Context, limit, offset int) ([]*chatwoot.ChatwootContact, int, error)
 
-	// Conversation operations
 	CreateConversation(ctx context.Context, conversation *chatwoot.ChatwootConversation) error
 	GetConversationByID(ctx context.Context, id int) (*chatwoot.ChatwootConversation, error)
 	GetConversationByContactID(ctx context.Context, contactID int) (*chatwoot.ChatwootConversation, error)
@@ -32,21 +28,18 @@ type ChatwootRepository interface {
 	ListConversations(ctx context.Context, limit, offset int) ([]*chatwoot.ChatwootConversation, int, error)
 	GetActiveConversations(ctx context.Context) ([]*chatwoot.ChatwootConversation, error)
 
-	// Message operations
 	CreateMessage(ctx context.Context, message *chatwoot.ChatwootMessage) error
 	GetMessageByID(ctx context.Context, id int) (*chatwoot.ChatwootMessage, error)
 	GetMessagesByConversationID(ctx context.Context, conversationID int, limit, offset int) ([]*chatwoot.ChatwootMessage, error)
 	UpdateMessage(ctx context.Context, message *chatwoot.ChatwootMessage) error
 	DeleteMessage(ctx context.Context, id int) error
 
-	// Sync operations
 	CreateSyncRecord(ctx context.Context, record *SyncRecord) error
 	GetSyncRecord(ctx context.Context, sessionID, recordType, externalID string) (*SyncRecord, error)
 	UpdateSyncRecord(ctx context.Context, record *SyncRecord) error
 	DeleteSyncRecord(ctx context.Context, id string) error
 	GetSyncRecordsBySession(ctx context.Context, sessionID string) ([]*SyncRecord, error)
 
-	// Statistics operations
 	GetContactCount(ctx context.Context) (int, error)
 	GetConversationCount(ctx context.Context) (int, error)
 	GetActiveConversationCount(ctx context.Context) (int, error)
@@ -55,7 +48,6 @@ type ChatwootRepository interface {
 	GetStatsForPeriod(ctx context.Context, from, to int64) (*ChatwootStats, error)
 }
 
-// SyncRecord represents a synchronization record between Wameow and Chatwoot
 type SyncRecord struct {
 	ID           string `json:"id" db:"id"`
 	SessionID    string `json:"session_id" db:"session_id"`
@@ -70,7 +62,6 @@ type SyncRecord struct {
 	UpdatedAt    int64  `json:"updated_at" db:"updated_at"`
 }
 
-// ChatwootStats represents Chatwoot integration statistics
 type ChatwootStats struct {
 	TotalContacts       int   `json:"total_contacts"`
 	TotalConversations  int   `json:"total_conversations"`
@@ -83,55 +74,45 @@ type ChatwootStats struct {
 	To                  int64 `json:"to"`
 }
 
-// ChatwootIntegrationExtended extends the basic ChatwootIntegration interface
 type ChatwootIntegrationExtended interface {
 	ChatwootIntegration
 
-	// Advanced operations
 	CreateInbox(name, channelType string) (*ChatwootInbox, error)
 	GetInbox(inboxID int) (*ChatwootInbox, error)
 	UpdateInbox(inboxID int, updates map[string]interface{}) error
 	DeleteInbox(inboxID int) error
 
-	// Account operations
 	GetAccount() (*ChatwootAccount, error)
 	UpdateAccount(updates map[string]interface{}) error
 
-	// Agent operations
 	GetAgents() ([]*ChatwootAgent, error)
 	GetAgent(agentID int) (*ChatwootAgent, error)
 	AssignConversation(conversationID, agentID int) error
 	UnassignConversation(conversationID int) error
 
-	// Label operations
 	CreateLabel(name, description, color string) (*ChatwootLabel, error)
 	GetLabels() ([]*ChatwootLabel, error)
 	AddLabelToConversation(conversationID int, labelID int) error
 	RemoveLabelFromConversation(conversationID int, labelID int) error
 
-	// Custom attributes
 	CreateCustomAttribute(name, attributeType, description string) (*ChatwootCustomAttribute, error)
 	GetCustomAttributes() ([]*ChatwootCustomAttribute, error)
 	UpdateContactCustomAttribute(contactID int, attributeKey string, value interface{}) error
 
-	// Webhook operations
 	SetConfig(url string, events []string) (*ChatwootWebhook, error)
 	GetWebhooks() ([]*ChatwootWebhook, error)
 	UpdateWebhook(webhookID int, updates map[string]interface{}) error
 	DeleteWebhook(webhookID int) error
 
-	// Reporting
 	GetConversationMetrics(from, to int64) (*ConversationMetrics, error)
 	GetAgentMetrics(agentID int, from, to int64) (*AgentMetrics, error)
 	GetAccountMetrics(from, to int64) (*AccountMetrics, error)
 
-	// Bulk operations
 	BulkCreateContacts(contacts []*chatwoot.ChatwootContact) ([]*chatwoot.ChatwootContact, error)
 	BulkUpdateContacts(updates []ContactUpdate) error
 	BulkDeleteContacts(contactIDs []int) error
 }
 
-// Extended Chatwoot types
 type ChatwootInbox struct {
 	ID          int    `json:"id"`
 	Name        string `json:"name"`

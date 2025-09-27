@@ -22,13 +22,11 @@ type Session struct {
 	LastSeen        *time.Time   `json:"lastSeen,omitempty" db:"last_seen"`
 }
 
-// SessionInfo represents detailed session information
 type SessionInfo struct {
 	Session    *Session    `json:"session"`
 	DeviceInfo *DeviceInfo `json:"deviceInfo,omitempty"`
 }
 
-// DeviceInfo represents device information
 type DeviceInfo struct {
 	Platform    string `json:"platform"`
 	DeviceModel string `json:"device_model"`
@@ -36,7 +34,6 @@ type DeviceInfo struct {
 	AppVersion  string `json:"app_version"`
 }
 
-// Status constants for backward compatibility and logging
 const (
 	StatusCreated      = "created"
 	StatusConnecting   = "connecting"
@@ -46,7 +43,6 @@ const (
 	StatusLoggedOut    = "logged_out"
 )
 
-// Domain errors
 var (
 	ErrSessionNotFound      = errors.New("session not found")
 	ErrSessionAlreadyExists = errors.New("session already exists")
@@ -54,7 +50,6 @@ var (
 	ErrSessionNotConnected  = errors.New("session not connected")
 )
 
-// ProxyConfig represents proxy configuration for sessions
 // @name ProxyConfig
 type ProxyConfig struct {
 	Type     string `json:"type" db:"proxy_type" example:"http"` // http, socks5
@@ -91,7 +86,6 @@ type QRCodeResponse struct {
 	Timeout   int       `json:"timeout_seconds"`
 }
 
-// NewSession creates a new session instance
 func NewSession(name string) *Session {
 	return &Session{
 		ID:          uuid.New(),
@@ -102,7 +96,6 @@ func NewSession(name string) *Session {
 	}
 }
 
-// SetConnected updates the session connection status and timestamps
 func (s *Session) SetConnected(connected bool) {
 	s.IsConnected = connected
 	s.UpdatedAt = time.Now()
@@ -115,36 +108,29 @@ func (s *Session) SetConnected(connected bool) {
 	}
 }
 
-// SetDeviceJid sets the device JID when connection is established
 func (s *Session) SetDeviceJid(deviceJid string) {
 	s.DeviceJid = deviceJid
 	s.UpdatedAt = time.Now()
 }
 
-// SetConnectionError sets a connection error and marks as disconnected
 func (s *Session) SetConnectionError(errorMsg string) {
 	s.IsConnected = false
 	s.ConnectionError = &errorMsg
 	s.UpdatedAt = time.Now()
 }
 
-// IsActive returns true if the session is connected
 func (s *Session) IsActive() bool {
 	return s.IsConnected
 }
 
-// CanConnect returns true if the session can be connected
-// Always allow connection attempts to enable QR code restart
 func (s *Session) CanConnect() bool {
 	return true
 }
 
-// CanLogout returns true if the session can be logged out
 func (s *Session) CanLogout() bool {
 	return s.IsConnected
 }
 
-// UpdateLastSeen updates the last seen timestamp
 func (s *Session) UpdateLastSeen() {
 	now := time.Now()
 	s.LastSeen = &now

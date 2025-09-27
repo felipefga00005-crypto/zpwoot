@@ -5,7 +5,6 @@ import (
 	"net/http"
 )
 
-// AppError represents an application error with HTTP status code
 type AppError struct {
 	Code    int    `json:"code"`
 	Message string `json:"message"`
@@ -19,7 +18,6 @@ func (e *AppError) Error() string {
 	return e.Message
 }
 
-// New creates a new AppError
 func New(code int, message string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -27,7 +25,6 @@ func New(code int, message string) *AppError {
 	}
 }
 
-// NewWithDetails creates a new AppError with details
 func NewWithDetails(code int, message, details string) *AppError {
 	return &AppError{
 		Code:    code,
@@ -36,7 +33,6 @@ func NewWithDetails(code int, message, details string) *AppError {
 	}
 }
 
-// Predefined errors
 var (
 	ErrBadRequest          = New(http.StatusBadRequest, "Bad request")
 	ErrUnauthorized        = New(http.StatusUnauthorized, "Unauthorized")
@@ -46,32 +42,26 @@ var (
 	ErrInternalServerError = New(http.StatusInternalServerError, "Internal server error")
 	ErrServiceUnavailable  = New(http.StatusServiceUnavailable, "Service unavailable")
 
-	// Wameow specific errors
 	ErrWameowNotConnected = New(http.StatusServiceUnavailable, "Wameow not connected")
 	ErrWameowSendFailed   = New(http.StatusInternalServerError, "Failed to send Wameow message")
 	ErrInvalidPhoneNumber = New(http.StatusBadRequest, "Invalid phone number")
 
-	// Chatwoot specific errors
 	ErrChatwootNotConfigured = New(http.StatusServiceUnavailable, "Chatwoot not configured")
 	ErrChatwootAPIError      = New(http.StatusInternalServerError, "Chatwoot API error")
 
-	// Session specific errors
 	ErrSessionNotFound      = New(http.StatusNotFound, "Session not found")
 	ErrSessionAlreadyExists = New(http.StatusConflict, "Session already exists")
 	ErrInvalidSessionData   = New(http.StatusBadRequest, "Invalid session data")
 
-	// User specific errors
 	ErrUserNotFound      = New(http.StatusNotFound, "User not found")
 	ErrUserAlreadyExists = New(http.StatusConflict, "User already exists")
 	ErrInvalidUserData   = New(http.StatusBadRequest, "Invalid user data")
 
-	// Order specific errors
 	ErrOrderNotFound      = New(http.StatusNotFound, "Order not found")
 	ErrOrderAlreadyExists = New(http.StatusConflict, "Order already exists")
 	ErrInvalidOrderData   = New(http.StatusBadRequest, "Invalid order data")
 )
 
-// Wrap wraps an error with additional context
 func Wrap(err error, message string) error {
 	if err == nil {
 		return nil
@@ -79,13 +69,11 @@ func Wrap(err error, message string) error {
 	return fmt.Errorf("%s: %w", message, err)
 }
 
-// IsAppError checks if an error is an AppError
 func IsAppError(err error) bool {
 	_, ok := err.(*AppError)
 	return ok
 }
 
-// GetAppError extracts AppError from error, or creates a generic one
 func GetAppError(err error) *AppError {
 	if appErr, ok := err.(*AppError); ok {
 		return appErr

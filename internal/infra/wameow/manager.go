@@ -22,7 +22,6 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// SessionStats tracks statistics for a session
 type SessionStats struct {
 	MessagesSent     int64
 	MessagesReceived int64
@@ -30,13 +29,11 @@ type SessionStats struct {
 	StartTime        int64
 }
 
-// EventHandlerInfo stores information about registered event handlers
 type EventHandlerInfo struct {
 	ID      string
 	Handler ports.EventHandler
 }
 
-// Manager implements the WameowManager interface
 type Manager struct {
 	clients       map[string]*WameowClient
 	clientsMutex  sync.RWMutex
@@ -46,16 +43,13 @@ type Manager struct {
 	sessionMgr    *SessionManager
 	logger        *logger.Logger
 
-	// Statistics tracking
 	sessionStats map[string]*SessionStats
 	statsMutex   sync.RWMutex
 
-	// Event handlers
 	eventHandlers map[string]map[string]*EventHandlerInfo // sessionID -> handlerID -> handler
 	handlersMutex sync.RWMutex
 }
 
-// NewManager creates a new Wameow manager
 func NewManager(
 	container *sqlstore.Container,
 	sessionRepo ports.SessionRepository,
@@ -73,7 +67,6 @@ func NewManager(
 	}
 }
 
-// CreateSession creates a new Wameow session
 func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) error {
 	m.logger.InfoWithFields("Creating Wameow session", map[string]interface{}{
 		"session_id": sessionID,
@@ -82,21 +75,17 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 	m.clientsMutex.Lock()
 	defer m.clientsMutex.Unlock()
 
-	// Check if session already exists
 	if _, exists := m.clients[sessionID]; exists {
 		return fmt.Errorf("session %s already exists", sessionID)
 	}
 
-	// Create WameowClient
 	client, err := NewWameowClient(sessionID, m.container, m.sessionMgr.sessionRepo, m.logger)
 	if err != nil {
 		return fmt.Errorf("failed to create WameowClient for session %s: %w", sessionID, err)
 	}
 
-	// Set up event handlers
 	m.setupEventHandlers(client.GetClient(), sessionID)
 
-	// Apply proxy configuration if provided
 	if config != nil {
 		if err := m.applyProxyConfig(client.GetClient(), config); err != nil {
 			m.logger.WarnWithFields("Failed to apply proxy config", map[string]interface{}{
@@ -106,10 +95,8 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 		}
 	}
 
-	// Store client
 	m.clients[sessionID] = client
 
-	// Initialize session statistics
 	m.initSessionStats(sessionID)
 
 	m.logger.InfoWithFields("Wameow session created successfully", map[string]interface{}{
@@ -119,7 +106,6 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 	return nil
 }
 
-// ConnectSession connects a Wameow session
 func (m *Manager) ConnectSession(sessionID string) error {
 	m.logger.InfoWithFields("Connecting Wameow session", map[string]interface{}{
 		"session_id": sessionID,
@@ -127,12 +113,10 @@ func (m *Manager) ConnectSession(sessionID string) error {
 
 	client := m.getClient(sessionID)
 	if client == nil {
-		// Session not found in memory, try to load from database and create client
 		m.logger.InfoWithFields("Session not found in memory, attempting to load from database", map[string]interface{}{
 			"session_id": sessionID,
 		})
 
-		// Get session from database
 		sess, err := m.sessionMgr.GetSession(sessionID)
 		if err != nil {
 			m.logger.ErrorWithFields("Failed to get session from database", map[string]interface{}{
@@ -142,8 +126,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 			return fmt.Errorf("session %s not found", sessionID)
 		}
 
-		// Create Wameow client for the existing session
-		// NewWameowClient will automatically detect existing deviceJid
 		if err := m.CreateSession(sessionID, sess.ProxyConfig); err != nil {
 			m.logger.ErrorWithFields("Failed to create Wameow client for session", map[string]interface{}{
 				"session_id": sessionID,
@@ -153,7 +135,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 			return fmt.Errorf("failed to initialize Wameow client for session %s: %w", sessionID, err)
 		}
 
-		// Get the newly created client
 		client = m.getClient(sessionID)
 		if client == nil {
 			return fmt.Errorf("failed to create Wameow client for session %s", sessionID)
@@ -164,10 +145,7 @@ func (m *Manager) ConnectSession(sessionID string) error {
 		})
 	}
 
-	// Update session status to connecting
-	// Connection status will be updated by event handlers
 
-	// Start connection process (will handle QR code if needed)
 	err := client.Connect()
 	if err != nil {
 		m.sessionMgr.UpdateConnectionStatus(sessionID, false)
@@ -177,7 +155,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 	return nil
 }
 
-// DisconnectSession disconnects a Wameow session
 func (m *Manager) DisconnectSession(sessionID string) error {
 	m.logger.InfoWithFields("Disconnecting Wameow session", map[string]interface{}{
 		"session_id": sessionID,
@@ -198,7 +175,6 @@ func (m *Manager) DisconnectSession(sessionID string) error {
 	return nil
 }
 
-// LogoutSession logs out a Wameow session
 func (m *Manager) LogoutSession(sessionID string) error {
 	m.logger.InfoWithFields("Logging out Wameow session", map[string]interface{}{
 		"session_id": sessionID,
@@ -209,7 +185,6 @@ func (m *Manager) LogoutSession(sessionID string) error {
 		return fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// Logout from Wameow
 	err := client.Logout()
 	if err != nil {
 		m.logger.WarnWithFields("Error during logout", map[string]interface{}{
@@ -218,10 +193,8 @@ func (m *Manager) LogoutSession(sessionID string) error {
 		})
 	}
 
-	// Update session status
 	m.sessionMgr.UpdateConnectionStatus(sessionID, false)
 
-	// Remove client from memory
 	m.clientsMutex.Lock()
 	delete(m.clients, sessionID)
 	m.clientsMutex.Unlock()
@@ -229,7 +202,6 @@ func (m *Manager) LogoutSession(sessionID string) error {
 	return nil
 }
 
-// GetQRCode gets QR code for session pairing
 func (m *Manager) GetQRCode(sessionID string) (*session.QRCodeResponse, error) {
 	m.logger.InfoWithFields("Getting QR code for session", map[string]interface{}{
 		"session_id": sessionID,
@@ -256,7 +228,6 @@ func (m *Manager) GetQRCode(sessionID string) (*session.QRCodeResponse, error) {
 	}, nil
 }
 
-// PairPhone pairs a phone number with the session
 func (m *Manager) PairPhone(sessionID, phoneNumber string) error {
 	m.logger.InfoWithFields("Pairing phone number", map[string]interface{}{
 		"session_id":   sessionID,
@@ -268,12 +239,9 @@ func (m *Manager) PairPhone(sessionID, phoneNumber string) error {
 		return fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// This would implement phone pairing logic
-	// For now, return not implemented
 	return fmt.Errorf("phone pairing not implemented yet")
 }
 
-// IsConnected checks if a session is connected
 func (m *Manager) IsConnected(sessionID string) bool {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -282,7 +250,6 @@ func (m *Manager) IsConnected(sessionID string) bool {
 	return client.IsConnected()
 }
 
-// GetDeviceInfo gets device information for a session
 func (m *Manager) GetDeviceInfo(sessionID string) (*session.DeviceInfo, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -293,8 +260,6 @@ func (m *Manager) GetDeviceInfo(sessionID string) (*session.DeviceInfo, error) {
 		return nil, fmt.Errorf("session %s is not logged in", sessionID)
 	}
 
-	// This would get actual device info from Wameow
-	// For now, return placeholder data
 	return &session.DeviceInfo{
 		Platform:    "web",
 		DeviceModel: "Chrome",
@@ -303,7 +268,6 @@ func (m *Manager) GetDeviceInfo(sessionID string) (*session.DeviceInfo, error) {
 	}, nil
 }
 
-// SetProxy sets proxy configuration for a session
 func (m *Manager) SetProxy(sessionID string, config *session.ProxyConfig) error {
 	m.logger.InfoWithFields("Setting proxy for session", map[string]interface{}{
 		"session_id": sessionID,
@@ -319,7 +283,6 @@ func (m *Manager) SetProxy(sessionID string, config *session.ProxyConfig) error 
 	return m.applyProxyConfig(client.GetClient(), config)
 }
 
-// initSessionStats initializes statistics for a session
 func (m *Manager) initSessionStats(sessionID string) {
 	m.statsMutex.Lock()
 	defer m.statsMutex.Unlock()
@@ -331,7 +294,6 @@ func (m *Manager) initSessionStats(sessionID string) {
 	}
 }
 
-// incrementMessagesSent increments the sent messages counter
 func (m *Manager) incrementMessagesSent(sessionID string) {
 	m.statsMutex.RLock()
 	stats, exists := m.sessionStats[sessionID]
@@ -343,7 +305,6 @@ func (m *Manager) incrementMessagesSent(sessionID string) {
 	}
 }
 
-// incrementMessagesReceived increments the received messages counter
 func (m *Manager) incrementMessagesReceived(sessionID string) {
 	m.statsMutex.RLock()
 	stats, exists := m.sessionStats[sessionID]
@@ -355,7 +316,6 @@ func (m *Manager) incrementMessagesReceived(sessionID string) {
 	}
 }
 
-// getSessionStats safely gets session statistics
 func (m *Manager) getSessionStats(sessionID string) *SessionStats {
 	m.statsMutex.RLock()
 	defer m.statsMutex.RUnlock()
@@ -370,24 +330,18 @@ func (m *Manager) getSessionStats(sessionID string) *SessionStats {
 	return stats
 }
 
-// GetProxy gets proxy configuration for a session
 func (m *Manager) GetProxy(sessionID string) (*session.ProxyConfig, error) {
-	// This would get the current proxy configuration
-	// For now, return nil (no proxy)
 	return nil, nil
 }
 
-// GetSessionStats retrieves session statistics
 func (m *Manager) GetSessionStats(sessionID string) (*ports.SessionStats, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
 		return nil, fmt.Errorf("session %s not found", sessionID)
 	}
 
-	// Get session statistics
 	stats := m.getSessionStats(sessionID)
 
-	// Calculate uptime
 	uptime := int64(0)
 	if stats.StartTime > 0 {
 		uptime = time.Now().Unix() - stats.StartTime
@@ -401,12 +355,10 @@ func (m *Manager) GetSessionStats(sessionID string) (*ports.SessionStats, error)
 	}, nil
 }
 
-// GetSession retrieves a session by ID
 func (m *Manager) GetSession(sessionID string) (*session.Session, error) {
 	return m.sessionMgr.GetSession(sessionID)
 }
 
-// SendMediaMessage sends a media message
 func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -417,13 +369,11 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 		return fmt.Errorf("session %s is not logged in", sessionID)
 	}
 
-	// Parse the recipient JID
 	recipientJID, err := types.ParseJID(to)
 	if err != nil {
 		return fmt.Errorf("invalid recipient JID %s: %w", to, err)
 	}
 
-	// Upload the media
 	uploaded, err := client.GetClient().Upload(context.Background(), media, whatsmeow.MediaType(mediaType))
 	if err != nil {
 		m.logger.ErrorWithFields("Failed to upload media", map[string]interface{}{
@@ -435,7 +385,6 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 		return fmt.Errorf("failed to upload media: %w", err)
 	}
 
-	// Create the appropriate message based on media type
 	var msg *waE2E.Message
 	switch mediaType {
 	case "image":
@@ -489,7 +438,6 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 		return fmt.Errorf("unsupported media type: %s", mediaType)
 	}
 
-	// Send the message
 	_, err = client.GetClient().SendMessage(context.Background(), recipientJID, msg)
 	if err != nil {
 		m.logger.ErrorWithFields("Failed to send media message", map[string]interface{}{
@@ -501,7 +449,6 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 		return fmt.Errorf("failed to send media message: %w", err)
 	}
 
-	// Increment sent messages counter
 	m.incrementMessagesSent(sessionID)
 
 	m.logger.InfoWithFields("Media message sent successfully", map[string]interface{}{
@@ -513,34 +460,27 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 	return nil
 }
 
-// RegisterEventHandler registers an event handler for Wameow events
 func (m *Manager) RegisterEventHandler(sessionID string, handler ports.EventHandler) error {
 	m.handlersMutex.Lock()
 	defer m.handlersMutex.Unlock()
 
-	// Initialize session handlers map if it doesn't exist
 	if m.eventHandlers[sessionID] == nil {
 		m.eventHandlers[sessionID] = make(map[string]*EventHandlerInfo)
 	}
 
-	// Generate a unique handler ID
 	handlerID := fmt.Sprintf("handler_%d", time.Now().UnixNano())
 
-	// Store the handler
 	m.eventHandlers[sessionID][handlerID] = &EventHandlerInfo{
 		ID:      handlerID,
 		Handler: handler,
 	}
 
-	// Get the client and register the actual event handler
 	client := m.getClient(sessionID)
 	if client != nil {
 		client.GetClient().AddEventHandler(func(evt interface{}) {
-			// Handle different event types and call appropriate handler methods
 			switch e := evt.(type) {
 			case *events.Message:
 				m.incrementMessagesReceived(sessionID)
-				// Convert to WameowMessage and call handler
 				msg := &ports.WameowMessage{
 					ID:   e.Info.ID,
 					From: e.Info.Sender.String(),
@@ -568,27 +508,22 @@ func (m *Manager) RegisterEventHandler(sessionID string, handler ports.EventHand
 	return nil
 }
 
-// UnregisterEventHandler removes an event handler
 func (m *Manager) UnregisterEventHandler(sessionID string, handlerID string) error {
 	m.handlersMutex.Lock()
 	defer m.handlersMutex.Unlock()
 
-	// Check if session has handlers
 	sessionHandlers, exists := m.eventHandlers[sessionID]
 	if !exists {
 		return fmt.Errorf("no event handlers found for session %s", sessionID)
 	}
 
-	// Check if handler exists
 	_, exists = sessionHandlers[handlerID]
 	if !exists {
 		return fmt.Errorf("event handler %s not found for session %s", handlerID, sessionID)
 	}
 
-	// Remove the handler
 	delete(sessionHandlers, handlerID)
 
-	// Clean up empty session map
 	if len(sessionHandlers) == 0 {
 		delete(m.eventHandlers, sessionID)
 	}
@@ -601,17 +536,13 @@ func (m *Manager) UnregisterEventHandler(sessionID string, handlerID string) err
 	return nil
 }
 
-// getClient safely gets a client by session ID
 func (m *Manager) getClient(sessionID string) *WameowClient {
 	m.clientsMutex.RLock()
 	defer m.clientsMutex.RUnlock()
 	return m.clients[sessionID]
 }
 
-// applyProxyConfig applies proxy configuration to a client
 func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.ProxyConfig) error {
-	// This would implement proxy configuration
-	// For now, just log the configuration and validate client
 	m.logger.InfoWithFields("Proxy configuration", map[string]interface{}{
 		"type":       config.Type,
 		"host":       config.Host,
@@ -623,12 +554,10 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 		return fmt.Errorf("cannot apply proxy config to nil client")
 	}
 
-	// Validate proxy configuration
 	if config == nil {
 		return fmt.Errorf("proxy configuration is nil")
 	}
 
-	// Validate proxy configuration format
 	var proxyURL *url.URL
 	var err error
 
@@ -655,9 +584,6 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 		return fmt.Errorf("failed to parse proxy URL: %w", err)
 	}
 
-	// Note: The whatsmeow library doesn't support changing HTTP client after creation.
-	// Proxy configuration should be done during client creation in the NewWameowClient function
-	// or using environment variables. For now, we validate the proxy URL format.
 
 	m.logger.InfoWithFields("Proxy configuration validated (not yet applied)", map[string]interface{}{
 		"type":      config.Type,
@@ -670,7 +596,6 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 	return nil
 }
 
-// SendMessage sends a message through a session
 func (m *Manager) SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -721,7 +646,6 @@ func (m *Manager) SendMessage(sessionID, to, messageType, body, caption, file, f
 	}, nil
 }
 
-// SendButtonMessage sends a button message through a session
 func (m *Manager) SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -748,7 +672,6 @@ func (m *Manager) SendButtonMessage(sessionID, to, body string, buttons []map[st
 	}, nil
 }
 
-// SendListMessage sends a list message through a session
 func (m *Manager) SendListMessage(sessionID, to, body, buttonText string, sections []map[string]interface{}) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -775,7 +698,6 @@ func (m *Manager) SendListMessage(sessionID, to, body, buttonText string, sectio
 	}, nil
 }
 
-// SendReaction sends a reaction through a session
 func (m *Manager) SendReaction(sessionID, to, messageID, reaction string) error {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -789,7 +711,6 @@ func (m *Manager) SendReaction(sessionID, to, messageID, reaction string) error 
 	return client.SendReaction(ctx, to, messageID, reaction)
 }
 
-// SendPresence sends presence information through a session
 func (m *Manager) SendPresence(sessionID, to, presence string) error {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -803,7 +724,6 @@ func (m *Manager) SendPresence(sessionID, to, presence string) error {
 	return client.SendPresence(ctx, to, presence)
 }
 
-// EditMessage edits a message through a session
 func (m *Manager) EditMessage(sessionID, to, messageID, newText string) error {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -817,7 +737,6 @@ func (m *Manager) EditMessage(sessionID, to, messageID, newText string) error {
 	return client.EditMessage(ctx, to, messageID, newText)
 }
 
-// DeleteMessage deletes a message through a session
 func (m *Manager) DeleteMessage(sessionID, to, messageID string, forAll bool) error {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -831,19 +750,16 @@ func (m *Manager) DeleteMessage(sessionID, to, messageID string, forAll bool) er
 	return client.DeleteMessage(ctx, to, messageID, forAll)
 }
 
-// setupEventHandlers sets up event handlers for a Wameow client
 func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string) {
 	m.logger.InfoWithFields("Setting up event handlers", map[string]interface{}{
 		"session_id": sessionID,
 	})
 
-	// Set up the actual event handlers
 	m.SetupEventHandlers(client, sessionID)
 }
 
 
 
-// ContactListResult represents the result of sending multiple contacts
 type ContactListResult struct {
 	TotalContacts int
 	SuccessCount  int
@@ -852,7 +768,6 @@ type ContactListResult struct {
 	Timestamp     time.Time
 }
 
-// ContactResult represents the result of sending a single contact
 type ContactResult struct {
 	ContactName string
 	MessageID   string
@@ -860,14 +775,12 @@ type ContactResult struct {
 	Error       string
 }
 
-// TextMessageResult represents the result of sending a text message
 type TextMessageResult struct {
 	MessageID string
 	Status    string
 	Timestamp time.Time
 }
 
-// SendTextMessage sends a text message with optional reply/quote
 func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMessage.ContextInfo) (*TextMessageResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -878,34 +791,27 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	// Parse recipient JID
 	recipientJID, err := types.ParseJID(to)
 	if err != nil {
 		return nil, fmt.Errorf("invalid recipient JID: %w", err)
 	}
 
-	// Generate message ID
 	messageID := client.GetClient().GenerateMessageID()
 
-	// Create base message
 	msg := &waE2E.Message{
 		Conversation: proto.String(text),
 	}
 
-	// Add reply context if provided
 	if contextInfo != nil {
-		// Create context info for reply
 		waContextInfo := &waE2E.ContextInfo{
 			StanzaID:      proto.String(contextInfo.StanzaID),
 			QuotedMessage: &waE2E.Message{Conversation: proto.String("")},
 		}
 
-		// Set participant for group messages
 		if contextInfo.Participant != "" {
 			waContextInfo.Participant = proto.String(contextInfo.Participant)
 		}
 
-		// Convert to ExtendedTextMessage to include context
 		msg = &waE2E.Message{
 			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
 				Text:        proto.String(text),
@@ -914,7 +820,6 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		}
 	}
 
-	// Send message
 	resp, err := client.GetClient().SendMessage(context.Background(), recipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to send text message: %w", err)
@@ -935,7 +840,6 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 	}, nil
 }
 
-// SendContactList sends multiple contacts in a single message
 func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -953,7 +857,6 @@ func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) 
 		Timestamp:     time.Now(),
 	}
 
-	// Convert to wameow ContactInfo slice
 	var wameowContacts []ContactInfo
 	for _, contact := range contacts {
 		wameowContacts = append(wameowContacts, ContactInfo{
@@ -967,10 +870,8 @@ func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) 
 		})
 	}
 
-	// Send all contacts in a single message
 	resp, err := client.SendContactListMessage(ctx, to, wameowContacts)
 	if err != nil {
-		// If sending as a list fails, mark all as failed
 		for _, contact := range contacts {
 			result.Results = append(result.Results, ContactResult{
 				ContactName: contact.Name,
@@ -982,7 +883,6 @@ func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) 
 		return result, err
 	}
 
-	// If successful, mark all contacts as sent with the same message ID
 	for _, contact := range contacts {
 		result.Results = append(result.Results, ContactResult{
 			ContactName: contact.Name,
@@ -995,7 +895,6 @@ func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) 
 	return result, nil
 }
 
-// SendContactListBusiness sends multiple contacts using Business format
 func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []ContactInfo) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -1006,7 +905,6 @@ func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []Conta
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	// Convert to wameow ContactInfo slice
 	var wameowContacts []ContactInfo
 	for _, contact := range contacts {
 		wameowContacts = append(wameowContacts, ContactInfo{
@@ -1020,13 +918,11 @@ func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []Conta
 		})
 	}
 
-	// Send using Business format
 	resp, err := client.SendContactListMessageBusiness(context.Background(), to, wameowContacts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send WhatsApp Business contact list: %w", err)
 	}
 
-	// Create result
 	result := &ContactListResult{
 		TotalContacts: len(contacts),
 		SuccessCount:  len(contacts),
@@ -1035,7 +931,6 @@ func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []Conta
 		Timestamp:     time.Now(),
 	}
 
-	// All contacts share the same message ID in a contact list
 	for i, contact := range contacts {
 		result.Results[i] = ContactResult{
 			ContactName: contact.Name,
@@ -1047,7 +942,6 @@ func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []Conta
 	return result, nil
 }
 
-// SendSingleContact sends a single contact using ContactMessage (not ContactsArrayMessage)
 func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -1058,7 +952,6 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	// Send using single contact format (ContactMessage)
 	resp, err := client.SendSingleContactMessage(context.Background(), to, ContactInfo{
 		Name:         contact.Name,
 		Phone:        contact.Phone,
@@ -1072,7 +965,6 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 		return nil, fmt.Errorf("failed to send single contact: %w", err)
 	}
 
-	// Create result
 	result := &ContactListResult{
 		TotalContacts: 1,
 		SuccessCount:  1,
@@ -1090,7 +982,6 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 	return result, nil
 }
 
-// SendSingleContactBusiness sends a single contact using Business format
 func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -1101,7 +992,6 @@ func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact Contac
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	// Send using single contact Business format
 	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
 		Name:         contact.Name,
 		Phone:        contact.Phone,
@@ -1115,7 +1005,6 @@ func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact Contac
 		return nil, fmt.Errorf("failed to send Business single contact: %w", err)
 	}
 
-	// Create result
 	result := &ContactListResult{
 		TotalContacts: 1,
 		SuccessCount:  1,
@@ -1133,7 +1022,6 @@ func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact Contac
 	return result, nil
 }
 
-// SendSingleContactBusinessFormat sends a single contact using Business format
 func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -1144,7 +1032,6 @@ func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact 
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	// Send using single contact Business format
 	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
 		Name:         contact.Name,
 		Phone:        contact.Phone,
@@ -1158,7 +1045,6 @@ func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact 
 		return nil, fmt.Errorf("failed to send WhatsApp Business single contact: %w", err)
 	}
 
-	// Create result
 	result := &ContactListResult{
 		TotalContacts: 1,
 		SuccessCount:  1,
@@ -1176,7 +1062,6 @@ func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact 
 	return result, nil
 }
 
-// SetupEventHandlers sets up all event handlers for a Wameow client
 func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string) {
 	eventHandler := NewEventHandler(m, m.sessionMgr, m.qrGenerator, m.logger)
 
