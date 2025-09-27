@@ -573,8 +573,6 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 	return nil
 }
 
-
-
 func (m *Manager) SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
