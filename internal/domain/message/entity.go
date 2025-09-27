@@ -46,8 +46,14 @@ type SendMessageRequest struct {
 	Longitude float64 `json:"longitude,omitempty" example:"-46.6333"`
 	Address   string  `json:"address,omitempty" example:"São Paulo, SP"`
 
-	ContactName  string `json:"contactName,omitempty" example:"John Doe"`
-	ContactPhone string `json:"contactPhone,omitempty" example:"+5511999999999"`
+	ContactName  string       `json:"contactName,omitempty" example:"John Doe"`
+	ContactPhone string       `json:"contactPhone,omitempty" example:"+5511999999999"`
+	ContextInfo  *ContextInfo `json:"contextInfo,omitempty"`
+}
+
+type ContextInfo struct {
+	StanzaID    string `json:"stanzaId" validate:"required" example:"ABCD1234abcd"`
+	Participant string `json:"participant,omitempty" example:"5511999999999@s.whatsapp.net"`
 }
 
 type SendMessageResponse struct {

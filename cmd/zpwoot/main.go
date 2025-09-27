@@ -130,12 +130,10 @@ func main() {
 
 	repositories := repository.NewRepositories(database.GetDB(), appLogger)
 
-	appLogger.Info("Initializing WhatsApp manager and creating whatsmeow tables...")
 	whatsappManager, err := initializeWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
 	if err != nil {
 		appLogger.Fatal("Failed to initialize WhatsApp manager: " + err.Error())
 	}
-	appLogger.Info("WhatsApp manager initialized successfully with whatsmeow tables created")
 
 	container := app.NewContainer(&app.ContainerConfig{
 		SessionRepo:         repositories.GetSessionRepository(),
@@ -197,17 +195,17 @@ func main() {
 }
 
 func initializeWhatsAppManager(database *platformDB.DB, sessionRepo ports.SessionRepository, appLogger *logger.Logger) (*wameow.Manager, error) {
-	appLogger.Info("Creating WhatsApp manager factory...")
+	factory, err := wameow.NewFactory(appLogger, sessionRepo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wameow factory: %w", err)
+	}
 
-	factory := wameow.NewFactory(appLogger, sessionRepo)
-
-	appLogger.Info("Creating WhatsApp manager with database connection...")
 	manager, err := factory.CreateManager(database.GetDB().DB)
 	if err != nil {
 		return nil, err
 	}
 
-	appLogger.Info("WhatsApp manager created successfully - whatsmeow tables are now available")
+	appLogger.Info("WhatsApp manager initialized")
 	return manager, nil
 }
 
@@ -307,8 +305,6 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 }
 
 func connectOnStartup(container *app.Container, logger *logger.Logger) {
-	logger.Info("Starting connection process for all sessions on startup")
-
 	time.Sleep(3 * time.Second)
 
 	sessionUC := container.GetSessionUseCase()
@@ -342,9 +338,11 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 		return
 	}
 
-	logger.InfoWithFields("Found sessions for auto-connect", map[string]interface{}{
-		"total_sessions": len(sessions),
-	})
+	if len(sessions) > 0 {
+		logger.InfoWithFields("Auto-connecting sessions", map[string]interface{}{
+			"total_sessions": len(sessions),
+		})
+	}
 
 	connectedCount := 0
 	skippedCount := 0
@@ -353,43 +351,27 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 		sessionID := sess.ID.String()
 
 		if sess.DeviceJid == "" {
-			logger.InfoWithFields("Skipping session without device JID (never paired)", map[string]interface{}{
-				"session_id":   sessionID,
-				"session_name": sess.Name,
-			})
 			skippedCount++
 			continue
 		}
 
-		logger.InfoWithFields("Attempting to reconnect session with saved credentials", map[string]interface{}{
-			"session_id":    sessionID,
-			"session_name":  sess.Name,
-			"device_jid":    sess.DeviceJid,
-			"was_connected": sess.IsConnected,
-		})
-
 		err := sessionUC.ConnectSession(ctx, sessionID)
 		if err != nil {
 			logger.ErrorWithFields("Failed to auto-connect session", map[string]interface{}{
-				"session_id":   sessionID,
-				"session_name": sess.Name,
-				"error":        err.Error(),
+				"session_id": sessionID,
+				"error":      err.Error(),
 			})
 			continue
 		}
 
 		connectedCount++
-		logger.InfoWithFields("Successfully initiated reconnection for session", map[string]interface{}{
-			"session_id":   sessionID,
-			"session_name": sess.Name,
-		})
-
 		time.Sleep(1 * time.Second)
 	}
 
-	logger.InfoWithFields("Auto-reconnect process completed", map[string]interface{}{
-		"total_sessions":        len(sessions),
-		"reconnection_attempts": connectedCount,
-		"skipped_sessions":      skippedCount,
-	})
+	if len(sessions) > 0 {
+		logger.InfoWithFields("Auto-reconnect completed", map[string]interface{}{
+			"connected": connectedCount,
+			"skipped":   skippedCount,
+		})
+	}
 }

@@ -80,9 +80,6 @@ func (r *sessionRepository) Create(ctx context.Context, sess *session.Session) e
 }
 
 func (r *sessionRepository) GetByID(ctx context.Context, id string) (*session.Session, error) {
-	r.logger.InfoWithFields("Getting session by ID", map[string]interface{}{
-		"session_id": id,
-	})
 
 	var model sessionModel
 	query := `SELECT * FROM "zpSessions" WHERE id = $1`
@@ -164,12 +161,6 @@ func (r *sessionRepository) GetByDeviceJid(ctx context.Context, deviceJid string
 }
 
 func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsRequest) ([]*session.Session, int, error) {
-	r.logger.InfoWithFields("Listing sessions", map[string]interface{}{
-		"is_connected": req.IsConnected,
-		"device_jid":   req.DeviceJid,
-		"limit":        req.Limit,
-		"offset":       req.Offset,
-	})
 
 	whereClause := "WHERE 1=1"
 	args := []interface{}{}
@@ -231,9 +222,6 @@ func (r *sessionRepository) List(ctx context.Context, req *session.ListSessionsR
 }
 
 func (r *sessionRepository) Update(ctx context.Context, sess *session.Session) error {
-	r.logger.InfoWithFields("Updating session", map[string]interface{}{
-		"session_id": sess.ID.String(),
-	})
 
 	model := r.toModel(sess)
 	model.UpdatedAt = time.Now()
@@ -297,10 +285,6 @@ func (r *sessionRepository) Delete(ctx context.Context, id string) error {
 }
 
 func (r *sessionRepository) UpdateConnectionStatus(ctx context.Context, id string, isConnected bool) error {
-	r.logger.InfoWithFields("Updating session connection status", map[string]interface{}{
-		"session_id":   id,
-		"is_connected": isConnected,
-	})
 
 	query := `UPDATE "zpSessions" SET "isConnected" = $1, "updatedAt" = $2 WHERE id = $3`
 

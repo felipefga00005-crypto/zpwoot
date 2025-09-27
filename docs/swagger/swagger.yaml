@@ -5,6 +5,8 @@ definitions:
       caption:
         example: Voice message
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       file:
         example: https://example.com/audio.ogg
         type: string
@@ -258,6 +260,8 @@ definitions:
       caption:
         example: Important document
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       file:
         example: https://example.com/document.pdf
         type: string
@@ -324,6 +328,8 @@ definitions:
       caption:
         example: Beautiful sunset photo
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       file:
         example: https://example.com/image.jpg
         type: string
@@ -567,6 +573,8 @@ definitions:
       contactPhone:
         example: "+5511999999999"
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       file:
         example: https://example.com/image.jpg
         type: string
@@ -729,6 +737,8 @@ definitions:
       caption:
         example: Check out this amazing video!
         type: string
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
       file:
         example: https://example.com/video.mp4
         type: string
@@ -1130,7 +1140,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send an audio message through WhatsApp
+      description: Send an audio message through WhatsApp with optional reply context
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1274,7 +1284,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a document message through WhatsApp
+      description: Send a document message through WhatsApp with optional reply context
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1321,7 +1331,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send an image message through WhatsApp
+      description: Send an image message through WhatsApp with optional reply context
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1745,7 +1755,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a video message through WhatsApp
+      description: Send a video message through WhatsApp with optional reply context
       parameters:
       - description: Session ID or Name
         example: '"mySession"'

@@ -1,3 +1,4 @@
+// Refactored: separated responsibilities; extracted interfaces; standardized error handling
 package wameow
 
 import (
@@ -8,34 +9,101 @@ import (
 	"sync"
 	"time"
 
+	appMessage "zpwoot/internal/app/message"
+	"zpwoot/internal/domain/session"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/proto/waE2E"
+	"go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	waTypes "go.mau.fi/whatsmeow/types"
+	"google.golang.org/protobuf/proto"
 )
 
-type WameowClient struct {
-	sessionID   string
-	client      *whatsmeow.Client
-	logger      *logger.Logger
-	sessionMgr  *SessionManager
-	qrGenerator *QRCodeGenerator
+// WhatsAppClient defines the interface for WhatsApp client operations
+type WhatsAppClient interface {
+	Connect() error
+	Disconnect() error
+	IsConnected() bool
+	IsLoggedIn() bool
+	GetQRCode() (string, error)
+	Logout() error
+	SendMessage(ctx context.Context, to string, message interface{}) error
+}
 
+// MessageSender handles message sending operations
+type MessageSender interface {
+	SendText(ctx context.Context, to, body string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error)
+	SendMedia(ctx context.Context, to, filePath string, mediaType MediaType, options MediaOptions) (*whatsmeow.SendResponse, error)
+	SendContact(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error)
+	SendLocation(ctx context.Context, to string, lat, lng float64, address string) (*whatsmeow.SendResponse, error)
+}
+
+// MediaType represents different media types
+type MediaType int
+
+const (
+	MediaTypeImage MediaType = iota
+	MediaTypeAudio
+	MediaTypeVideo
+	MediaTypeDocument
+	MediaTypeSticker
+)
+
+// MediaOptions contains options for media messages
+type MediaOptions struct {
+	Caption     string
+	Filename    string
+	MimeType    string
+	ContextInfo *appMessage.ContextInfo
+}
+
+// QRGenerator defines the interface for QR code operations
+type QRGenerator interface {
+	GenerateQRCodeImage(qrText string) string
+	DisplayQRCodeInTerminal(qrCode, sessionID string)
+}
+
+// SessionUpdater defines the interface for session management operations
+type SessionUpdater interface {
+	UpdateConnectionStatus(sessionID string, isConnected bool)
+	GetSession(sessionID string) (*session.Session, error)
+	GetSessionRepo() ports.SessionRepository
+}
+
+type WameowClient struct {
+	sessionID string
+	client    *whatsmeow.Client
+	logger    *logger.Logger
+
+	// Composed services
+	sessionMgr  SessionUpdater
+	qrGenerator QRGenerator
+	msgSender   MessageSender
+
+	// State management
 	mu           sync.RWMutex
 	status       string
 	lastActivity time.Time
 
-	qrCode       string
-	qrCodeBase64 string
-	qrLoopActive bool
+	// QR code management
+	qrState QRState
 
-	ctx           context.Context
-	cancel        context.CancelFunc
-	qrStopChannel chan bool
+	// Lifecycle management
+	ctx    context.Context
+	cancel context.CancelFunc
+}
+
+// QRState encapsulates QR code related state
+type QRState struct {
+	mu           sync.RWMutex
+	code         string
+	codeBase64   string
+	loopActive   bool
+	stopChannel  chan bool
 }
 
 func NewWameowClient(
@@ -44,19 +112,13 @@ func NewWameowClient(
 	sessionRepo ports.SessionRepository,
 	logger *logger.Logger,
 ) (*WameowClient, error) {
-	ctx := context.Background()
-	sess, err := sessionRepo.GetByID(ctx, sessionID)
-	var deviceJid string
-	if err == nil && sess != nil {
-		deviceJid = sess.DeviceJid
-		logger.InfoWithFields("Found existing session", map[string]interface{}{
-			"session_id": sessionID,
-			"device_jid": deviceJid,
-		})
-	} else {
-		logger.InfoWithFields("Creating new session", map[string]interface{}{
-			"session_id": sessionID,
-		})
+	if err := ValidateSessionID(sessionID); err != nil {
+		return nil, fmt.Errorf("invalid session ID: %w", err)
+	}
+
+	deviceJid, err := getExistingDeviceJID(sessionRepo, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device JID: %w", err)
 	}
 
 	deviceStore := GetDeviceStoreForSession(sessionID, deviceJid, container)
@@ -64,55 +126,75 @@ func NewWameowClient(
 		return nil, fmt.Errorf("failed to create device store for session %s", sessionID)
 	}
 
-	waLogger := NewWameowLogger(logger)
-
-	client := whatsmeow.NewClient(deviceStore, waLogger)
-	if client == nil {
-		return nil, fmt.Errorf("failed to create WhatsApp client for session %s", sessionID)
+	client, err := createWhatsAppClient(deviceStore, logger)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create WhatsApp client: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wameowClient := &WameowClient{
-		sessionID:     sessionID,
-		client:        client,
-		logger:        logger,
-		sessionMgr:    NewSessionManager(sessionRepo, logger),
-		qrGenerator:   NewQRCodeGenerator(logger),
-		status:        "disconnected",
-		lastActivity:  time.Now(),
-		ctx:           ctx,
-		cancel:        cancel,
-		qrStopChannel: make(chan bool, 1),
+		sessionID:   sessionID,
+		client:      client,
+		logger:      logger,
+		sessionMgr:  NewSessionManager(sessionRepo, logger),
+		qrGenerator: NewQRCodeGenerator(logger),
+		status:      "disconnected",
+		lastActivity: time.Now(),
+		qrState: QRState{
+			stopChannel: make(chan bool, 1),
+		},
+		ctx:    ctx,
+		cancel: cancel,
 	}
+
+	// Initialize message sender
+	wameowClient.msgSender = NewMessageSender(client, logger)
 
 	return wameowClient, nil
 }
 
-func (c *WameowClient) Connect() error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+func getExistingDeviceJID(sessionRepo ports.SessionRepository, sessionID string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 
-	c.logger.InfoWithFields("Starting connection process (will restart if already running)", map[string]interface{}{
+	sess, err := sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return "", nil
+	}
+
+	return sess.DeviceJid, nil
+}
+
+func createWhatsAppClient(deviceStore interface{}, logger *logger.Logger) (*whatsmeow.Client, error) {
+	waLogger := NewWameowLogger(logger)
+	client := whatsmeow.NewClient(deviceStore.(*store.Device), waLogger)
+	if client == nil {
+		return nil, fmt.Errorf("whatsmeow.NewClient returned nil")
+	}
+	return client, nil
+}
+
+func (c *WameowClient) Connect() error {
+	c.logger.InfoWithFields("Starting connection process", map[string]interface{}{
 		"session_id": c.sessionID,
 	})
 
 	c.stopQRLoop()
 
 	if c.client.IsConnected() {
-		c.logger.InfoWithFields("Client already connected, disconnecting to restart", map[string]interface{}{
-			"session_id": c.sessionID,
-		})
 		c.client.Disconnect()
 	}
 
+	// Update context without holding the main mutex
+	c.mu.Lock()
 	if c.cancel != nil {
 		c.cancel()
 	}
 	c.ctx, c.cancel = context.WithCancel(context.Background())
+	c.mu.Unlock()
 
 	c.setStatus("connecting")
-
 	go c.startClientLoop()
 
 	return nil
@@ -151,14 +233,14 @@ func (c *WameowClient) IsLoggedIn() bool {
 }
 
 func (c *WameowClient) GetQRCode() (string, error) {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
+	c.qrState.mu.RLock()
+	defer c.qrState.mu.RUnlock()
 
-	if c.qrCode == "" {
+	if c.qrState.code == "" {
 		return "", fmt.Errorf("no QR code available")
 	}
 
-	return c.qrCode, nil
+	return c.qrState.code, nil
 }
 
 func (c *WameowClient) GetClient() *whatsmeow.Client {
@@ -173,6 +255,9 @@ func (c *WameowClient) GetJID() waTypes.JID {
 }
 
 func (c *WameowClient) setStatus(status string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	c.status = status
 	c.lastActivity = time.Now()
 	c.logger.InfoWithFields("Session status updated", map[string]interface{}{
@@ -198,15 +283,14 @@ func (c *WameowClient) startClientLoop() {
 		}
 	}()
 
-	if !IsDeviceRegistered(c.client) {
+	isRegistered := IsDeviceRegistered(c.client)
+
+	if !isRegistered {
 		c.logger.InfoWithFields("Device not registered, starting QR code process", map[string]interface{}{
 			"session_id": c.sessionID,
 		})
 		c.handleNewDeviceRegistration()
 	} else {
-		c.logger.InfoWithFields("Device already registered, connecting directly", map[string]interface{}{
-			"session_id": c.sessionID,
-		})
 		c.handleExistingDeviceConnection()
 	}
 }
@@ -254,7 +338,7 @@ func (c *WameowClient) handleExistingDeviceConnection() {
 		})
 		c.setStatus("connected")
 	} else {
-		c.logger.WarnWithFields("Connection attempt completed but client not connected", map[string]interface{}{
+		c.logger.WarnWithFields("Connection attempt failed", map[string]interface{}{
 			"session_id": c.sessionID,
 		})
 		c.setStatus("disconnected")
@@ -269,9 +353,9 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 		return
 	}
 
-	c.mu.Lock()
-	c.qrLoopActive = true
-	c.mu.Unlock()
+	c.qrState.mu.Lock()
+	c.qrState.loopActive = true
+	c.qrState.mu.Unlock()
 
 	defer func() {
 		if r := recover(); r != nil {
@@ -280,9 +364,9 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 				"error":      r,
 			})
 		}
-		c.mu.Lock()
-		c.qrLoopActive = false
-		c.mu.Unlock()
+		c.qrState.mu.Lock()
+		c.qrState.loopActive = false
+		c.qrState.mu.Unlock()
 	}()
 
 	for {
@@ -293,7 +377,7 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 			})
 			return
 
-		case <-c.qrStopChannel:
+		case <-c.qrState.stopChannel:
 			c.logger.InfoWithFields("QR loop stopped", map[string]interface{}{
 				"session_id": c.sessionID,
 			})
@@ -308,73 +392,87 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 				return
 			}
 
-			switch evt.Event {
-			case "code":
-				c.mu.Lock()
-				c.qrCode = evt.Code
-				if c.qrGenerator != nil {
-					c.qrCodeBase64 = c.qrGenerator.GenerateQRCodeImage(evt.Code)
-				}
-				c.mu.Unlock()
-
-				if c.qrGenerator != nil {
-					c.qrGenerator.DisplayQRCodeInTerminal(evt.Code, c.sessionID)
-				}
-
-				c.logger.InfoWithFields("QR code generated", map[string]interface{}{
-					"session_id": c.sessionID,
-				})
-				c.setStatus("connecting")
-
-			case "success":
-				c.logger.InfoWithFields("QR code scanned successfully", map[string]interface{}{
-					"session_id": c.sessionID,
-				})
-				c.mu.Lock()
-				c.qrCode = ""
-				c.qrCodeBase64 = ""
-				c.mu.Unlock()
-				c.setStatus("connected")
-				return
-
-			case "timeout":
-				c.logger.WarnWithFields("QR code timeout", map[string]interface{}{
-					"session_id": c.sessionID,
-				})
-				c.mu.Lock()
-				c.qrCode = ""
-				c.qrCodeBase64 = ""
-				c.mu.Unlock()
-				c.setStatus("disconnected")
-				return
-
-			default:
-				c.logger.InfoWithFields("QR event", map[string]interface{}{
-					"session_id": c.sessionID,
-					"event":      evt.Event,
-				})
-			}
+			c.handleQREvent(evt)
 		}
 	}
 }
 
-func (c *WameowClient) stopQRLoop() {
-	if c.qrLoopActive {
-		c.logger.InfoWithFields("Stopping existing QR loop", map[string]interface{}{
+func (c *WameowClient) handleQREvent(evt whatsmeow.QRChannelItem) {
+	switch evt.Event {
+	case "code":
+		c.updateQRCode(evt.Code)
+		c.displayQRCode(evt.Code)
+		c.setStatus("connecting")
+
+	case "success":
+		c.logger.InfoWithFields("QR code scanned successfully", map[string]interface{}{
 			"session_id": c.sessionID,
 		})
-		select {
-		case c.qrStopChannel <- true:
-			c.logger.InfoWithFields("QR loop stop signal sent", map[string]interface{}{
-				"session_id": c.sessionID,
-			})
-		default:
-			c.logger.InfoWithFields("QR loop stop channel full, loop may already be stopping", map[string]interface{}{
-				"session_id": c.sessionID,
-			})
-		}
-		time.Sleep(100 * time.Millisecond)
+		c.clearQRCode()
+		c.setStatus("connected")
+
+	case "timeout":
+		c.logger.WarnWithFields("QR code timeout", map[string]interface{}{
+			"session_id": c.sessionID,
+		})
+		c.clearQRCode()
+		c.setStatus("disconnected")
+
+	default:
+		c.logger.InfoWithFields("QR event", map[string]interface{}{
+			"session_id": c.sessionID,
+			"event":      evt.Event,
+		})
 	}
+}
+
+func (c *WameowClient) updateQRCode(code string) {
+	c.qrState.mu.Lock()
+	defer c.qrState.mu.Unlock()
+
+	c.qrState.code = code
+	c.qrState.codeBase64 = c.qrGenerator.GenerateQRCodeImage(code)
+}
+
+func (c *WameowClient) displayQRCode(code string) {
+	c.qrGenerator.DisplayQRCodeInTerminal(code, c.sessionID)
+	c.logger.InfoWithFields("QR code generated", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+}
+
+func (c *WameowClient) clearQRCode() {
+	c.qrState.mu.Lock()
+	defer c.qrState.mu.Unlock()
+
+	c.qrState.code = ""
+	c.qrState.codeBase64 = ""
+}
+
+func (c *WameowClient) stopQRLoop() {
+	c.qrState.mu.RLock()
+	isActive := c.qrState.loopActive
+	c.qrState.mu.RUnlock()
+
+	if !isActive {
+		return
+	}
+
+	c.logger.InfoWithFields("Stopping existing QR loop", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	select {
+	case c.qrState.stopChannel <- true:
+		c.logger.InfoWithFields("QR loop stop signal sent", map[string]interface{}{
+			"session_id": c.sessionID,
+		})
+	default:
+		c.logger.InfoWithFields("QR loop stop channel full, loop may already be stopping", map[string]interface{}{
+			"session_id": c.sessionID,
+		})
+	}
+	time.Sleep(100 * time.Millisecond)
 }
 
 func (c *WameowClient) Logout() error {
@@ -403,326 +501,42 @@ func (c *WameowClient) Logout() error {
 }
 
 func (c *WameowClient) SendTextMessage(ctx context.Context, to, body string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
-	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	message := &waE2E.Message{
-		Conversation: &body,
-	}
-
-	c.logger.InfoWithFields("Sending text message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"body_len":   len(body),
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send text message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Text message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendText(ctx, to, body, nil)
 }
 
 func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+	options := MediaOptions{
+		Caption:  caption,
+		MimeType: "image/jpeg",
 	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read image file: %w", err)
-	}
-
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaImage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload image: %w", err)
-	}
-
-	mimetype := "image/jpeg" // Default mimetype
-	message := &waE2E.Message{
-		ImageMessage: &waE2E.ImageMessage{
-			Caption:       &caption,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-		},
-	}
-
-	c.logger.InfoWithFields("Sending image message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"file_size":  len(data),
-		"caption":    caption,
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Image message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeImage, options)
 }
 
 func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+	options := MediaOptions{
+		MimeType: "audio/ogg; codecs=opus",
 	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read audio file: %w", err)
-	}
-
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaAudio)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload audio: %w", err)
-	}
-
-	mimetype := "audio/ogg; codecs=opus" // Default mimetype
-	message := &waE2E.Message{
-		AudioMessage: &waE2E.AudioMessage{
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-		},
-	}
-
-	c.logger.InfoWithFields("Sending audio message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"file_size":  len(data),
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send audio message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Audio message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeAudio, options)
 }
 
 func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+	options := MediaOptions{
+		Caption:  caption,
+		MimeType: "video/mp4",
 	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read video file: %w", err)
-	}
-
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaVideo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload video: %w", err)
-	}
-
-	mimetype := "video/mp4" // Default mimetype
-	message := &waE2E.Message{
-		VideoMessage: &waE2E.VideoMessage{
-			Caption:       &caption,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-		},
-	}
-
-	c.logger.InfoWithFields("Sending video message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"file_size":  len(data),
-		"caption":    caption,
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Video message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeVideo, options)
 }
 
 func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, filename string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+	options := MediaOptions{
+		Filename: filename,
+		MimeType: "application/octet-stream",
 	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read document file: %w", err)
-	}
-
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaDocument)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload document: %w", err)
-	}
-
-	mimetype := "application/octet-stream" // Default mimetype
-	message := &waE2E.Message{
-		DocumentMessage: &waE2E.DocumentMessage{
-			Title:         &filename,
-			FileName:      &filename,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-		},
-	}
-
-	c.logger.InfoWithFields("Sending document message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"file_size":  len(data),
-		"filename":   filename,
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send document message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Document message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeDocument, options)
 }
 
 func (c *WameowClient) SendLocationMessage(ctx context.Context, to string, latitude, longitude float64, address string) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
-	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	message := &waE2E.Message{
-		LocationMessage: &waE2E.LocationMessage{
-			DegreesLatitude:  &latitude,
-			DegreesLongitude: &longitude,
-			Name:             &address,
-		},
-	}
-
-	c.logger.InfoWithFields("Sending location message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"latitude":   latitude,
-		"longitude":  longitude,
-		"address":    address,
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send location message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Location message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	return c.msgSender.SendLocation(ctx, to, latitude, longitude, address)
 }
 
 func (c *WameowClient) SendContactMessage(ctx context.Context, to, contactName, contactPhone string) (*whatsmeow.SendResponse, error) {
@@ -1171,20 +985,277 @@ func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to 
 }
 
 func (c *WameowClient) parseJID(jidStr string) (waTypes.JID, error) {
-	if jidStr == "" {
-		return waTypes.EmptyJID, fmt.Errorf("JID cannot be empty")
+	validator := NewJIDValidator()
+	return validator.Parse(jidStr)
+}
+
+// Helper function to create WhatsApp ContextInfo from our ContextInfo
+func (c *WameowClient) createContextInfo(contextInfo *appMessage.ContextInfo) *waE2E.ContextInfo {
+	if contextInfo == nil {
+		return nil
 	}
 
-	if !strings.Contains(jidStr, "@") {
-		jidStr = jidStr + "@s.whatsapp.net"
+	waContextInfo := &waE2E.ContextInfo{
+		StanzaID:      proto.String(contextInfo.StanzaID),
+		QuotedMessage: &waE2E.Message{Conversation: proto.String("")},
 	}
 
-	jid, err := waTypes.ParseJID(jidStr)
+	if contextInfo.Participant != "" {
+		waContextInfo.Participant = proto.String(contextInfo.Participant)
+	}
+
+	return waContextInfo
+}
+
+// SendImageMessageWithContext sends an image message with optional context info for replies
+func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
 	if err != nil {
-		return waTypes.EmptyJID, fmt.Errorf("failed to parse JID: %w", err)
+		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	return jid, nil
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read image file: %w", err)
+	}
+
+	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaImage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload image: %w", err)
+	}
+
+	mimetype := "image/jpeg" // Default mimetype
+	message := &waE2E.Message{
+		ImageMessage: &waE2E.ImageMessage{
+			Caption:       &caption,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
+			ContextInfo:   c.createContextInfo(contextInfo),
+		},
+	}
+
+	c.logger.InfoWithFields("Sending image message with context", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"file_size":  len(data),
+		"caption":    caption,
+		"has_reply":  contextInfo != nil,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Image message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+	})
+
+	return &resp, nil
+}
+
+// SendAudioMessageWithContext sends an audio message with optional context info for replies
+func (c *WameowClient) SendAudioMessageWithContext(ctx context.Context, to, filePath string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read audio file: %w", err)
+	}
+
+	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaAudio)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload audio: %w", err)
+	}
+
+	mimetype := "audio/ogg; codecs=opus" // Default mimetype
+	message := &waE2E.Message{
+		AudioMessage: &waE2E.AudioMessage{
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
+			ContextInfo:   c.createContextInfo(contextInfo),
+		},
+	}
+
+	c.logger.InfoWithFields("Sending audio message with context", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"file_size":  len(data),
+		"has_reply":  contextInfo != nil,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send audio message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Audio message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+	})
+
+	return &resp, nil
+}
+
+// SendVideoMessageWithContext sends a video message with optional context info for replies
+func (c *WameowClient) SendVideoMessageWithContext(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read video file: %w", err)
+	}
+
+	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaVideo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload video: %w", err)
+	}
+
+	mimetype := "video/mp4" // Default mimetype
+	message := &waE2E.Message{
+		VideoMessage: &waE2E.VideoMessage{
+			Caption:       &caption,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
+			ContextInfo:   c.createContextInfo(contextInfo),
+		},
+	}
+
+	c.logger.InfoWithFields("Sending video message with context", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"file_size":  len(data),
+		"caption":    caption,
+		"has_reply":  contextInfo != nil,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Video message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+	})
+
+	return &resp, nil
+}
+
+// SendDocumentMessageWithContext sends a document message with optional context info for replies
+func (c *WameowClient) SendDocumentMessageWithContext(ctx context.Context, to, filePath, filename string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	data, err := os.ReadFile(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read document file: %w", err)
+	}
+
+	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaDocument)
+	if err != nil {
+		return nil, fmt.Errorf("failed to upload document: %w", err)
+	}
+
+	mimetype := "application/octet-stream" // Default mimetype
+	message := &waE2E.Message{
+		DocumentMessage: &waE2E.DocumentMessage{
+			Title:         &filename,
+			FileName:      &filename,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
+			ContextInfo:   c.createContextInfo(contextInfo),
+		},
+	}
+
+	c.logger.InfoWithFields("Sending document message with context", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"file_size":  len(data),
+		"filename":   filename,
+		"has_reply":  contextInfo != nil,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send document message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Document message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+	})
+
+	return &resp, nil
 }
 
 func (c *WameowClient) AddEventHandler(handler whatsmeow.EventHandler) uint32 {

@@ -3,6 +3,8 @@ package wameow
 import (
 	"context"
 	"fmt"
+	"reflect"
+	"strings"
 	"time"
 
 	"zpwoot/platform/logger"
@@ -12,12 +14,12 @@ import (
 
 type EventHandler struct {
 	manager    *Manager
-	sessionMgr *SessionManager
+	sessionMgr SessionUpdater
 	qrGen      *QRCodeGenerator
 	logger     *logger.Logger
 }
 
-func NewEventHandler(manager *Manager, sessionMgr *SessionManager, qrGen *QRCodeGenerator, logger *logger.Logger) *EventHandler {
+func NewEventHandler(manager *Manager, sessionMgr SessionUpdater, qrGen *QRCodeGenerator, logger *logger.Logger) *EventHandler {
 	return &EventHandler{
 		manager:    manager,
 		sessionMgr: sessionMgr,
@@ -169,24 +171,7 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 		"timestamp":  evt.Info.Timestamp,
 	}
 
-	h.logger.InfoWithFields("🔍 DETAILED MESSAGE ANALYSIS", map[string]interface{}{
-		"session_id":                 sessionID,
-		"from":                       evt.Info.Sender.String(),
-		"message_id":                 evt.Info.ID,
-		"has_contact_message":        evt.Message.ContactMessage != nil,
-		"has_contacts_array_message": evt.Message.ContactsArrayMessage != nil,
-		"has_conversation":           evt.Message.GetConversation() != "",
-		"has_image_message":          evt.Message.ImageMessage != nil,
-		"has_audio_message":          evt.Message.AudioMessage != nil,
-		"has_video_message":          evt.Message.VideoMessage != nil,
-		"has_document_message":       evt.Message.DocumentMessage != nil,
-		"has_sticker_message":        evt.Message.StickerMessage != nil,
-		"has_location_message":       evt.Message.LocationMessage != nil,
-		"has_extended_text_message":  evt.Message.ExtendedTextMessage != nil,
-		"has_template_message":       evt.Message.TemplateMessage != nil,
-		"has_list_message":           evt.Message.ListMessage != nil,
-		"has_buttons_message":        evt.Message.ButtonsMessage != nil,
-	})
+	// Removed detailed message analysis for cleaner logs
 
 	if evt.Message.ContactMessage != nil {
 		contactMsg := evt.Message.ContactMessage
@@ -436,7 +421,7 @@ func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	sess, err := h.sessionMgr.sessionRepo.GetByID(ctx, sessionID)
+	sess, err := h.sessionMgr.GetSessionRepo().GetByID(ctx, sessionID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get session for QR update", map[string]interface{}{
 			"session_id": sessionID,
@@ -448,7 +433,7 @@ func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 	sess.QRCode = qrCode
 	sess.UpdatedAt = time.Now()
 
-	if err := h.sessionMgr.sessionRepo.Update(ctx, sess); err != nil {
+	if err := h.sessionMgr.GetSessionRepo().Update(ctx, sess); err != nil {
 		h.logger.ErrorWithFields("Failed to update session QR code", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
@@ -460,7 +445,7 @@ func (h *EventHandler) updateSessionDeviceJID(sessionID, deviceJID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	sess, err := h.sessionMgr.sessionRepo.GetByID(ctx, sessionID)
+	sess, err := h.sessionMgr.GetSessionRepo().GetByID(ctx, sessionID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get session for device JID update", map[string]interface{}{
 			"session_id": sessionID,
@@ -472,7 +457,7 @@ func (h *EventHandler) updateSessionDeviceJID(sessionID, deviceJID string) {
 	sess.DeviceJid = deviceJID
 	sess.UpdatedAt = time.Now()
 
-	if err := h.sessionMgr.sessionRepo.Update(ctx, sess); err != nil {
+	if err := h.sessionMgr.GetSessionRepo().Update(ctx, sess); err != nil {
 		h.logger.ErrorWithFields("Failed to update session device JID", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
@@ -484,7 +469,7 @@ func (h *EventHandler) updateSessionLastSeen(sessionID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	sess, err := h.sessionMgr.sessionRepo.GetByID(ctx, sessionID)
+	sess, err := h.sessionMgr.GetSessionRepo().GetByID(ctx, sessionID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get session for last seen update", map[string]interface{}{
 			"session_id": sessionID,
@@ -497,7 +482,7 @@ func (h *EventHandler) updateSessionLastSeen(sessionID string) {
 	sess.LastSeen = &now
 	sess.UpdatedAt = now
 
-	if err := h.sessionMgr.sessionRepo.Update(ctx, sess); err != nil {
+	if err := h.sessionMgr.GetSessionRepo().Update(ctx, sess); err != nil {
 		h.logger.ErrorWithFields("Failed to update session last seen", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
@@ -509,7 +494,7 @@ func (h *EventHandler) clearSessionQRCode(sessionID string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	sess, err := h.sessionMgr.sessionRepo.GetByID(ctx, sessionID)
+	sess, err := h.sessionMgr.GetSessionRepo().GetByID(ctx, sessionID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get session for QR code clearing", map[string]interface{}{
 			"session_id": sessionID,
@@ -522,7 +507,7 @@ func (h *EventHandler) clearSessionQRCode(sessionID string) {
 	sess.QRCodeExpiresAt = nil
 	sess.UpdatedAt = time.Now()
 
-	if err := h.sessionMgr.sessionRepo.Update(ctx, sess); err != nil {
+	if err := h.sessionMgr.GetSessionRepo().Update(ctx, sess); err != nil {
 		h.logger.ErrorWithFields("Failed to clear session QR code", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
@@ -534,67 +519,23 @@ func (h *EventHandler) clearSessionQRCode(sessionID string) {
 	}
 }
 
+// getEventType extracts the event type name using reflection
 func getEventType(evt interface{}) string {
-	switch evt.(type) {
-	case *events.Connected:
-		return "Connected"
-	case *events.Disconnected:
-		return "Disconnected"
-	case *events.LoggedOut:
-		return "LoggedOut"
-	case *events.QR:
-		return "QR"
-	case *events.PairSuccess:
-		return "PairSuccess"
-	case *events.PairError:
-		return "PairError"
-	case *events.Message:
-		return "Message"
-	case *events.Receipt:
-		return "Receipt"
-	case *events.Presence:
-		return "Presence"
-	case *events.ChatPresence:
-		return "ChatPresence"
-	case *events.HistorySync:
-		return "HistorySync"
-	case *events.AppState:
-		return "AppState"
-	case *events.AppStateSyncComplete:
-		return "AppStateSyncComplete"
-	case *events.KeepAliveTimeout:
-		return "KeepAliveTimeout"
-	case *events.KeepAliveRestored:
-		return "KeepAliveRestored"
-	case *events.Contact:
-		return "Contact"
-	case *events.GroupInfo:
-		return "GroupInfo"
-	case *events.Picture:
-		return "Picture"
-	case *events.BusinessName:
-		return "BusinessName"
-	case *events.PushName:
-		return "PushName"
-	case *events.Archive:
-		return "Archive"
-	case *events.Pin:
-		return "Pin"
-	case *events.Mute:
-		return "Mute"
-	case *events.Star:
-		return "Star"
-	case *events.DeleteForMe:
-		return "DeleteForMe"
-	case *events.MarkChatAsRead:
-		return "MarkChatAsRead"
-	case *events.UndecryptableMessage:
-		return "UndecryptableMessage"
-	case *events.OfflineSyncPreview:
-		return "OfflineSyncPreview"
-	case *events.OfflineSyncCompleted:
-		return "OfflineSyncCompleted"
-	default:
-		return "Unknown"
+	if evt == nil {
+		return "nil"
 	}
+
+	eventType := reflect.TypeOf(evt)
+	if eventType.Kind() == reflect.Ptr {
+		eventType = eventType.Elem()
+	}
+
+	// Extract just the type name without package prefix
+	typeName := eventType.Name()
+	if typeName == "" {
+		// Fallback to full type string
+		typeName = strings.TrimPrefix(eventType.String(), "*events.")
+	}
+
+	return typeName
 }

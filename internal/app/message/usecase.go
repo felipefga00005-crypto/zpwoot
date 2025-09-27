@@ -91,7 +91,16 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		}()
 	}
 
-	result, err := uc.wameowManager.SendMessage(
+	// Convert domain ContextInfo to message ContextInfo
+	var msgContextInfo *message.ContextInfo
+	if domainReq.ContextInfo != nil {
+		msgContextInfo = &message.ContextInfo{
+			StanzaID:    domainReq.ContextInfo.StanzaID,
+			Participant: domainReq.ContextInfo.Participant,
+		}
+	}
+
+	result, err := uc.wameowManager.SendMessageWithContext(
 		sessionID,
 		domainReq.To,
 		string(domainReq.Type),
@@ -103,6 +112,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		domainReq.Longitude,
 		domainReq.ContactName,
 		domainReq.ContactPhone,
+		msgContextInfo,
 	)
 
 	if err != nil {

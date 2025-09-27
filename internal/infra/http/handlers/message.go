@@ -214,7 +214,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 }
 
 // @Summary Send image message
-// @Description Send an image message through WhatsApp
+// @Description Send an image message through WhatsApp with optional reply context
 // @Tags Messages
 // @Accept json
 // @Produce json
@@ -227,11 +227,68 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/image [post]
 func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "image")
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var imageReq message.ImageMessageRequest
+	if err := c.BodyParser(&imageReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid image message format"))
+	}
+
+	if imageReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if imageReq.File == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
+	}
+
+	if imageReq.ContextInfo != nil {
+		if imageReq.ContextInfo.StanzaID == "" {
+			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
+		}
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to SendMessageRequest for compatibility
+	req := message.SendMessageRequest{
+		To:          imageReq.To,
+		Type:        "image",
+		File:        imageReq.File,
+		Caption:     imageReq.Caption,
+		MimeType:    imageReq.MimeType,
+		Filename:    imageReq.Filename,
+		ContextInfo: imageReq.ContextInfo,
+	}
+
+	ctx := c.Context()
+	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         imageReq.To,
+			"has_reply":  imageReq.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send image message"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Image message sent successfully"))
 }
 
 // @Summary Send audio message
-// @Description Send an audio message through WhatsApp
+// @Description Send an audio message through WhatsApp with optional reply context
 // @Tags Messages
 // @Accept json
 // @Produce json
@@ -244,11 +301,67 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/audio [post]
 func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "audio")
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var audioReq message.AudioMessageRequest
+	if err := c.BodyParser(&audioReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid audio message format"))
+	}
+
+	if audioReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if audioReq.File == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
+	}
+
+	if audioReq.ContextInfo != nil {
+		if audioReq.ContextInfo.StanzaID == "" {
+			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
+		}
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to SendMessageRequest for compatibility
+	req := message.SendMessageRequest{
+		To:          audioReq.To,
+		Type:        "audio",
+		File:        audioReq.File,
+		Caption:     audioReq.Caption,
+		MimeType:    audioReq.MimeType,
+		ContextInfo: audioReq.ContextInfo,
+	}
+
+	ctx := c.Context()
+	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send audio message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         audioReq.To,
+			"has_reply":  audioReq.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send audio message"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Audio message sent successfully"))
 }
 
 // @Summary Send video message
-// @Description Send a video message through WhatsApp
+// @Description Send a video message through WhatsApp with optional reply context
 // @Tags Messages
 // @Accept json
 // @Produce json
@@ -261,11 +374,68 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/video [post]
 func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "video")
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var videoReq message.VideoMessageRequest
+	if err := c.BodyParser(&videoReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid video message format"))
+	}
+
+	if videoReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if videoReq.File == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
+	}
+
+	if videoReq.ContextInfo != nil {
+		if videoReq.ContextInfo.StanzaID == "" {
+			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
+		}
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to SendMessageRequest for compatibility
+	req := message.SendMessageRequest{
+		To:          videoReq.To,
+		Type:        "video",
+		File:        videoReq.File,
+		Caption:     videoReq.Caption,
+		MimeType:    videoReq.MimeType,
+		Filename:    videoReq.Filename,
+		ContextInfo: videoReq.ContextInfo,
+	}
+
+	ctx := c.Context()
+	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         videoReq.To,
+			"has_reply":  videoReq.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send video message"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Video message sent successfully"))
 }
 
 // @Summary Send document message
-// @Description Send a document message through WhatsApp
+// @Description Send a document message through WhatsApp with optional reply context
 // @Tags Messages
 // @Accept json
 // @Produce json
@@ -278,7 +448,69 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/document [post]
 func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "document")
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var docReq message.DocumentMessageRequest
+	if err := c.BodyParser(&docReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid document message format"))
+	}
+
+	if docReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if docReq.File == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
+	}
+
+	if docReq.Filename == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'filename' field is required"))
+	}
+
+	if docReq.ContextInfo != nil {
+		if docReq.ContextInfo.StanzaID == "" {
+			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
+		}
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to SendMessageRequest for compatibility
+	req := message.SendMessageRequest{
+		To:          docReq.To,
+		Type:        "document",
+		File:        docReq.File,
+		Caption:     docReq.Caption,
+		MimeType:    docReq.MimeType,
+		Filename:    docReq.Filename,
+		ContextInfo: docReq.ContextInfo,
+	}
+
+	ctx := c.Context()
+	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send document message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         docReq.To,
+			"filename":   docReq.Filename,
+			"has_reply":  docReq.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send document message"))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Document message sent successfully"))
 }
 
 // @Summary Send sticker message

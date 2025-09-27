@@ -1,16 +1,84 @@
+// Refactored: centralized utilities; improved validation; standardized error handling
 package wameow
 
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	waTypes "go.mau.fi/whatsmeow/types"
+	"zpwoot/platform/logger"
 )
 
+// JIDValidator handles JID validation and normalization
+type JIDValidator struct {
+	phoneRegex *regexp.Regexp
+}
+
+// NewJIDValidator creates a new JID validator
+func NewJIDValidator() *JIDValidator {
+	return &JIDValidator{
+		phoneRegex: regexp.MustCompile(`^\d+$`),
+	}
+}
+
+// IsValid checks if a JID is valid
+func (v *JIDValidator) IsValid(jid string) bool {
+	if jid == "" {
+		return false
+	}
+
+	// Check for WhatsApp JID format
+	if strings.Contains(jid, "@s.whatsapp.net") || strings.Contains(jid, "@g.us") {
+		return true
+	}
+
+	// Check for phone number format (digits only)
+	return v.phoneRegex.MatchString(jid)
+}
+
+// Normalize converts a JID to standard WhatsApp format
+func (v *JIDValidator) Normalize(jid string) string {
+	jid = strings.TrimSpace(jid)
+
+	// If it's already a full JID, return as is
+	if strings.Contains(jid, "@") {
+		return jid
+	}
+
+	// If it's just a phone number, add the WhatsApp suffix
+	if v.phoneRegex.MatchString(jid) {
+		return jid + "@s.whatsapp.net"
+	}
+
+	return jid
+}
+
+// Parse converts a string JID to types.JID
+func (v *JIDValidator) Parse(jid string) (waTypes.JID, error) {
+	normalizedJID := v.Normalize(jid)
+
+	if !v.IsValid(normalizedJID) {
+		return waTypes.EmptyJID, fmt.Errorf("invalid JID format: %s", jid)
+	}
+
+	parsedJID, err := waTypes.ParseJID(normalizedJID)
+	if err != nil {
+		return waTypes.EmptyJID, fmt.Errorf("failed to parse JID %s: %w", normalizedJID, err)
+	}
+
+	return parsedJID, nil
+}
+
+// Global validator instance for backward compatibility
+var defaultValidator = NewJIDValidator()
+
+// ConnectionError represents connection-related errors
 type ConnectionError struct {
 	SessionID string
 	Operation string
@@ -49,51 +117,111 @@ func ValidateClientAndStore(client *whatsmeow.Client, sessionID string) error {
 	return nil
 }
 
-func GetDeviceStoreForSession(sessionID, expectedDeviceJID string, container *sqlstore.Container) *store.Device {
-	var deviceStore *store.Device
+// DeviceStoreManager handles device store operations
+type DeviceStoreManager struct {
+	container *sqlstore.Container
+	logger    *logger.Logger
+}
 
+// NewDeviceStoreManager creates a new device store manager
+func NewDeviceStoreManager(container *sqlstore.Container, logger *logger.Logger) *DeviceStoreManager {
+	return &DeviceStoreManager{
+		container: container,
+		logger:    logger,
+	}
+}
+
+// GetOrCreateDeviceStore gets an existing device store or creates a new one
+func (dsm *DeviceStoreManager) GetOrCreateDeviceStore(sessionID, expectedDeviceJID string) *store.Device {
 	if expectedDeviceJID != "" {
-		fmt.Printf("Loading existing device store for session %s with JID %s\n", sessionID, expectedDeviceJID)
-
-		jid, err := waTypes.ParseJID(expectedDeviceJID)
-		if err != nil {
-			fmt.Printf("Failed to parse expected JID %s: %v, creating new device\n", expectedDeviceJID, err)
-		} else {
-			ctx := context.Background()
-			deviceStore, err = container.GetDevice(ctx, jid)
-			if err != nil {
-				fmt.Printf("Failed to get device store for expected JID %s: %v, creating new device\n", expectedDeviceJID, err)
-			} else if deviceStore != nil {
-				fmt.Printf("Successfully loaded existing device store for session %s with JID %s\n", sessionID, expectedDeviceJID)
-				return deviceStore
-			}
+		if deviceStore := dsm.getExistingDeviceStore(sessionID, expectedDeviceJID); deviceStore != nil {
+			return deviceStore
 		}
-
-		if deviceStore == nil {
-			fmt.Printf("Device store not found for expected JID %s, creating new device for session %s\n", expectedDeviceJID, sessionID)
-			deviceStore = container.NewDevice()
-		}
-	} else {
-		fmt.Printf("Creating new device store for session %s (no existing JID)\n", sessionID)
-		deviceStore = container.NewDevice()
 	}
 
-	if deviceStore == nil {
-		fmt.Printf("Failed to create device store for session %s\n", sessionID)
+	return dsm.createNewDeviceStore(sessionID)
+}
+
+func (dsm *DeviceStoreManager) getExistingDeviceStore(sessionID, expectedDeviceJID string) *store.Device {
+	dsm.logger.InfoWithFields("Loading existing device store", map[string]interface{}{
+		"session_id": sessionID,
+		"device_jid": expectedDeviceJID,
+	})
+
+	jid, err := waTypes.ParseJID(expectedDeviceJID)
+	if err != nil {
+		dsm.logger.WarnWithFields("Failed to parse expected JID", map[string]interface{}{
+			"session_id": sessionID,
+			"device_jid": expectedDeviceJID,
+			"error":      err.Error(),
+		})
 		return nil
 	}
 
-	fmt.Printf("Device store ready for session %s\n", sessionID)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	deviceStore, err := dsm.container.GetDevice(ctx, jid)
+	if err != nil {
+		dsm.logger.WarnWithFields("Failed to get device store", map[string]interface{}{
+			"session_id": sessionID,
+			"device_jid": expectedDeviceJID,
+			"error":      err.Error(),
+		})
+		return nil
+	}
+
+	if deviceStore != nil {
+		dsm.logger.InfoWithFields("Successfully loaded existing device store", map[string]interface{}{
+			"session_id": sessionID,
+			"device_jid": expectedDeviceJID,
+		})
+	}
+
 	return deviceStore
 }
 
-func IsValidJID(jidStr string) bool {
-	if jidStr == "" {
-		return false
+func (dsm *DeviceStoreManager) createNewDeviceStore(sessionID string) *store.Device {
+	dsm.logger.InfoWithFields("Creating new device store", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	deviceStore := dsm.container.NewDevice()
+	if deviceStore == nil {
+		dsm.logger.ErrorWithFields("Failed to create device store", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return nil
 	}
 
-	_, err := waTypes.ParseJID(jidStr)
-	return err == nil
+	dsm.logger.InfoWithFields("Device store ready", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	return deviceStore
+}
+
+// GetDeviceStoreForSession maintains backward compatibility
+func GetDeviceStoreForSession(sessionID, expectedDeviceJID string, container *sqlstore.Container) *store.Device {
+	// Create a temporary logger for backward compatibility
+	tempLogger := &logger.Logger{}
+	dsm := NewDeviceStoreManager(container, tempLogger)
+	return dsm.GetOrCreateDeviceStore(sessionID, expectedDeviceJID)
+}
+
+// IsValidJID checks if a JID is valid (backward compatibility)
+func IsValidJID(jidStr string) bool {
+	return defaultValidator.IsValid(jidStr)
+}
+
+// NormalizeJID normalizes a JID (backward compatibility)
+func NormalizeJID(jid string) string {
+	return defaultValidator.Normalize(jid)
+}
+
+// ParseJID parses a JID (backward compatibility)
+func ParseJID(jid string) (waTypes.JID, error) {
+	return defaultValidator.Parse(jid)
 }
 
 func FormatJID(jid waTypes.JID) string {
@@ -123,23 +251,31 @@ func GetClientInfo(client *whatsmeow.Client) map[string]interface{} {
 	return info
 }
 
+// ValidateSessionID validates a session ID with improved rules
 func ValidateSessionID(sessionID string) error {
 	if sessionID == "" {
 		return fmt.Errorf("session ID cannot be empty")
 	}
 
 	if len(sessionID) < 3 {
-		return fmt.Errorf("session ID too short: %s", sessionID)
+		return fmt.Errorf("session ID too short (min 3 characters): %s", sessionID)
 	}
 
 	if len(sessionID) > 100 {
-		return fmt.Errorf("session ID too long: %s", sessionID)
+		return fmt.Errorf("session ID too long (max 100 characters): %s", sessionID)
+	}
+
+	// Check for valid characters (alphanumeric, underscore, hyphen)
+	validSessionRegex := regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+	if !validSessionRegex.MatchString(sessionID) {
+		return fmt.Errorf("session ID contains invalid characters (only alphanumeric, underscore, and hyphen allowed): %s", sessionID)
 	}
 
 	return nil
 }
 
-func SafeClientOperation(client *whatsmeow.Client, sessionID string, operation func() error) error {
+// SafeClientOperation executes an operation safely with validation and panic recovery
+func SafeClientOperation(client *whatsmeow.Client, sessionID string, operation func() error, logger *logger.Logger) error {
 	if err := ValidateClientAndStore(client, sessionID); err != nil {
 		return newConnectionError(sessionID, "validate", err)
 	}
@@ -150,7 +286,12 @@ func SafeClientOperation(client *whatsmeow.Client, sessionID string, operation f
 
 	defer func() {
 		if r := recover(); r != nil {
-			fmt.Printf("Panic in client operation for session %s: %v\n", sessionID, r)
+			if logger != nil {
+				logger.ErrorWithFields("Panic in client operation", map[string]interface{}{
+					"session_id": sessionID,
+					"panic":      r,
+				})
+			}
 		}
 	}()
 
@@ -221,43 +362,26 @@ func IsRecoverableError(err error) bool {
 	return true
 }
 
+// GetErrorCategory categorizes errors for better handling
 func GetErrorCategory(err error) string {
 	if err == nil {
 		return "none"
 	}
 
-	errStr := err.Error()
+	errStr := strings.ToLower(err.Error())
 
-	if contains(errStr, "connection") {
+	switch {
+	case strings.Contains(errStr, "connection"):
 		return "connection"
-	}
-	if contains(errStr, "auth") || contains(errStr, "login") {
+	case strings.Contains(errStr, "auth") || strings.Contains(errStr, "login"):
 		return "authentication"
-	}
-	if contains(errStr, "timeout") {
+	case strings.Contains(errStr, "timeout"):
 		return "timeout"
-	}
-	if contains(errStr, "network") {
+	case strings.Contains(errStr, "network"):
 		return "network"
+	case strings.Contains(errStr, "context"):
+		return "context"
+	default:
+		return "unknown"
 	}
-
-	return "unknown"
-}
-
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) &&
-		(s == substr ||
-			(len(s) > len(substr) &&
-				(s[:len(substr)] == substr ||
-					s[len(s)-len(substr):] == substr ||
-					containsSubstring(s, substr))))
-}
-
-func containsSubstring(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

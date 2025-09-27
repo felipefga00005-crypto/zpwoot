@@ -162,23 +162,21 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 	qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
 }
 
-type SessionManager struct {
+// sessionManager implements SessionUpdater interface
+type sessionManager struct {
 	sessionRepo ports.SessionRepository
 	logger      *logger.Logger
 }
 
-func NewSessionManager(sessionRepo ports.SessionRepository, logger *logger.Logger) *SessionManager {
-	return &SessionManager{
+// NewSessionManager creates a new session manager
+func NewSessionManager(sessionRepo ports.SessionRepository, logger *logger.Logger) SessionUpdater {
+	return &sessionManager{
 		sessionRepo: sessionRepo,
 		logger:      logger,
 	}
 }
 
-func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bool) {
-	s.logger.InfoWithFields("Updating session connection status", map[string]interface{}{
-		"session_id":   sessionID,
-		"is_connected": isConnected,
-	})
+func (s *sessionManager) UpdateConnectionStatus(sessionID string, isConnected bool) {
 
 	if s.sessionRepo == nil {
 		s.logger.WarnWithFields("No session repository available", map[string]interface{}{
@@ -201,19 +199,12 @@ func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bo
 
 	currentConnectionStatus := sessionEntity.IsConnected
 	if currentConnectionStatus == isConnected {
-		s.logger.InfoWithFields("Session already has connection status, skipping update", map[string]interface{}{
-			"session_id":   sessionID,
-			"is_connected": isConnected,
-		})
 		return
 	}
 
 	sessionEntity.SetConnected(isConnected)
 
 	if isConnected {
-		s.logger.InfoWithFields("Clearing QR code after successful connection", map[string]interface{}{
-			"session_id": sessionID,
-		})
 		sessionEntity.QRCode = ""
 		sessionEntity.QRCodeExpiresAt = nil
 	}
@@ -226,18 +217,21 @@ func (s *SessionManager) UpdateConnectionStatus(sessionID string, isConnected bo
 		return
 	}
 
-	s.logger.InfoWithFields("Successfully updated session connection status", map[string]interface{}{
-		"session_id":       sessionID,
-		"old_is_connected": currentConnectionStatus,
-		"new_is_connected": isConnected,
+	s.logger.InfoWithFields("Session connection status updated", map[string]interface{}{
+		"session_id":   sessionID,
+		"is_connected": isConnected,
 	})
 }
 
-func (s *SessionManager) GetSession(sessionID string) (*session.Session, error) {
+func (s *sessionManager) GetSession(sessionID string) (*session.Session, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	return s.sessionRepo.GetByID(ctx, sessionID)
+}
+
+func (s *sessionManager) GetSessionRepo() ports.SessionRepository {
+	return s.sessionRepo
 }
 
 type RetryConfig struct {

@@ -5,7 +5,6 @@ import (
 	fiberSwagger "github.com/swaggo/fiber-swagger"
 
 	"zpwoot/internal/app"
-	"zpwoot/internal/app/common"
 	"zpwoot/internal/infra/http/handlers"
 	"zpwoot/internal/infra/wameow"
 	"zpwoot/platform/db"
@@ -15,41 +14,10 @@ import (
 func SetupRoutes(app *fiber.App, database *db.DB, logger *logger.Logger, WameowManager *wameow.Manager, container *app.Container) {
 	app.Get("/swagger/*", fiberSwagger.WrapHandler)
 
-	// @Summary Health check
-	// @Description Check if the API is running and healthy
-	// @Tags Health
-	// @Produce json
-	// @Success 200 {object} object "API is healthy"
-	// @Router /health [get]
-	app.Get("/health", func(c *fiber.Ctx) error {
-		response := &common.HealthResponse{
-			Status:  "ok",
-			Service: "zpwoot",
-		}
-		return c.JSON(response)
-	})
-
-	// @Summary Wameow health check
-	// @Description Check if Wameow manager and whatsmeow tables are available
-	// @Tags Health
-	// @Produce json
-	// @Success 200 {object} object "Wameow manager is healthy"
-	// @Router /health/Wameow [get]
-	app.Get("/health/Wameow", func(c *fiber.Ctx) error {
-		if WameowManager == nil {
-			return c.Status(503).JSON(fiber.Map{
-				"status":  "error",
-				"service": "Wameow",
-				"message": "Wameow manager not initialized",
-			})
-		}
-
-		healthData := WameowManager.HealthCheck()
-		healthData["service"] = "Wameow"
-		healthData["message"] = "Wameow manager is healthy and whatsmeow tables are available"
-
-		return c.JSON(healthData)
-	})
+	// Health check endpoints
+	healthHandler := handlers.NewHealthHandler(logger, WameowManager)
+	app.Get("/health", healthHandler.GetHealth)
+	app.Get("/health/wameow", healthHandler.GetWameowHealth)
 
 	setupSessionRoutes(app, logger, WameowManager, container)
 

@@ -54,6 +54,8 @@ type WameowManager interface {
 
 	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string) (*message.SendResult, error)
 
+	SendMessageWithContext(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
+
 	SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error
 
 	SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error)

@@ -56,17 +56,15 @@ func (h *SessionHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session, *
 	return sess, nil
 }
 
-// @Summary Create a new Wameow session
-// @Description Creates a new Wameow session with the provided configuration. Requires API key authentication.
+// @Summary Create new session
+// @Description Create a new WhatsApp session with optional proxy configuration
 // @Tags Sessions
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
 // @Param request body session.CreateSessionRequest true "Session creation request"
 // @Success 201 {object} session.CreateSessionResponse "Session created successfully"
-// @Failure 400 {object} object "Invalid request body or parameters"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 500 {object} object "Internal server error"
+// @Failure 400 {object} common.ErrorResponse "Bad Request"
+// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
 // @Router /sessions/create [post]
 func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
 	h.logger.Info("Creating new session")
@@ -124,20 +122,18 @@ func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
 	return c.Status(201).JSON(response)
 }
 
-// @Summary List all Wameow sessions
-// @Description Retrieves a list of all Wameow sessions with optional filtering. Requires API key authentication.
+// @Summary List sessions
+// @Description Get a list of all WhatsApp sessions with optional filtering
 // @Tags Sessions
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param status query string false "Filter by session status" Enums(created,connecting,connected,disconnected,error,logged_out) example("connected")
-// @Param deviceJid query string false "Filter by device JID" example("5511999999999@s.Wameow.net")
-// @Param limit query int false "Limit number of results" minimum(1) maximum(100) default(20) example(20)
-// @Param offset query int false "Offset for pagination" minimum(0) default(0) example(0)
+// @Param isConnected query bool false "Filter by connection status"
+// @Param deviceJid query string false "Filter by device JID"
+// @Param limit query int false "Number of sessions to return (default: 20)"
+// @Param offset query int false "Number of sessions to skip (default: 0)"
 // @Success 200 {object} session.ListSessionsResponse "Sessions retrieved successfully"
-// @Failure 400 {object} object "Invalid request parameters"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 500 {object} object "Internal server error"
+// @Failure 400 {object} common.ErrorResponse "Bad Request"
+// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
 // @Router /sessions/list [get]
 func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 	h.logger.Info("Listing sessions")
@@ -184,17 +180,13 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 }
 
 // @Summary Get session information
-// @Description Retrieves detailed information about a specific Wameow session including connection status and device info. You can use either the session UUID or session name. Requires API key authentication.
+// @Description Get detailed information about a specific WhatsApp session
 // @Tags Sessions
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Success 200 {object} session.SessionInfoResponse "Session info retrieved successfully"
-// @Failure 400 {object} object "Invalid session identifier"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} session.SessionInfoResponse "Session information retrieved successfully"
+// @Failure 404 {object} common.ErrorResponse "Session not found"
+// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
 // @Router /sessions/{sessionId}/info [get]
 func (h *SessionHandler) GetSessionInfo(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -224,18 +216,14 @@ func (h *SessionHandler) GetSessionInfo(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// @Summary Delete a Wameow session
-// @Description Permanently removes a Wameow session and all associated data. This action cannot be undone. You can use either the session UUID or session name. Requires API key authentication.
+// @Summary Delete session
+// @Description Delete a WhatsApp session and all associated data
 // @Tags Sessions
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Success 200 {object} object "Session deleted successfully"
-// @Failure 400 {object} object "Invalid session identifier"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} common.SuccessResponse "Session deleted successfully"
+// @Failure 404 {object} common.ErrorResponse "Session not found"
+// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
 // @Router /sessions/{sessionId}/delete [delete]
 func (h *SessionHandler) DeleteSession(c *fiber.Ctx) error {
 	if h.sessionUC == nil {

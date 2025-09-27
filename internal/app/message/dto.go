@@ -48,6 +48,14 @@ func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 }
 
 func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
+	var contextInfo *message.ContextInfo
+	if r.ContextInfo != nil {
+		contextInfo = &message.ContextInfo{
+			StanzaID:    r.ContextInfo.StanzaID,
+			Participant: r.ContextInfo.Participant,
+		}
+	}
+
 	return &message.SendMessageRequest{
 		To:           r.To,
 		Type:         message.MessageType(r.Type),
@@ -61,6 +69,7 @@ func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 		Address:      r.Address,
 		ContactName:  r.ContactName,
 		ContactPhone: r.ContactPhone,
+		ContextInfo:  contextInfo,
 	}
 }
 

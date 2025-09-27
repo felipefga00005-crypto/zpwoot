@@ -3,7 +3,6 @@ package wameow
 import (
 	"context"
 	"fmt"
-	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -40,7 +39,7 @@ type Manager struct {
 	container     *sqlstore.Container
 	connectionMgr *ConnectionManager
 	qrGenerator   *QRCodeGenerator
-	sessionMgr    *SessionManager
+	sessionMgr    SessionUpdater
 	logger        *logger.Logger
 
 	sessionStats map[string]*SessionStats
@@ -67,10 +66,11 @@ func NewManager(
 	}
 }
 
+// CreateSession creates a new WhatsApp session with optional proxy configuration
 func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) error {
-	m.logger.InfoWithFields("Creating Wameow session", map[string]interface{}{
-		"session_id": sessionID,
-	})
+	if err := ValidateSessionID(sessionID); err != nil {
+		return fmt.Errorf("invalid session ID: %w", err)
+	}
 
 	m.clientsMutex.Lock()
 	defer m.clientsMutex.Unlock()
@@ -79,11 +79,28 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 		return fmt.Errorf("session %s already exists", sessionID)
 	}
 
-	client, err := NewWameowClient(sessionID, m.container, m.sessionMgr.sessionRepo, m.logger)
+	client, err := m.createWameowClient(sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to create WameowClient for session %s: %w", sessionID, err)
 	}
 
+	if err := m.configureSession(client, sessionID, config); err != nil {
+		return fmt.Errorf("failed to configure session %s: %w", sessionID, err)
+	}
+
+	m.clients[sessionID] = client
+	m.initSessionStats(sessionID)
+
+	return nil
+}
+
+// createWameowClient creates a new WameowClient instance
+func (m *Manager) createWameowClient(sessionID string) (*WameowClient, error) {
+	return NewWameowClient(sessionID, m.container, m.sessionMgr.GetSessionRepo(), m.logger)
+}
+
+// configureSession configures the session with event handlers and proxy
+func (m *Manager) configureSession(client *WameowClient, sessionID string, config *session.ProxyConfig) error {
 	m.setupEventHandlers(client.GetClient(), sessionID)
 
 	if config != nil {
@@ -92,46 +109,23 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 				"session_id": sessionID,
 				"error":      err.Error(),
 			})
+			// Don't fail the session creation for proxy config errors
 		}
 	}
-
-	m.clients[sessionID] = client
-
-	m.initSessionStats(sessionID)
-
-	m.logger.InfoWithFields("Wameow session created successfully", map[string]interface{}{
-		"session_id": sessionID,
-	})
 
 	return nil
 }
 
 func (m *Manager) ConnectSession(sessionID string) error {
-	m.logger.InfoWithFields("Connecting Wameow session", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
 	client := m.getClient(sessionID)
 	if client == nil {
-		m.logger.InfoWithFields("Session not found in memory, attempting to load from database", map[string]interface{}{
-			"session_id": sessionID,
-		})
 
 		sess, err := m.sessionMgr.GetSession(sessionID)
 		if err != nil {
-			m.logger.ErrorWithFields("Failed to get session from database", map[string]interface{}{
-				"session_id": sessionID,
-				"error":      err.Error(),
-			})
 			return fmt.Errorf("session %s not found", sessionID)
 		}
 
 		if err := m.CreateSession(sessionID, sess.ProxyConfig); err != nil {
-			m.logger.ErrorWithFields("Failed to create Wameow client for session", map[string]interface{}{
-				"session_id": sessionID,
-				"device_jid": sess.DeviceJid,
-				"error":      err.Error(),
-			})
 			return fmt.Errorf("failed to initialize Wameow client for session %s: %w", sessionID, err)
 		}
 
@@ -139,10 +133,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 		if client == nil {
 			return fmt.Errorf("failed to create Wameow client for session %s", sessionID)
 		}
-
-		m.logger.InfoWithFields("Successfully loaded session from database and created Wameow client", map[string]interface{}{
-			"session_id": sessionID,
-		})
 	}
 
 	err := client.Connect()
@@ -155,10 +145,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 }
 
 func (m *Manager) DisconnectSession(sessionID string) error {
-	m.logger.InfoWithFields("Disconnecting Wameow session", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
 	client := m.getClient(sessionID)
 	if client == nil {
 		return fmt.Errorf("session %s not found", sessionID)
@@ -170,14 +156,10 @@ func (m *Manager) DisconnectSession(sessionID string) error {
 	}
 
 	m.sessionMgr.UpdateConnectionStatus(sessionID, false)
-
 	return nil
 }
 
 func (m *Manager) LogoutSession(sessionID string) error {
-	m.logger.InfoWithFields("Logging out Wameow session", map[string]interface{}{
-		"session_id": sessionID,
-	})
 
 	client := m.getClient(sessionID)
 	if client == nil {
@@ -542,12 +524,6 @@ func (m *Manager) getClient(sessionID string) *WameowClient {
 }
 
 func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.ProxyConfig) error {
-	m.logger.InfoWithFields("Proxy configuration", map[string]interface{}{
-		"type":       config.Type,
-		"host":       config.Host,
-		"port":       config.Port,
-		"client_nil": client == nil,
-	})
 
 	if client == nil {
 		return fmt.Errorf("cannot apply proxy config to nil client")
@@ -557,39 +533,15 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 		return fmt.Errorf("proxy configuration is nil")
 	}
 
-	var proxyURL *url.URL
-	var err error
-
+	// Validate proxy configuration
 	switch config.Type {
-	case "http", "https":
-		if config.Username != "" && config.Password != "" {
-			proxyURL, err = url.Parse(fmt.Sprintf("http://%s:%s@%s:%d",
-				config.Username, config.Password, config.Host, config.Port))
-		} else {
-			proxyURL, err = url.Parse(fmt.Sprintf("http://%s:%d", config.Host, config.Port))
-		}
-	case "socks5":
-		if config.Username != "" && config.Password != "" {
-			proxyURL, err = url.Parse(fmt.Sprintf("socks5://%s:%s@%s:%d",
-				config.Username, config.Password, config.Host, config.Port))
-		} else {
-			proxyURL, err = url.Parse(fmt.Sprintf("socks5://%s:%d", config.Host, config.Port))
-		}
+	case "http", "https", "socks5":
+		// Valid proxy types
 	default:
 		return fmt.Errorf("unsupported proxy type: %s", config.Type)
 	}
 
-	if err != nil {
-		return fmt.Errorf("failed to parse proxy URL: %w", err)
-	}
-
-	m.logger.InfoWithFields("Proxy configuration validated (not yet applied)", map[string]interface{}{
-		"type":      config.Type,
-		"host":      config.Host,
-		"port":      config.Port,
-		"proxy_url": proxyURL.String(),
-		"note":      "Proxy configuration validation successful, but actual proxy application requires client recreation",
-	})
+	// Proxy configuration validated successfully
 
 	return nil
 }
@@ -749,10 +701,6 @@ func (m *Manager) DeleteMessage(sessionID, to, messageID string, forAll bool) er
 }
 
 func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string) {
-	m.logger.InfoWithFields("Setting up event handlers", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
 	m.SetupEventHandlers(client, sessionID)
 }
 
@@ -831,6 +779,76 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 
 	return &TextMessageResult{
 		MessageID: messageID,
+		Status:    "sent",
+		Timestamp: resp.Timestamp,
+	}, nil
+}
+
+// SendMessageWithContext sends a message with optional context info for replies
+func (m *Manager) SendMessageWithContext(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	var resp *whatsmeow.SendResponse
+	var err error
+
+	// Convert message.ContextInfo to appMessage.ContextInfo
+	var appContextInfo *appMessage.ContextInfo
+	if contextInfo != nil {
+		appContextInfo = &appMessage.ContextInfo{
+			StanzaID:    contextInfo.StanzaID,
+			Participant: contextInfo.Participant,
+		}
+	}
+
+	switch messageType {
+	case "text":
+		textResult, err := m.SendTextMessage(sessionID, to, body, appContextInfo)
+		if err != nil {
+			return nil, err
+		}
+		return &message.SendResult{
+			MessageID: textResult.MessageID,
+			Status:    textResult.Status,
+			Timestamp: textResult.Timestamp,
+		}, nil
+	case "image":
+		resp, err = client.SendImageMessageWithContext(ctx, to, file, caption, appContextInfo)
+	case "audio":
+		resp, err = client.SendAudioMessageWithContext(ctx, to, file, appContextInfo)
+	case "video":
+		resp, err = client.SendVideoMessageWithContext(ctx, to, file, caption, appContextInfo)
+	case "document":
+		resp, err = client.SendDocumentMessageWithContext(ctx, to, file, filename, appContextInfo)
+	case "location":
+		resp, err = client.SendLocationMessage(ctx, to, latitude, longitude, body)
+	case "contact":
+		resp, err = client.SendContactMessage(ctx, to, contactName, contactPhone)
+	case "sticker":
+		resp, err = client.SendStickerMessage(ctx, to, file)
+	default:
+		return nil, fmt.Errorf("unsupported message type: %s", messageType)
+	}
+
+	if err != nil {
+		return &message.SendResult{
+			Status:    "failed",
+			Error:     err.Error(),
+			Timestamp: time.Now(),
+		}, err
+	}
+
+	m.incrementMessagesSent(sessionID)
+
+	return &message.SendResult{
+		MessageID: resp.ID,
 		Status:    "sent",
 		Timestamp: resp.Timestamp,
 	}, nil

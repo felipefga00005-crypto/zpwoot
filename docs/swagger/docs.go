@@ -696,7 +696,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send an audio message through WhatsApp",
+                "description": "Send an audio message through WhatsApp with optional reply context",
                 "consumes": [
                     "application/json"
                 ],
@@ -927,7 +927,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send a document message through WhatsApp",
+                "description": "Send a document message through WhatsApp with optional reply context",
                 "consumes": [
                     "application/json"
                 ],
@@ -1004,7 +1004,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send an image message through WhatsApp",
+                "description": "Send an image message through WhatsApp with optional reply context",
                 "consumes": [
                     "application/json"
                 ],
@@ -1697,7 +1697,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send a video message through WhatsApp",
+                "description": "Send a video message through WhatsApp with optional reply context",
                 "consumes": [
                     "application/json"
                 ],
@@ -2041,6 +2041,9 @@ const docTemplate = `{
                 "caption": {
                     "type": "string",
                     "example": "Voice message"
+                },
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
                 },
                 "file": {
                     "type": "string",
@@ -2396,6 +2399,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Important document"
                 },
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
+                },
                 "file": {
                     "type": "string",
                     "example": "https://example.com/document.pdf"
@@ -2485,6 +2491,9 @@ const docTemplate = `{
                 "caption": {
                     "type": "string",
                     "example": "Beautiful sunset photo"
+                },
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
                 },
                 "file": {
                     "type": "string",
@@ -2823,6 +2832,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "+5511999999999"
                 },
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
+                },
                 "file": {
                     "type": "string",
                     "example": "https://example.com/image.jpg"
@@ -3045,6 +3057,9 @@ const docTemplate = `{
                 "caption": {
                     "type": "string",
                     "example": "Check out this amazing video!"
+                },
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
                 },
                 "file": {
                     "type": "string",
