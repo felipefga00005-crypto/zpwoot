@@ -503,7 +503,7 @@ func (c *WameowClient) SendTextMessage(ctx context.Context, to, body string) (*w
 	return c.msgSender.SendText(ctx, to, body, nil)
 }
 
-func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
+func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
 	options := MediaOptions{
 		Caption:  caption,
 		MimeType: "image/jpeg",
@@ -511,14 +511,14 @@ func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, capti
 	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeImage, options)
 }
 
-func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string) (*whatsmeow.SendResponse, error) {
+func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
 	options := MediaOptions{
 		MimeType: "audio/ogg; codecs=opus",
 	}
 	return c.msgSender.SendMedia(ctx, to, filePath, MediaTypeAudio, options)
 }
 
-func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, caption string) (*whatsmeow.SendResponse, error) {
+func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
 	options := MediaOptions{
 		Caption:  caption,
 		MimeType: "video/mp4",

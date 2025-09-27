@@ -105,7 +105,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		}
 	}
 
-	result, err := uc.wameowManager.SendMessageWithContext(
+	result, err := uc.wameowManager.SendMessage(
 		sessionID,
 		domainReq.To,
 		string(domainReq.Type),

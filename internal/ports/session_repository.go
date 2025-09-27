@@ -55,9 +55,7 @@ type WameowManager interface {
 
 	GetUserJID(sessionID string) (string, error)
 
-	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string) (*message.SendResult, error)
-
-	SendMessageWithContext(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
+	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
 
 	SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error
 

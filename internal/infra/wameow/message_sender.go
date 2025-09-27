@@ -342,19 +342,26 @@ func (ms *messageSender) createDocumentMessage(uploaded whatsmeow.UploadResponse
 		filename = "document"
 	}
 
+	documentMessage := &waE2E.DocumentMessage{
+		Title:         &filename,
+		FileName:      &filename,
+		URL:           &uploaded.URL,
+		DirectPath:    &uploaded.DirectPath,
+		MediaKey:      uploaded.MediaKey,
+		Mimetype:      &mimetype,
+		FileEncSHA256: uploaded.FileEncSHA256,
+		FileSHA256:    uploaded.FileSHA256,
+		FileLength:    &uploaded.FileLength,
+		ContextInfo:   contextInfo,
+	}
+
+	// Add caption if provided
+	if options.Caption != "" {
+		documentMessage.Caption = &options.Caption
+	}
+
 	return &waE2E.Message{
-		DocumentMessage: &waE2E.DocumentMessage{
-			Title:         &filename,
-			FileName:      &filename,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-			ContextInfo:   contextInfo,
-		},
+		DocumentMessage: documentMessage,
 	}
 }
 

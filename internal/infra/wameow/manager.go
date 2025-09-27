@@ -1131,8 +1131,8 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 	}, nil
 }
 
-// SendMessageWithContext sends a message with optional context info for replies
-func (m *Manager) SendMessageWithContext(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error) {
+// SendMessage sends a message with optional context info for replies
+func (m *Manager) SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
 		return nil, fmt.Errorf("session %s not found", sessionID)
@@ -1167,13 +1167,13 @@ func (m *Manager) SendMessageWithContext(sessionID, to, messageType, body, capti
 			Timestamp: textResult.Timestamp,
 		}, nil
 	case "image":
-		resp, err = client.SendImageMessageWithContext(ctx, to, file, caption, appContextInfo)
+		resp, err = client.SendImageMessage(ctx, to, file, caption, appContextInfo)
 	case "audio":
-		resp, err = client.SendAudioMessageWithContext(ctx, to, file, appContextInfo)
+		resp, err = client.SendAudioMessage(ctx, to, file, appContextInfo)
 	case "video":
-		resp, err = client.SendVideoMessageWithContext(ctx, to, file, caption, appContextInfo)
+		resp, err = client.SendVideoMessage(ctx, to, file, caption, appContextInfo)
 	case "document":
-		resp, err = client.SendDocumentMessageWithContext(ctx, to, file, filename, appContextInfo)
+		resp, err = client.SendDocumentMessage(ctx, to, file, filename, caption, appContextInfo)
 	case "location":
 		resp, err = client.SendLocationMessage(ctx, to, latitude, longitude, body)
 	case "contact":
