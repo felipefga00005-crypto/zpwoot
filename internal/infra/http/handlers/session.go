@@ -63,8 +63,8 @@ func (h *SessionHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session, *
 // @Produce json
 // @Param request body session.CreateSessionRequest true "Session creation request"
 // @Success 201 {object} session.CreateSessionResponse "Session created successfully"
-// @Failure 400 {object} common.ErrorResponse "Bad Request"
-// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/create [post]
 func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
 	h.logger.Info("Creating new session")
@@ -132,8 +132,8 @@ func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
 // @Param limit query int false "Number of sessions to return (default: 20)"
 // @Param offset query int false "Number of sessions to skip (default: 0)"
 // @Success 200 {object} session.ListSessionsResponse "Sessions retrieved successfully"
-// @Failure 400 {object} common.ErrorResponse "Bad Request"
-// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/list [get]
 func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 	h.logger.Info("Listing sessions")
@@ -185,8 +185,8 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} session.SessionInfoResponse "Session information retrieved successfully"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/info [get]
 func (h *SessionHandler) GetSessionInfo(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -222,8 +222,8 @@ func (h *SessionHandler) GetSessionInfo(c *fiber.Ctx) error {
 // @Produce json
 // @Param sessionId path string true "Session ID"
 // @Success 200 {object} common.SuccessResponse "Session deleted successfully"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/delete [delete]
 func (h *SessionHandler) DeleteSession(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -253,18 +253,14 @@ func (h *SessionHandler) DeleteSession(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// @Summary Connect Wameow session
-// @Description Establishes connection with Wameow for the specified session. Will generate QR code if not paired. You can use either the session UUID or session name. Requires API key authentication.
+// @Summary Connect session
+// @Description Connect a WhatsApp session to start receiving messages
 // @Tags Sessions
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Success 200 {object} object "Connection initiated successfully"
-// @Failure 400 {object} object "Invalid session identifier"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} common.SuccessResponse "Session connection initiated successfully"
 // @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/connect [post]
 func (h *SessionHandler) ConnectSession(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -294,18 +290,14 @@ func (h *SessionHandler) ConnectSession(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// @Summary Logout Wameow session
-// @Description Logs out from Wameow for the specified session. You can use either the session UUID or session name. Requires API key authentication.
+// @Summary Logout session
+// @Description Logout from WhatsApp session and disconnect
 // @Tags Sessions
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Success 200 {object} object "Session logged out successfully"
-// @Failure 400 {object} object "Invalid session identifier"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} common.SuccessResponse "Session logout successful"
 // @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/logout [post]
 func (h *SessionHandler) LogoutSession(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -335,19 +327,14 @@ func (h *SessionHandler) LogoutSession(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
-// @Summary Get QR code for session pairing
-// @Description Retrieves the current QR code for pairing a Wameow session. The QR code expires after 60 seconds. You can use either the session UUID or session name. Requires API key authentication.
+// @Summary Get QR code
+// @Description Get QR code for WhatsApp session pairing
 // @Tags Sessions
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-
-// @Param id path string true "Session ID or Name" example("mySession")
-// @Success 200 {object} common.SuccessResponse{data=session.QRCodeResponse} "QR code retrieved successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid session identifier"
-// @Failure 401 {object} common.ErrorResponse "Unauthorized - Invalid or missing API key"
-// @Failure 404 {object} common.ErrorResponse "Session not found or no QR code available"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} session.QRCodeResponse "QR code generated successfully"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/qr [get]
 func (h *SessionHandler) GetQRCode(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
@@ -377,6 +364,18 @@ func (h *SessionHandler) GetQRCode(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// @Summary Pair phone number
+// @Description Pair WhatsApp session with phone number
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Param request body session.PairPhoneRequest true "Phone pairing request"
+// @Success 200 {object} common.SuccessResponse "Phone pairing initiated successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/pair [post]
 func (h *SessionHandler) PairPhone(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
 		return c.Status(500).JSON(common.NewErrorResponse("Session use case not initialized"))
@@ -404,6 +403,18 @@ func (h *SessionHandler) PairPhone(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// @Summary Set proxy configuration
+// @Description Set or update proxy configuration for a WhatsApp session
+// @Tags Sessions
+// @Accept json
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Param request body session.SetProxyRequest true "Proxy configuration request"
+// @Success 200 {object} session.ProxyResponse "Proxy configuration set successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/proxy/set [post]
 func (h *SessionHandler) SetProxy(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
 		return c.Status(500).JSON(common.NewErrorResponse("Session use case not initialized"))
@@ -438,6 +449,15 @@ func (h *SessionHandler) SetProxy(c *fiber.Ctx) error {
 	return c.JSON(response)
 }
 
+// @Summary Get proxy configuration
+// @Description Get current proxy configuration for a WhatsApp session
+// @Tags Sessions
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} session.ProxyResponse "Proxy configuration retrieved successfully"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/proxy/find [get]
 func (h *SessionHandler) GetProxy(c *fiber.Ctx) error {
 	if h.sessionUC == nil {
 		return c.Status(500).JSON(common.NewErrorResponse("Session use case not initialized"))

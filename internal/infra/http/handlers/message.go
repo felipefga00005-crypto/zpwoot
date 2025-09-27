@@ -38,19 +38,21 @@ func NewMessageHandler(
 	}
 }
 
-// @Summary Send WhatsApp message
-// @Description Send a message through WhatsApp. Supports text, image, audio, video, document, location, and contact messages. Media can be provided via URL or base64.
+// @Summary Send message (generic)
+// @Description Send a message of any type (text, image, audio, video, document, etc.)
 // @Tags Messages
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-
-// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param sessionId path string true "Session ID"
 // @Param request body message.SendMessageRequest true "Message request"
-// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Success 200 {object} message.MessageResponse "Message sent successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/messages/send [post]
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send [post]
 func (h *MessageHandler) SendMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -143,9 +145,9 @@ func (h *MessageHandler) SendMessage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.TextMessageRequest true "Text message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/text [post]
 func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -197,17 +199,16 @@ func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 }
 
 // @Summary Send media message
-// @Description Send a media message (image, audio, video, document) through WhatsApp
+// @Description Send a media file (image, audio, video, document) with optional caption
 // @Tags Messages
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param sessionId path string true "Session ID"
 // @Param request body message.MediaMessageRequest true "Media message request"
-// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Success 200 {object} message.MessageResponse "Media message sent successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/messages/send/media [post]
 func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 	return h.SendMessage(c) // Reuse the generic send message logic
@@ -222,9 +223,9 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.ImageMessageRequest true "Image message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/image [post]
 func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -296,9 +297,9 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.AudioMessageRequest true "Audio message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/audio [post]
 func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -369,9 +370,9 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.VideoMessageRequest true "Video message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/video [post]
 func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -443,9 +444,9 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.DocumentMessageRequest true "Document message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/document [post]
 func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -522,9 +523,9 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.MediaMessageRequest true "Sticker message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/sticker [post]
 func (h *MessageHandler) SendSticker(c *fiber.Ctx) error {
 	return h.sendSpecificMessageType(c, "sticker")
@@ -539,9 +540,9 @@ func (h *MessageHandler) SendSticker(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.LocationMessageRequest true "Location message request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/location [post]
 func (h *MessageHandler) SendLocation(c *fiber.Ctx) error {
 	return h.sendSpecificMessageType(c, "location")
@@ -557,9 +558,9 @@ func (h *MessageHandler) SendLocation(c *fiber.Ctx) error {
 // @Param request body message.ContactMessageRequest true "Contact message request (single contact) or ContactListMessageRequest (multiple contacts)"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Single contact sent successfully"
 // @Success 200 {object} common.SuccessResponse{data=message.ContactListMessageResponse} "Contact list sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/contact [post]
 func (h *MessageHandler) SendContact(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -776,9 +777,9 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.BusinessProfileRequest true "Business profile request"
 // @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Business profile sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/profile/business [post]
 func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -851,17 +852,16 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 }
 
 // @Summary Send text message
-// @Description Send a text message with optional reply to a previous message
+// @Description Send a text message with optional context info for replies
 // @Tags Messages
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param sessionId path string true "Session ID"
 // @Param request body message.TextMessageRequest true "Text message request"
-// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Text message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Success 200 {object} message.MessageResponse "Text message sent successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/messages/send/text [post]
 func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -934,9 +934,9 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.ButtonMessageRequest true "Button message request"
 // @Success 200 {object} common.SuccessResponse{data=message.MessageResponse} "Button message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/button [post]
 func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -1007,9 +1007,9 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.ListMessageRequest true "List message request"
 // @Success 200 {object} common.SuccessResponse{data=message.MessageResponse} "List message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/list [post]
 func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -1093,9 +1093,9 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.ReactionMessageRequest true "Reaction request"
 // @Success 200 {object} common.SuccessResponse{data=message.ReactionResponse} "Reaction sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/reaction [post]
 func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -1157,9 +1157,9 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.PresenceMessageRequest true "Presence request"
 // @Success 200 {object} common.SuccessResponse{data=message.PresenceResponse} "Presence sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/presence [post]
 func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -1232,9 +1232,9 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.EditMessageRequest true "Edit message request"
 // @Success 200 {object} common.SuccessResponse{data=message.EditResponse} "Message edited successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/edit [post]
 func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")
@@ -1296,9 +1296,9 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param request body message.DeleteMessageRequest true "Delete message request"
 // @Success 200 {object} common.SuccessResponse{data=message.DeleteResponse} "Message deleted successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/delete [post]
 func (h *MessageHandler) DeleteMessage(c *fiber.Ctx) error {
 	sessionIdentifier := c.Params("sessionId")

@@ -33,18 +33,18 @@ func NewChatwootHandler(chatwootUC chatwoot.UseCase, logger *logger.Logger) *Cha
 	}
 }
 
-// @Summary Create Chatwoot configuration
-// @Description Creates a new Chatwoot integration configuration. This enables synchronization between Wameow and Chatwoot. Requires API key authentication.
+// @Summary Set Chatwoot configuration
+// @Description Set or update Chatwoot integration configuration for a WhatsApp session
 // @Tags Chatwoot
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
+// @Param sessionId path string true "Session ID"
 // @Param request body chatwoot.CreateChatwootConfigRequest true "Chatwoot configuration request"
-// @Success 201 {object} chatwoot.CreateChatwootConfigResponse "Chatwoot configuration created successfully"
-// @Failure 400 {object} object "Invalid request body or parameters"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 500 {object} object "Internal server error"
-// @Router /chatwoot/config [post]
+// @Success 200 {object} chatwoot.CreateChatwootConfigResponse "Chatwoot configuration set successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/chatwoot/set [post]
 func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
 	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -265,6 +265,18 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 	})
 }
 
+// @Summary Set Chatwoot configuration
+// @Description Set or update Chatwoot integration configuration for a WhatsApp session
+// @Tags Chatwoot
+// @Accept json
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Param request body chatwoot.CreateChatwootConfigRequest true "Chatwoot configuration request"
+// @Success 200 {object} chatwoot.CreateChatwootConfigResponse "Chatwoot configuration set successfully"
+// @Failure 400 {object} object "Bad Request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/chatwoot/set [post]
 func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 
 	var req chatwoot.CreateChatwootConfigRequest
@@ -320,6 +332,15 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 	})
 }
 
+// @Summary Get Chatwoot configuration
+// @Description Get current Chatwoot integration configuration for a WhatsApp session
+// @Tags Chatwoot
+// @Produce json
+// @Param sessionId path string true "Session ID"
+// @Success 200 {object} chatwoot.ChatwootConfigResponse "Chatwoot configuration retrieved successfully"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/chatwoot/find [get]
 func (h *ChatwootHandler) FindConfig(c *fiber.Ctx) error {
 	sessionID := c.Params("sessionId")
 

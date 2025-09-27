@@ -310,19 +310,6 @@ definitions:
         example: "2024-01-01T12:00:00Z"
         type: string
     type: object
-  ErrorResponse:
-    properties:
-      code:
-        example: VALIDATION_ERROR
-        type: string
-      details: {}
-      error:
-        example: Invalid request
-        type: string
-      success:
-        example: false
-        type: boolean
-    type: object
   ImageMessageRequest:
     properties:
       caption:
@@ -436,6 +423,14 @@ definitions:
         example: "2024-01-01T12:00:00Z"
         type: string
     type: object
+  PairPhoneRequest:
+    properties:
+      phoneNumber:
+        example: "+5511987654321"
+        type: string
+    required:
+    - phoneNumber
+    type: object
   PresenceMessageRequest:
     properties:
       presence:
@@ -484,6 +479,11 @@ definitions:
       username:
         example: proxyuser
         type: string
+    type: object
+  ProxyResponse:
+    properties:
+      proxyConfig:
+        $ref: '#/definitions/ProxyConfig'
     type: object
   QRCodeResponse:
     properties:
@@ -708,6 +708,11 @@ definitions:
         example: https://myapp.com/webhook/whatsapp
         type: string
     type: object
+  SetProxyRequest:
+    properties:
+      proxyConfig:
+        $ref: '#/definitions/ProxyConfig'
+    type: object
   SuccessResponse:
     properties:
       data: {}
@@ -783,6 +788,45 @@ definitions:
         example: https://example.com/webhook
         type: string
     type: object
+  zpwoot_internal_app_chatwoot.ChatwootConfigResponse:
+    properties:
+      account_id:
+        example: "1"
+        type: string
+      active:
+        example: true
+        type: boolean
+      created_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: chatwoot-config-123
+        type: string
+      inbox_id:
+        example: "1"
+        type: string
+      updated_at:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      url:
+        example: https://chatwoot.example.com
+        type: string
+    type: object
+  zpwoot_internal_app_common.HealthResponse:
+    properties:
+      service:
+        example: zpwoot
+        type: string
+      status:
+        example: ok
+        type: string
+      uptime:
+        example: 2h30m15s
+        type: string
+      version:
+        example: 1.0.0
+        type: string
+    type: object
 host: localhost:8080
 info:
   contact:
@@ -801,13 +845,79 @@ info:
   title: zpwoot - WhatsApp Multi-Session API
   version: "1.0"
 paths:
-  /chatwoot/config:
+  /health:
+    get:
+      description: Check if the API is running and healthy
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: API is healthy
+          schema:
+            $ref: '#/definitions/zpwoot_internal_app_common.HealthResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Health check
+      tags:
+      - Health
+  /health/wameow:
+    get:
+      description: Check if WhatsApp manager and whatsmeow tables are available
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: WhatsApp manager is healthy
+          schema:
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            type: object
+      summary: WhatsApp manager health check
+      tags:
+      - Health
+  /sessions/{sessionId}/chatwoot/find:
+    get:
+      description: Get current Chatwoot integration configuration for a WhatsApp session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Chatwoot configuration retrieved successfully
+          schema:
+            $ref: '#/definitions/zpwoot_internal_app_chatwoot.ChatwootConfigResponse'
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get Chatwoot configuration
+      tags:
+      - Chatwoot
+  /sessions/{sessionId}/chatwoot/set:
     post:
       consumes:
       - application/json
-      description: Creates a new Chatwoot integration configuration. This enables
-        synchronization between Wameow and Chatwoot. Requires API key authentication.
+      description: Set or update Chatwoot integration configuration for a WhatsApp
+        session
       parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
       - description: Chatwoot configuration request
         in: body
         name: request
@@ -817,37 +927,30 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Chatwoot configuration created successfully
+        "200":
+          description: Chatwoot configuration set successfully
           schema:
             $ref: '#/definitions/CreateChatwootConfigResponse'
         "400":
-          description: Invalid request body or parameters
+          description: Bad Request
           schema:
             type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
+        "404":
+          description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Create Chatwoot configuration
+      summary: Set Chatwoot configuration
       tags:
       - Chatwoot
   /sessions/{sessionId}/connect:
     post:
-      consumes:
-      - application/json
-      description: Establishes connection with Wameow for the specified session. Will
-        generate QR code if not paired. You can use either the session UUID or session
-        name. Requires API key authentication.
+      description: Connect a WhatsApp session to start receiving messages
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -856,40 +959,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: Connection initiated successfully
+          description: Session connection initiated successfully
           schema:
-            type: object
-        "400":
-          description: Invalid session identifier
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            type: object
+            $ref: '#/definitions/SuccessResponse'
         "404":
           description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Connect Wameow session
+      summary: Connect session
       tags:
       - Sessions
   /sessions/{sessionId}/delete:
     delete:
-      consumes:
-      - application/json
-      description: Permanently removes a Wameow session and all associated data. This
-        action cannot be undone. You can use either the session UUID or session name.
-        Requires API key authentication.
+      description: Delete a WhatsApp session and all associated data
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -900,38 +988,23 @@ paths:
         "200":
           description: Session deleted successfully
           schema:
-            type: object
-        "400":
-          description: Invalid session identifier
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            type: object
+            $ref: '#/definitions/SuccessResponse'
         "404":
           description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Delete a Wameow session
+      summary: Delete session
       tags:
       - Sessions
   /sessions/{sessionId}/info:
     get:
-      consumes:
-      - application/json
-      description: Retrieves detailed information about a specific Wameow session
-        including connection status and device info. You can use either the session
-        UUID or session name. Requires API key authentication.
+      description: Get detailed information about a specific WhatsApp session
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -940,39 +1013,25 @@ paths:
       - application/json
       responses:
         "200":
-          description: Session info retrieved successfully
+          description: Session information retrieved successfully
           schema:
             $ref: '#/definitions/SessionInfoResponse'
-        "400":
-          description: Invalid session identifier
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            type: object
         "404":
           description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
       summary: Get session information
       tags:
       - Sessions
   /sessions/{sessionId}/logout:
     post:
-      consumes:
-      - application/json
-      description: Logs out from Wameow for the specified session. You can use either
-        the session UUID or session name. Requires API key authentication.
+      description: Logout from WhatsApp session and disconnect
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -981,28 +1040,18 @@ paths:
       - application/json
       responses:
         "200":
-          description: Session logged out successfully
+          description: Session logout successful
           schema:
-            type: object
-        "400":
-          description: Invalid session identifier
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            type: object
+            $ref: '#/definitions/SuccessResponse'
         "404":
           description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Logout Wameow session
+      summary: Logout session
       tags:
       - Sessions
   /sessions/{sessionId}/messages/delete:
@@ -1038,15 +1087,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Delete message
@@ -1085,15 +1134,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Edit message
@@ -1101,9 +1150,12 @@ paths:
       - Messages
   /sessions/{sessionId}/messages/send:
     post:
+      consumes:
+      - application/json
+      description: Send a message of any type (text, image, audio, video, document,
+        etc.)
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -1114,28 +1166,28 @@ paths:
         required: true
         schema:
           $ref: '#/definitions/SendMessageRequest'
+      produces:
+      - application/json
       responses:
         "200":
           description: Message sent successfully
           schema:
-            allOf:
-            - $ref: '#/definitions/SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/SendMessageResponse'
-              type: object
+            $ref: '#/definitions/MessageResponse'
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
+      summary: Send message (generic)
+      tags:
+      - Messages
   /sessions/{sessionId}/messages/send/audio:
     post:
       consumes:
@@ -1169,15 +1221,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send audio message
@@ -1216,15 +1268,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send button message
@@ -1266,15 +1318,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send contact message(s)
@@ -1313,15 +1365,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send document message
@@ -1360,15 +1412,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send image message
@@ -1407,15 +1459,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send list message
@@ -1454,15 +1506,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send location message
@@ -1472,10 +1524,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a media message (image, audio, video, document) through WhatsApp
+      description: Send a media file (image, audio, video, document) with optional
+        caption
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -1490,28 +1542,21 @@ paths:
       - application/json
       responses:
         "200":
-          description: Message sent successfully
+          description: Media message sent successfully
           schema:
-            allOf:
-            - $ref: '#/definitions/SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/SendMessageResponse'
-              type: object
+            $ref: '#/definitions/MessageResponse'
         "400":
-          description: Invalid request
+          description: Bad Request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/ErrorResponse'
-      security:
-      - ApiKeyAuth: []
+            type: object
       summary: Send media message
       tags:
       - Messages
@@ -1548,15 +1593,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send presence
@@ -1596,15 +1641,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send business profile contact
@@ -1643,15 +1688,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send reaction
@@ -1690,15 +1735,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send sticker message
@@ -1708,10 +1753,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a text message with optional reply to a previous message
+      description: Send a text message with optional context info for replies
       parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
+      - description: Session ID
         in: path
         name: sessionId
         required: true
@@ -1728,26 +1772,19 @@ paths:
         "200":
           description: Text message sent successfully
           schema:
-            allOf:
-            - $ref: '#/definitions/SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/SendMessageResponse'
-              type: object
+            $ref: '#/definitions/MessageResponse'
         "400":
-          description: Invalid request
+          description: Bad Request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
-            $ref: '#/definitions/ErrorResponse'
-      security:
-      - ApiKeyAuth: []
+            type: object
       summary: Send text message
       tags:
       - Messages
@@ -1784,15 +1821,15 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send video message
@@ -1831,67 +1868,159 @@ paths:
         "400":
           description: Invalid request
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "404":
           description: Session not found
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/ErrorResponse'
+            type: object
       security:
       - ApiKeyAuth: []
       summary: Send text message
       tags:
       - Messages
-  /sessions/{sessionId}/qr:
-    get:
-      parameters:
-      - description: Session ID or Name
-        example: '"mySession"'
-        in: path
-        name: id
-        required: true
-        type: string
-      responses:
-        "200":
-          description: QR code retrieved successfully
-          schema:
-            allOf:
-            - $ref: '#/definitions/SuccessResponse'
-            - properties:
-                data:
-                  $ref: '#/definitions/QRCodeResponse'
-              type: object
-        "400":
-          description: Invalid session identifier
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "404":
-          description: Session not found or no QR code available
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-        "500":
-          description: Internal server error
-          schema:
-            $ref: '#/definitions/ErrorResponse'
-  /sessions/{sessionId}/webhook/config:
-    get:
+  /sessions/{sessionId}/pair:
+    post:
       consumes:
       - application/json
-      description: Retrieves the current webhook configuration for a specific session.
-        Requires API key authentication.
+      description: Pair WhatsApp session with phone number
       parameters:
       - description: Session ID
-        example: '"123e4567-e89b-12d3-a456-426614174000"'
-        format: uuid
         in: path
-        name: id
+        name: sessionId
+        required: true
+        type: string
+      - description: Phone pairing request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/PairPhoneRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Phone pairing initiated successfully
+          schema:
+            $ref: '#/definitions/SuccessResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Pair phone number
+      tags:
+      - Sessions
+  /sessions/{sessionId}/proxy/find:
+    get:
+      description: Get current proxy configuration for a WhatsApp session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Proxy configuration retrieved successfully
+          schema:
+            $ref: '#/definitions/ProxyResponse'
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get proxy configuration
+      tags:
+      - Sessions
+  /sessions/{sessionId}/proxy/set:
+    post:
+      consumes:
+      - application/json
+      description: Set or update proxy configuration for a WhatsApp session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Proxy configuration request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/SetProxyRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Proxy configuration set successfully
+          schema:
+            $ref: '#/definitions/ProxyResponse'
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Set proxy configuration
+      tags:
+      - Sessions
+  /sessions/{sessionId}/qr:
+    get:
+      description: Get QR code for WhatsApp session pairing
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: QR code generated successfully
+          schema:
+            $ref: '#/definitions/QRCodeResponse'
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get QR code
+      tags:
+      - Sessions
+  /sessions/{sessionId}/webhook/find:
+    get:
+      description: Get current webhook configuration for a WhatsApp session
+      parameters:
+      - description: Session ID
+        in: path
+        name: sessionId
         required: true
         type: string
       produces:
@@ -1901,34 +2030,26 @@ paths:
           description: Webhook configuration retrieved successfully
           schema:
             $ref: '#/definitions/WebhookResponse'
-        "401":
-          description: Unauthorized - Invalid or missing API key
-          schema:
-            type: object
         "404":
-          description: Session or webhook configuration not found
+          description: Session not found
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
       summary: Get webhook configuration
       tags:
       - Webhooks
+  /sessions/{sessionId}/webhook/set:
     post:
       consumes:
       - application/json
-      description: Creates a new webhook configuration for a specific session. Webhooks
-        will receive real-time events from Wameow. Requires API key authentication.
+      description: Set or update webhook configuration for a WhatsApp session
       parameters:
       - description: Session ID
-        example: '"123e4567-e89b-12d3-a456-426614174000"'
-        format: uuid
         in: path
-        name: id
+        name: sessionId
         required: true
         type: string
       - description: Webhook configuration request
@@ -1940,16 +2061,12 @@ paths:
       produces:
       - application/json
       responses:
-        "201":
-          description: Webhook created successfully
+        "200":
+          description: Webhook configuration set successfully
           schema:
             $ref: '#/definitions/SetConfigResponse'
         "400":
-          description: Invalid request body or parameters
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
+          description: Bad Request
           schema:
             type: object
         "404":
@@ -1957,20 +2074,17 @@ paths:
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Create webhook configuration
+      summary: Set webhook configuration
       tags:
       - Webhooks
   /sessions/create:
     post:
       consumes:
       - application/json
-      description: Creates a new Wameow session with the provided configuration. Requires
-        API key authentication.
+      description: Create a new WhatsApp session with optional proxy configuration
       parameters:
       - description: Session creation request
         in: body
@@ -1986,59 +2100,36 @@ paths:
           schema:
             $ref: '#/definitions/CreateSessionResponse'
         "400":
-          description: Invalid request body or parameters
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
+          description: Bad Request
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: Create a new Wameow session
+      summary: Create new session
       tags:
       - Sessions
   /sessions/list:
     get:
       consumes:
       - application/json
-      description: Retrieves a list of all Wameow sessions with optional filtering.
-        Requires API key authentication.
+      description: Get a list of all WhatsApp sessions with optional filtering
       parameters:
-      - description: Filter by session status
-        enum:
-        - created
-        - connecting
-        - connected
-        - disconnected
-        - error
-        - logged_out
-        example: '"connected"'
+      - description: Filter by connection status
         in: query
-        name: status
-        type: string
+        name: isConnected
+        type: boolean
       - description: Filter by device JID
-        example: '"5511999999999@s.Wameow.net"'
         in: query
         name: deviceJid
         type: string
-      - default: 20
-        description: Limit number of results
-        example: 20
+      - description: 'Number of sessions to return (default: 20)'
         in: query
-        maximum: 100
-        minimum: 1
         name: limit
         type: integer
-      - default: 0
-        description: Offset for pagination
-        example: 0
+      - description: 'Number of sessions to skip (default: 0)'
         in: query
-        minimum: 0
         name: offset
         type: integer
       produces:
@@ -2049,20 +2140,14 @@ paths:
           schema:
             $ref: '#/definitions/ListSessionsResponse'
         "400":
-          description: Invalid request parameters
-          schema:
-            type: object
-        "401":
-          description: Unauthorized - Invalid or missing API key
+          description: Bad Request
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
-      security:
-      - ApiKeyAuth: []
-      summary: List all Wameow sessions
+      summary: List sessions
       tags:
       - Sessions
 securityDefinitions:

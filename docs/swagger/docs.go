@@ -23,56 +23,51 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/chatwoot/config": {
-            "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Creates a new Chatwoot integration configuration. This enables synchronization between Wameow and Chatwoot. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+        "/health": {
+            "get": {
+                "description": "Check if the API is running and healthy",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Chatwoot"
+                    "Health"
                 ],
-                "summary": "Create Chatwoot configuration",
-                "parameters": [
-                    {
-                        "description": "Chatwoot configuration request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/CreateChatwootConfigRequest"
-                        }
-                    }
-                ],
+                "summary": "Health check",
                 "responses": {
-                    "201": {
-                        "description": "Chatwoot configuration created successfully",
+                    "200": {
+                        "description": "API is healthy",
                         "schema": {
-                            "$ref": "#/definitions/CreateChatwootConfigResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid request body or parameters",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/zpwoot_internal_app_common.HealthResponse"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/health/wameow": {
+            "get": {
+                "description": "Check if WhatsApp manager and whatsmeow tables are available",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Health"
+                ],
+                "summary": "WhatsApp manager health check",
+                "responses": {
+                    "200": {
+                        "description": "WhatsApp manager is healthy",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
                         "schema": {
                             "type": "object"
                         }
@@ -82,12 +77,7 @@ const docTemplate = `{
         },
         "/sessions/create": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Creates a new Wameow session with the provided configuration. Requires API key authentication.",
+                "description": "Create a new WhatsApp session with optional proxy configuration",
                 "consumes": [
                     "application/json"
                 ],
@@ -97,7 +87,7 @@ const docTemplate = `{
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Create a new Wameow session",
+                "summary": "Create new session",
                 "parameters": [
                     {
                         "description": "Session creation request",
@@ -117,19 +107,13 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or parameters",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -139,12 +123,7 @@ const docTemplate = `{
         },
         "/sessions/list": {
             "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieves a list of all Wameow sessions with optional filtering. Requires API key authentication.",
+                "description": "Get a list of all WhatsApp sessions with optional filtering",
                 "consumes": [
                     "application/json"
                 ],
@@ -154,46 +133,29 @@ const docTemplate = `{
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "List all Wameow sessions",
+                "summary": "List sessions",
                 "parameters": [
                     {
-                        "enum": [
-                            "created",
-                            "connecting",
-                            "connected",
-                            "disconnected",
-                            "error",
-                            "logged_out"
-                        ],
-                        "type": "string",
-                        "example": "\"connected\"",
-                        "description": "Filter by session status",
-                        "name": "status",
+                        "type": "boolean",
+                        "description": "Filter by connection status",
+                        "name": "isConnected",
                         "in": "query"
                     },
                     {
                         "type": "string",
-                        "example": "\"5511999999999@s.Wameow.net\"",
                         "description": "Filter by device JID",
                         "name": "deviceJid",
                         "in": "query"
                     },
                     {
-                        "maximum": 100,
-                        "minimum": 1,
                         "type": "integer",
-                        "default": 20,
-                        "example": 20,
-                        "description": "Limit number of results",
+                        "description": "Number of sessions to return (default: 20)",
                         "name": "limit",
                         "in": "query"
                     },
                     {
-                        "minimum": 0,
                         "type": "integer",
-                        "default": 0,
-                        "example": 0,
-                        "description": "Offset for pagination",
+                        "description": "Number of sessions to skip (default: 0)",
                         "name": "offset",
                         "in": "query"
                     }
@@ -206,19 +168,113 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request parameters",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/chatwoot/find": {
+            "get": {
+                "description": "Get current Chatwoot integration configuration for a WhatsApp session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chatwoot"
+                ],
+                "summary": "Get Chatwoot configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chatwoot configuration retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/zpwoot_internal_app_chatwoot.ChatwootConfigResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/chatwoot/set": {
+            "post": {
+                "description": "Set or update Chatwoot integration configuration for a WhatsApp session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Chatwoot"
+                ],
+                "summary": "Set Chatwoot configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Chatwoot configuration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreateChatwootConfigRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Chatwoot configuration set successfully",
+                        "schema": {
+                            "$ref": "#/definitions/CreateChatwootConfigResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -228,27 +284,18 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/connect": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Establishes connection with Wameow for the specified session. Will generate QR code if not paired. You can use either the session UUID or session name. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Connect a WhatsApp session to start receiving messages",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Connect Wameow session",
+                "summary": "Connect session",
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -256,21 +303,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Connection initiated successfully",
+                        "description": "Session connection initiated successfully",
                         "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session identifier",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/SuccessResponse"
                         }
                     },
                     "404": {
@@ -280,7 +315,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -290,27 +325,18 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/delete": {
             "delete": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Permanently removes a Wameow session and all associated data. This action cannot be undone. You can use either the session UUID or session name. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Delete a WhatsApp session and all associated data",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Delete a Wameow session",
+                "summary": "Delete session",
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -320,19 +346,7 @@ const docTemplate = `{
                     "200": {
                         "description": "Session deleted successfully",
                         "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session identifier",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/SuccessResponse"
                         }
                     },
                     "404": {
@@ -342,7 +356,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -352,15 +366,7 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/info": {
             "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieves detailed information about a specific Wameow session including connection status and device info. You can use either the session UUID or session name. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Get detailed information about a specific WhatsApp session",
                 "produces": [
                     "application/json"
                 ],
@@ -371,8 +377,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -380,21 +385,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session info retrieved successfully",
+                        "description": "Session information retrieved successfully",
                         "schema": {
                             "$ref": "#/definitions/SessionInfoResponse"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session identifier",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
                         }
                     },
                     "404": {
@@ -404,7 +397,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -414,27 +407,18 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/logout": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Logs out from Wameow for the specified session. You can use either the session UUID or session name. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Logout from WhatsApp session and disconnect",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
                     "Sessions"
                 ],
-                "summary": "Logout Wameow session",
+                "summary": "Logout session",
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -442,21 +426,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session logged out successfully",
+                        "description": "Session logout successful",
                         "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session identifier",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
+                            "$ref": "#/definitions/SuccessResponse"
                         }
                     },
                     "404": {
@@ -466,7 +438,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -533,19 +505,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -610,19 +582,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -630,11 +602,21 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/messages/send": {
             "post": {
+                "description": "Send a message of any type (text, image, audio, video, document, etc.)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Send message (generic)",
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -653,37 +635,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Message sent successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/SendMessageResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/MessageResponse"
                         }
                     },
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -748,19 +718,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -825,19 +795,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -902,19 +872,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -979,19 +949,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1056,19 +1026,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1133,19 +1103,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1210,19 +1180,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1230,12 +1200,7 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/messages/send/media": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Send a media message (image, audio, video, document) through WhatsApp",
+                "description": "Send a media file (image, audio, video, document) with optional caption",
                 "consumes": [
                     "application/json"
                 ],
@@ -1249,8 +1214,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -1267,39 +1231,27 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Message sent successfully",
+                        "description": "Media message sent successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/SendMessageResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1364,19 +1316,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1441,19 +1393,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1518,19 +1470,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1595,19 +1547,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1615,12 +1567,7 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/messages/send/text": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Send a text message with optional reply to a previous message",
+                "description": "Send a text message with optional context info for replies",
                 "consumes": [
                     "application/json"
                 ],
@@ -1634,8 +1581,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
+                        "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
                         "required": true
@@ -1654,37 +1600,25 @@ const docTemplate = `{
                     "200": {
                         "description": "Text message sent successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/SendMessageResponse"
-                                        }
-                                    }
-                                }
-                            ]
+                            "$ref": "#/definitions/MessageResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Bad Request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1749,19 +1683,19 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
@@ -1826,19 +1760,178 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid request",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "404": {
                         "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/pair": {
+            "post": {
+                "description": "Pair WhatsApp session with phone number",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Pair phone number",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Phone pairing request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/PairPhoneRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Phone pairing initiated successfully",
+                        "schema": {
+                            "$ref": "#/definitions/SuccessResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/proxy/find": {
+            "get": {
+                "description": "Get current proxy configuration for a WhatsApp session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get proxy configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Proxy configuration retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/ProxyResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/proxy/set": {
+            "post": {
+                "description": "Set or update proxy configuration for a WhatsApp session",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Set proxy configuration",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Proxy configuration request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/SetProxyRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Proxy configuration set successfully",
+                        "schema": {
+                            "$ref": "#/definitions/ProxyResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
                         }
                     }
                 }
@@ -1846,73 +1939,48 @@ const docTemplate = `{
         },
         "/sessions/{sessionId}/qr": {
             "get": {
+                "description": "Get QR code for WhatsApp session pairing",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Sessions"
+                ],
+                "summary": "Get QR code",
                 "parameters": [
                     {
                         "type": "string",
-                        "example": "\"mySession\"",
-                        "description": "Session ID or Name",
-                        "name": "id",
+                        "description": "Session ID",
+                        "name": "sessionId",
                         "in": "path",
                         "required": true
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "QR code retrieved successfully",
+                        "description": "QR code generated successfully",
                         "schema": {
-                            "allOf": [
-                                {
-                                    "$ref": "#/definitions/SuccessResponse"
-                                },
-                                {
-                                    "type": "object",
-                                    "properties": {
-                                        "data": {
-                                            "$ref": "#/definitions/QRCodeResponse"
-                                        }
-                                    }
-                                }
-                            ]
-                        }
-                    },
-                    "400": {
-                        "description": "Invalid session identifier",
-                        "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "$ref": "#/definitions/QRCodeResponse"
                         }
                     },
                     "404": {
-                        "description": "Session not found or no QR code available",
+                        "description": "Session not found",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
-                            "$ref": "#/definitions/ErrorResponse"
+                            "type": "object"
                         }
                     }
                 }
             }
         },
-        "/sessions/{sessionId}/webhook/config": {
+        "/sessions/{sessionId}/webhook/find": {
             "get": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Retrieves the current webhook configuration for a specific session. Requires API key authentication.",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "Get current webhook configuration for a WhatsApp session",
                 "produces": [
                     "application/json"
                 ],
@@ -1923,10 +1991,8 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "\"123e4567-e89b-12d3-a456-426614174000\"",
                         "description": "Session ID",
-                        "name": "id",
+                        "name": "sessionId",
                         "in": "path",
                         "required": true
                     }
@@ -1938,33 +2004,24 @@ const docTemplate = `{
                             "$ref": "#/definitions/WebhookResponse"
                         }
                     },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
                     "404": {
-                        "description": "Session or webhook configuration not found",
+                        "description": "Session not found",
                         "schema": {
                             "type": "object"
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
                     }
                 }
-            },
+            }
+        },
+        "/sessions/{sessionId}/webhook/set": {
             "post": {
-                "security": [
-                    {
-                        "ApiKeyAuth": []
-                    }
-                ],
-                "description": "Creates a new webhook configuration for a specific session. Webhooks will receive real-time events from Wameow. Requires API key authentication.",
+                "description": "Set or update webhook configuration for a WhatsApp session",
                 "consumes": [
                     "application/json"
                 ],
@@ -1974,14 +2031,12 @@ const docTemplate = `{
                 "tags": [
                     "Webhooks"
                 ],
-                "summary": "Create webhook configuration",
+                "summary": "Set webhook configuration",
                 "parameters": [
                     {
                         "type": "string",
-                        "format": "uuid",
-                        "example": "\"123e4567-e89b-12d3-a456-426614174000\"",
                         "description": "Session ID",
-                        "name": "id",
+                        "name": "sessionId",
                         "in": "path",
                         "required": true
                     },
@@ -1996,20 +2051,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "201": {
-                        "description": "Webhook created successfully",
+                    "200": {
+                        "description": "Webhook configuration set successfully",
                         "schema": {
                             "$ref": "#/definitions/SetConfigResponse"
                         }
                     },
                     "400": {
-                        "description": "Invalid request body or parameters",
-                        "schema": {
-                            "type": "object"
-                        }
-                    },
-                    "401": {
-                        "description": "Unauthorized - Invalid or missing API key",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object"
                         }
@@ -2021,7 +2070,7 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -2463,24 +2512,6 @@ const docTemplate = `{
                 }
             }
         },
-        "ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "VALIDATION_ERROR"
-                },
-                "details": {},
-                "error": {
-                    "type": "string",
-                    "example": "Invalid request"
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
         "ImageMessageRequest": {
             "type": "object",
             "required": [
@@ -2638,6 +2669,18 @@ const docTemplate = `{
                 }
             }
         },
+        "PairPhoneRequest": {
+            "type": "object",
+            "required": [
+                "phoneNumber"
+            ],
+            "properties": {
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "+5511987654321"
+                }
+            }
+        },
         "PresenceMessageRequest": {
             "type": "object",
             "required": [
@@ -2702,6 +2745,14 @@ const docTemplate = `{
                 "username": {
                     "type": "string",
                     "example": "proxyuser"
+                }
+            }
+        },
+        "ProxyResponse": {
+            "type": "object",
+            "properties": {
+                "proxyConfig": {
+                    "$ref": "#/definitions/ProxyConfig"
                 }
             }
         },
@@ -3013,6 +3064,14 @@ const docTemplate = `{
                 }
             }
         },
+        "SetProxyRequest": {
+            "type": "object",
+            "properties": {
+                "proxyConfig": {
+                    "$ref": "#/definitions/ProxyConfig"
+                }
+            }
+        },
         "SuccessResponse": {
             "type": "object",
             "properties": {
@@ -3115,6 +3174,60 @@ const docTemplate = `{
                 "url": {
                     "type": "string",
                     "example": "https://example.com/webhook"
+                }
+            }
+        },
+        "zpwoot_internal_app_chatwoot.ChatwootConfigResponse": {
+            "type": "object",
+            "properties": {
+                "account_id": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "created_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "chatwoot-config-123"
+                },
+                "inbox_id": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "updated_at": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://chatwoot.example.com"
+                }
+            }
+        },
+        "zpwoot_internal_app_common.HealthResponse": {
+            "type": "object",
+            "properties": {
+                "service": {
+                    "type": "string",
+                    "example": "zpwoot"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "ok"
+                },
+                "uptime": {
+                    "type": "string",
+                    "example": "2h30m15s"
+                },
+                "version": {
+                    "type": "string",
+                    "example": "1.0.0"
                 }
             }
         }

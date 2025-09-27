@@ -25,7 +25,7 @@ func NewHealthHandler(logger *logger.Logger, wameowManager *wameow.Manager) *Hea
 // @Tags Health
 // @Produce json
 // @Success 200 {object} common.HealthResponse "API is healthy"
-// @Failure 500 {object} common.ErrorResponse "Internal Server Error"
+// @Failure 500 {object} object "Internal Server Error"
 // @Router /health [get]
 func (h *HealthHandler) GetHealth(c *fiber.Ctx) error {
 	response := &common.HealthResponse{
@@ -40,7 +40,7 @@ func (h *HealthHandler) GetHealth(c *fiber.Ctx) error {
 // @Tags Health
 // @Produce json
 // @Success 200 {object} object "WhatsApp manager is healthy"
-// @Failure 503 {object} common.ErrorResponse "Service Unavailable"
+// @Failure 503 {object} object "Service Unavailable"
 // @Router /health/wameow [get]
 func (h *HealthHandler) GetWameowHealth(c *fiber.Ctx) error {
 	if h.wameowManager == nil {

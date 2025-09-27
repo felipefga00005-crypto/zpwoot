@@ -20,20 +20,18 @@ func NewWebhookHandler(webhookUC webhook.UseCase, appLogger *logger.Logger) *Web
 	}
 }
 
-// @Summary Create webhook configuration
-// @Description Creates a new webhook configuration for a specific session. Webhooks will receive real-time events from Wameow. Requires API key authentication.
+// @Summary Set webhook configuration
+// @Description Set or update webhook configuration for a WhatsApp session
 // @Tags Webhooks
 // @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param id path string true "Session ID" format(uuid) example("123e4567-e89b-12d3-a456-426614174000")
+// @Param sessionId path string true "Session ID"
 // @Param request body webhook.SetConfigRequest true "Webhook configuration request"
-// @Success 201 {object} webhook.SetConfigResponse "Webhook created successfully"
-// @Failure 400 {object} object "Invalid request body or parameters"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
+// @Success 200 {object} webhook.SetConfigResponse "Webhook configuration set successfully"
+// @Failure 400 {object} object "Bad Request"
 // @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
-// @Router /sessions/{sessionId}/webhook/config [post]
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/webhook/set [post]
 func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 	sessionID := c.Params("id")
 	h.logger.InfoWithFields("Creating webhook config", map[string]interface{}{
@@ -60,17 +58,14 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 }
 
 // @Summary Get webhook configuration
-// @Description Retrieves the current webhook configuration for a specific session. Requires API key authentication.
+// @Description Get current webhook configuration for a WhatsApp session
 // @Tags Webhooks
-// @Accept json
 // @Produce json
-// @Security ApiKeyAuth
-// @Param id path string true "Session ID" format(uuid) example("123e4567-e89b-12d3-a456-426614174000")
+// @Param sessionId path string true "Session ID"
 // @Success 200 {object} webhook.WebhookResponse "Webhook configuration retrieved successfully"
-// @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
-// @Failure 404 {object} object "Session or webhook configuration not found"
-// @Failure 500 {object} object "Internal server error"
-// @Router /sessions/{sessionId}/webhook/config [get]
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal Server Error"
+// @Router /sessions/{sessionId}/webhook/find [get]
 func (h *WebhookHandler) FindConfig(c *fiber.Ctx) error {
 	sessionID := c.Params("id")
 	h.logger.InfoWithFields("Getting webhook config", map[string]interface{}{
