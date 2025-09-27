@@ -19,26 +19,24 @@ type Service interface {
 	GetContactStats(ctx context.Context, req *GetContactStatsRequest) (*GetContactStatsResponse, error)
 }
 
-// WhatsAppClient defines the interface for WhatsApp client operations
-// Based on real whatsmeow methods: https://pkg.go.dev/go.mau.fi/whatsmeow
-// Uses generic map[string]interface{} for compatibility with whatsmeow
-type WhatsAppClient interface {
-	IsOnWhatsApp(ctx context.Context, phoneNumbers []string) (map[string]interface{}, error)
-	GetProfilePictureInfo(ctx context.Context, jid string, preview bool) (map[string]interface{}, error)
-	GetUserInfo(ctx context.Context, jids []string) ([]map[string]interface{}, error)
-	GetBusinessProfile(ctx context.Context, jid string) (map[string]interface{}, error)
+// WameowManager defines the interface for multi-session WhatsApp operations
+type WameowManager interface {
+	IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbers []string) (map[string]interface{}, error)
+	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
+	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
+	GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error)
 }
 
 type service struct {
-	whatsappClient WhatsAppClient
-	logger         *logger.Logger
+	wameowManager WameowManager
+	logger        *logger.Logger
 }
 
 // NewService creates a new contact service
-func NewService(whatsappClient WhatsAppClient, logger *logger.Logger) Service {
+func NewService(wameowManager WameowManager, logger *logger.Logger) Service {
 	return &service{
-		whatsappClient: whatsappClient,
-		logger:         logger,
+		wameowManager: wameowManager,
+		logger:        logger,
 	}
 }
 
@@ -54,7 +52,7 @@ func (s *service) CheckWhatsApp(ctx context.Context, req *CheckWhatsAppRequest) 
 	})
 
 	// Check with WhatsApp using real whatsmeow method
-	statusMap, err := s.whatsappClient.IsOnWhatsApp(ctx, req.PhoneNumbers)
+	statusMap, err := s.wameowManager.IsOnWhatsApp(ctx, req.SessionID, req.PhoneNumbers)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to check WhatsApp numbers", map[string]interface{}{
 			"session_id": req.SessionID,
@@ -107,7 +105,7 @@ func (s *service) GetProfilePicture(ctx context.Context, req *GetProfilePictureR
 		"preview":    req.Preview,
 	})
 
-	profileData, err := s.whatsappClient.GetProfilePictureInfo(ctx, req.JID, req.Preview)
+	profileData, err := s.wameowManager.GetProfilePictureInfo(ctx, req.SessionID, req.JID, req.Preview)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to get profile picture", map[string]interface{}{
 			"session_id": req.SessionID,
@@ -142,7 +140,7 @@ func (s *service) GetUserInfo(ctx context.Context, req *GetUserInfoRequest) (*Ge
 		"jid_count":  len(req.JIDs),
 	})
 
-	usersData, err := s.whatsappClient.GetUserInfo(ctx, req.JIDs)
+	usersData, err := s.wameowManager.GetUserInfo(ctx, req.SessionID, req.JIDs)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to get user info", map[string]interface{}{
 			"session_id": req.SessionID,
@@ -234,7 +232,7 @@ func (s *service) GetBusinessProfile(ctx context.Context, req *GetBusinessProfil
 		"jid":        req.JID,
 	})
 
-	profileData, err := s.whatsappClient.GetBusinessProfile(ctx, req.JID)
+	profileData, err := s.wameowManager.GetBusinessProfile(ctx, req.SessionID, req.JID)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to get business profile", map[string]interface{}{
 			"session_id": req.SessionID,

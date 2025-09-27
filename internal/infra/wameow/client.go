@@ -1329,19 +1329,35 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	buttonText := body + "\n\n📋 *Options:*"
-	for i, button := range buttons {
-		if i >= 3 { // Limit to 3 options for readability
-			break
-		}
-		buttonText += fmt.Sprintf("\n%d. %s", i+1, button["text"])
+	// Build buttons exactly like
+	var buttonsList []*waE2E.ButtonsMessage_Button
+	for _, button := range buttons {
+		buttonId := button["id"]
+		buttonText := button["text"]
+
+		buttonsList = append(buttonsList, &waE2E.ButtonsMessage_Button{
+			ButtonID:       &buttonId,
+			ButtonText:     &waE2E.ButtonsMessage_Button_ButtonText{DisplayText: &buttonText},
+			Type:           waE2E.ButtonsMessage_Button_RESPONSE.Enum(),
+			NativeFlowInfo: &waE2E.ButtonsMessage_Button_NativeFlowInfo{},
+		})
+	}
+
+	buttonsMsg := &waE2E.ButtonsMessage{
+		ContentText: &body,
+		HeaderType:  waE2E.ButtonsMessage_EMPTY.Enum(),
+		Buttons:     buttonsList,
 	}
 
 	message := &waE2E.Message{
-		Conversation: &buttonText,
+		ViewOnceMessage: &waE2E.FutureProofMessage{
+			Message: &waE2E.Message{
+				ButtonsMessage: buttonsMsg,
+			},
+		},
 	}
 
-	c.logger.InfoWithFields("Sending button message (as text)", map[string]interface{}{
+	c.logger.InfoWithFields("Sending button message", map[string]interface{}{
 		"session_id":   c.sessionID,
 		"to":           to,
 		"button_count": len(buttons),
@@ -1377,21 +1393,14 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 		return nil, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	listText := body + "\n\n📋 *" + buttonText + ":*"
-
+	// Build sections exactly like
+	var listSections []*waE2E.ListMessage_Section
 	for _, section := range sections {
 		title, _ := section["title"].(string)
 		rows, _ := section["rows"].([]interface{})
 
-		if title != "" {
-			listText += "\n\n*" + title + ":*"
-		}
-
-		for i, rowInterface := range rows {
-			if i >= 10 { // Limit rows for readability
-				break
-			}
-
+		var listRows []*waE2E.ListMessage_Row
+		for _, rowInterface := range rows {
 			row, ok := rowInterface.(map[string]interface{})
 			if !ok {
 				continue
@@ -1399,19 +1408,42 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 
 			rowTitle, _ := row["title"].(string)
 			rowDescription, _ := row["description"].(string)
+			rowId, _ := row["id"].(string)
 
-			listText += fmt.Sprintf("\n%d. %s", i+1, rowTitle)
-			if rowDescription != "" {
-				listText += " - " + rowDescription
+			if rowId == "" {
+				rowId = rowTitle // fallback to title
 			}
+
+			listRows = append(listRows, &waE2E.ListMessage_Row{
+				RowID:       &rowId,
+				Title:       &rowTitle,
+				Description: &rowDescription,
+			})
 		}
+
+		listSections = append(listSections, &waE2E.ListMessage_Section{
+			Title: &title,
+			Rows:  listRows,
+		})
+	}
+
+	listMsg := &waE2E.ListMessage{
+		Title:       &body,
+		Description: &body,
+		ButtonText:  &buttonText,
+		ListType:    waE2E.ListMessage_SINGLE_SELECT.Enum(),
+		Sections:    listSections,
 	}
 
 	message := &waE2E.Message{
-		Conversation: &listText,
+		ViewOnceMessage: &waE2E.FutureProofMessage{
+			Message: &waE2E.Message{
+				ListMessage: listMsg,
+			},
+		},
 	}
 
-	c.logger.InfoWithFields("Sending list message (as text)", map[string]interface{}{
+	c.logger.InfoWithFields("Sending list message", map[string]interface{}{
 		"session_id":    c.sessionID,
 		"to":            to,
 		"section_count": len(sections),
@@ -1550,13 +1582,15 @@ func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText s
 		"new_text":   newText,
 	})
 
-	editMessage := &waE2E.Message{
-		EditedMessage: &waE2E.FutureProofMessage{
-			Message: &waE2E.Message{
-				Conversation: &newText,
-			},
+	// Create the new message content (following  implementation)
+	newMessage := &waE2E.Message{
+		ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+			Text: &newText,
 		},
 	}
+
+	// Use whatsmeow's BuildEdit method (like  does)
+	editMessage := c.client.BuildEdit(jid, messageID, newMessage)
 
 	_, err = c.client.SendMessage(ctx, jid, editMessage)
 	if err != nil {
@@ -1573,50 +1607,6 @@ func (c *WameowClient) EditMessage(ctx context.Context, to, messageID, newText s
 		"session_id": c.sessionID,
 		"to":         to,
 		"message_id": messageID,
-	})
-
-	return nil
-}
-
-func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, forAll bool) error {
-	if !c.client.IsLoggedIn() {
-		return fmt.Errorf("client is not logged in")
-	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return fmt.Errorf("invalid JID: %w", err)
-	}
-
-	if messageID == "" {
-		return fmt.Errorf("message ID is required")
-	}
-
-	c.logger.InfoWithFields("Deleting message", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": messageID,
-		"for_all":    forAll,
-	})
-
-	message := c.client.BuildRevoke(jid, jid, messageID)
-
-	_, err = c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to delete message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"message_id": messageID,
-			"error":      err.Error(),
-		})
-		return err
-	}
-
-	c.logger.InfoWithFields("Message deleted successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": messageID,
-		"for_all":    forAll,
 	})
 
 	return nil
@@ -1643,8 +1633,8 @@ func (c *WameowClient) RevokeMessage(ctx context.Context, to, messageID string) 
 		"message_id": messageID,
 	})
 
-	// Use whatsmeow's BuildRevoke method to create a revoke message
-	message := c.client.BuildRevoke(jid, jid, messageID)
+	// Use whatsmeow's BuildRevoke method to create a revoke message (following  implementation)
+	message := c.client.BuildRevoke(jid, types.EmptyJID, messageID)
 
 	_, err = c.client.SendMessage(ctx, jid, message)
 	if err != nil {

@@ -6,11 +6,13 @@ import (
 
 	"zpwoot/internal/app/chatwoot"
 	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/contact"
 	"zpwoot/internal/app/group"
 	"zpwoot/internal/app/message"
 	"zpwoot/internal/app/session"
 	"zpwoot/internal/app/webhook"
 	domainChatwoot "zpwoot/internal/domain/chatwoot"
+	domainContact "zpwoot/internal/domain/contact"
 	domainGroup "zpwoot/internal/domain/group"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
@@ -25,6 +27,7 @@ type Container struct {
 	ChatwootUseCase chatwoot.UseCase
 	MessageUseCase  message.UseCase
 	GroupUseCase    group.UseCase
+	ContactUseCase  contact.UseCase
 
 	logger      *logger.Logger
 	sessionRepo ports.SessionRepository
@@ -65,6 +68,11 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.WameowManager,
 	)
 
+	contactService := domainContact.NewService(
+		config.WameowManager, // WhatsAppClient interface
+		config.Logger,
+	)
+
 	commonUseCase := common.NewUseCase(
 		config.Version,
 		config.BuildTime,
@@ -103,6 +111,11 @@ func NewContainer(config *ContainerConfig) *Container {
 		groupService,
 	)
 
+	contactUseCase := contact.NewUseCase(
+		contactService,
+		config.Logger,
+	)
+
 	return &Container{
 		CommonUseCase:   commonUseCase,
 		SessionUseCase:  sessionUseCase,
@@ -110,6 +123,7 @@ func NewContainer(config *ContainerConfig) *Container {
 		ChatwootUseCase: chatwootUseCase,
 		MessageUseCase:  messageUseCase,
 		GroupUseCase:    groupUseCase,
+		ContactUseCase:  contactUseCase,
 		logger:          config.Logger,
 		sessionRepo:     config.SessionRepo,
 	}
@@ -151,10 +165,8 @@ func (c *Container) GetMediaUseCase() message.UseCase {
 	return c.MessageUseCase
 }
 
-func (c *Container) GetContactUseCase() message.UseCase {
-	// Contact functionality is handled by MessageUseCase for now
-	// TODO: Implement proper contact domain and use case
-	return c.MessageUseCase
+func (c *Container) GetContactUseCase() contact.UseCase {
+	return c.ContactUseCase
 }
 
 func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowManager, error) {

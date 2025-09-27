@@ -714,18 +714,7 @@ func (m *Manager) EditMessage(sessionID, to, messageID, newText string) error {
 	return client.EditMessage(ctx, to, messageID, newText)
 }
 
-func (m *Manager) DeleteMessage(sessionID, to, messageID string, forAll bool) error {
-	client := m.getClient(sessionID)
-	if client == nil {
-		return fmt.Errorf("session %s not found", sessionID)
-	}
-	if !client.IsLoggedIn() {
-		return fmt.Errorf("session %s is not logged in", sessionID)
-	}
 
-	ctx := context.Background()
-	return client.DeleteMessage(ctx, to, messageID, forAll)
-}
 
 func (m *Manager) MarkRead(sessionID, to, messageID string) error {
 	client := m.getClient(sessionID)
@@ -1434,6 +1423,46 @@ func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact 
 	}
 
 	return result, nil
+}
+
+// IsOnWhatsApp checks if phone numbers are registered on WhatsApp
+func (m *Manager) IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbers []string) (map[string]interface{}, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.IsOnWhatsApp(ctx, phoneNumbers)
+}
+
+// GetProfilePictureInfo gets profile picture information for a contact
+func (m *Manager) GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetProfilePictureInfo(ctx, jid, preview)
+}
+
+// GetUserInfo gets detailed information about WhatsApp users
+func (m *Manager) GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetUserInfo(ctx, jids)
+}
+
+// GetBusinessProfile gets business profile information
+func (m *Manager) GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetBusinessProfile(ctx, jid)
 }
 
 func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string) {

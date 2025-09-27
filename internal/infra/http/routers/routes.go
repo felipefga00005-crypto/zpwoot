@@ -64,7 +64,6 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/messages/send/reaction", messageHandler.SendReaction)    // POST /sessions/:sessionId/messages/send/reaction
 	sessions.Post("/:sessionId/messages/send/presence", messageHandler.SendPresence)    // POST /sessions/:sessionId/messages/send/presence
 	sessions.Post("/:sessionId/messages/edit", messageHandler.EditMessage)              // POST /sessions/:sessionId/messages/edit
-	sessions.Post("/:sessionId/messages/delete", messageHandler.DeleteMessage)          // POST /sessions/:sessionId/messages/delete
 	sessions.Post("/:sessionId/messages/mark-read", messageHandler.MarkAsRead)          // POST /sessions/:sessionId/messages/mark-read
 
 	// Advanced message operations
@@ -100,14 +99,14 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	// mediaHandler := handlers.NewMediaHandler(appLogger, container.GetMediaUseCase(), container.GetSessionRepository())
 	// sessions.Get("/:sessionId/media/download/:messageId", mediaHandler.DownloadMedia)                    // GET /sessions/:sessionId/media/download/:messageId
 
-	// TODO: Contact management routes - implement contact domain and use case
-	// contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
-	// sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)                           // POST /sessions/:sessionId/contacts/check
-	// sessions.Get("/:sessionId/contacts/:jid/avatar", contactHandler.GetProfilePicture)                  // GET /sessions/:sessionId/contacts/:jid/avatar
-	// sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)                              // POST /sessions/:sessionId/contacts/info
-	// sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)                                   // GET /sessions/:sessionId/contacts
-	// sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)                             // POST /sessions/:sessionId/contacts/sync
-	// sessions.Get("/:sessionId/contacts/:jid/business", contactHandler.GetBusinessProfile)               // GET /sessions/:sessionId/contacts/:jid/business
+	// Contact management routes
+	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
+	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)                           // POST /sessions/:sessionId/contacts/check
+	sessions.Get("/:sessionId/contacts/:jid/avatar", contactHandler.GetProfilePicture)                  // GET /sessions/:sessionId/contacts/:jid/avatar
+	sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)                              // POST /sessions/:sessionId/contacts/info
+	sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)                                   // GET /sessions/:sessionId/contacts
+	sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)                             // POST /sessions/:sessionId/contacts/sync
+	sessions.Get("/:sessionId/contacts/:jid/business", contactHandler.GetBusinessProfile)               // GET /sessions/:sessionId/contacts/:jid/business
 }
 
 func setupSessionSpecificRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger, WameowManager *wameow.Manager, container *app.Container) {

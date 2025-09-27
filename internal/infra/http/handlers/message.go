@@ -864,29 +864,36 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	var buttonReq struct {
-		To      string `json:"to" validate:"required"`
-		Body    string `json:"body" validate:"required"`
-		Buttons []struct {
-			ID   string `json:"id" validate:"required"`
-			Text string `json:"text" validate:"required"`
-		} `json:"buttons" validate:"required"`
+	// Use  format exactly
+	type buttonStruct struct {
+		ButtonId   string `json:"ButtonId"`
+		ButtonText string `json:"ButtonText"`
+	}
+	type buttonRequest struct {
+		Phone   string         `json:"Phone"`
+		Title   string         `json:"Title"`
+		Buttons []buttonStruct `json:"Buttons"`
+		Id      string         `json:"Id,omitempty"`
 	}
 
+	var buttonReq buttonRequest
 	if err := c.BodyParser(&buttonReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+		return c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
 	}
 
-	if buttonReq.To == "" || buttonReq.Body == "" || len(buttonReq.Buttons) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'buttons' are required"))
+	if buttonReq.Phone == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("missing Phone in Payload"))
 	}
 
-	var buttons []map[string]string
-	for _, button := range buttonReq.Buttons {
-		buttons = append(buttons, map[string]string{
-			"id":   button.ID,
-			"text": button.Text,
-		})
+	if buttonReq.Title == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("missing Title in Payload"))
+	}
+
+	if len(buttonReq.Buttons) < 1 {
+		return c.Status(400).JSON(common.NewErrorResponse("missing Buttons in Payload"))
+	}
+	if len(buttonReq.Buttons) > 3 {
+		return c.Status(400).JSON(common.NewErrorResponse("buttons cant more than 3"))
 	}
 
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
@@ -894,28 +901,33 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.To, buttonReq.Body, buttons)
+	// Convert to internal format
+	var buttons []map[string]string
+	for _, button := range buttonReq.Buttons {
+		buttons = append(buttons, map[string]string{
+			"id":   button.ButtonId,
+			"text": button.ButtonText,
+		})
+	}
+
+	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.Phone, buttonReq.Title, buttons)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send button message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         buttonReq.To,
+			"to":         buttonReq.Phone,
 			"error":      err.Error(),
 		})
 
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send button message"))
+		return c.Status(500).JSON(common.NewErrorResponse(fmt.Sprintf("error sending message: %v", err)))
 	}
 
-	response := &message.SendMessageResponse{
-		ID:        result.MessageID,
-		Status:    result.Status,
-		Timestamp: result.Timestamp,
+	response := map[string]interface{}{
+		"Details":   "Sent",
+		"Timestamp": result.Timestamp.Unix(),
+		"Id":        result.MessageID,
 	}
 
-	return c.JSON(common.NewSuccessResponse(response, "Button message sent successfully"))
+	return c.JSON(response)
 }
 
 // @Summary Send list message
@@ -938,42 +950,40 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	var listReq struct {
-		To         string `json:"to" validate:"required"`
-		Body       string `json:"body" validate:"required"`
-		ButtonText string `json:"buttonText" validate:"required"`
-		Sections   []struct {
-			Title string `json:"title" validate:"required"`
-			Rows  []struct {
-				ID          string `json:"id" validate:"required"`
-				Title       string `json:"title" validate:"required"`
-				Description string `json:"description,omitempty"`
-			} `json:"rows" validate:"required"`
-		} `json:"sections" validate:"required"`
+	// Use  format exactly
+	type listItem struct {
+		Title string `json:"title"`
+		Desc  string `json:"desc"`
+		RowId string `json:"RowId"`
+	}
+	type section struct {
+		Title string     `json:"title"`
+		Rows  []listItem `json:"rows"`
+	}
+	type listRequest struct {
+		Phone      string     `json:"Phone"`
+		ButtonText string     `json:"ButtonText"`
+		Desc       string     `json:"Desc"`
+		TopText    string     `json:"TopText"`
+		Sections   []section  `json:"Sections"`
+		List       []listItem `json:"List"` // compatibility
+		FooterText string     `json:"FooterText"`
+		Id         string     `json:"Id,omitempty"`
 	}
 
+	var listReq listRequest
 	if err := c.BodyParser(&listReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+		return c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
 	}
 
-	if listReq.To == "" || listReq.Body == "" || len(listReq.Sections) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'sections' are required"))
+	// Required fields validation - FooterText is optional
+	if listReq.Phone == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("missing required fields: Phone, ButtonText, Desc, TopText"))
 	}
 
-	var sections []map[string]interface{}
-	for _, section := range listReq.Sections {
-		var rows []interface{}
-		for _, row := range section.Rows {
-			rows = append(rows, map[string]interface{}{
-				"id":          row.ID,
-				"title":       row.Title,
-				"description": row.Description,
-			})
-		}
-		sections = append(sections, map[string]interface{}{
-			"title": section.Title,
-			"rows":  rows,
-		})
+	// Check if we have sections or list
+	if len(listReq.Sections) == 0 && len(listReq.List) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("no section or list provided"))
 	}
 
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
@@ -981,28 +991,60 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.To, listReq.Body, listReq.ButtonText, sections)
+	// Convert to internal format
+	var sections []map[string]interface{}
+	if len(listReq.Sections) > 0 {
+		for _, sec := range listReq.Sections {
+			var rows []interface{}
+			for _, item := range sec.Rows {
+				rows = append(rows, map[string]interface{}{
+					"id":          item.RowId,
+					"title":       item.Title,
+					"description": item.Desc,
+				})
+			}
+			sections = append(sections, map[string]interface{}{
+				"title": sec.Title,
+				"rows":  rows,
+			})
+		}
+	} else if len(listReq.List) > 0 {
+		var rows []interface{}
+		for _, item := range listReq.List {
+			rows = append(rows, map[string]interface{}{
+				"id":          item.RowId,
+				"title":       item.Title,
+				"description": item.Desc,
+			})
+		}
+		sectionTitle := listReq.TopText
+		if sectionTitle == "" {
+			sectionTitle = "Menu"
+		}
+		sections = append(sections, map[string]interface{}{
+			"title": sectionTitle,
+			"rows":  rows,
+		})
+	}
+
+	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.Phone, listReq.Desc, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         listReq.To,
+			"to":         listReq.Phone,
 			"error":      err.Error(),
 		})
 
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send list message"))
+		return c.Status(500).JSON(common.NewErrorResponse(fmt.Sprintf("error sending message: %v", err)))
 	}
 
-	response := &message.SendMessageResponse{
-		ID:        result.MessageID,
-		Status:    result.Status,
-		Timestamp: result.Timestamp,
+	response := map[string]interface{}{
+		"Details":   "Sent",
+		"Timestamp": result.Timestamp.Unix(),
+		"Id":        result.MessageID,
 	}
 
-	return c.JSON(common.NewSuccessResponse(response, "List message sent successfully"))
+	return c.JSON(response)
 }
 
 // @Summary Send reaction
@@ -1209,71 +1251,6 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(common.NewSuccessResponse(response, "Message edited successfully"))
-}
-
-// @Summary Delete message
-// @Description Delete an existing message
-// @Tags Messages
-// @Security ApiKeyAuth
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body message.DeleteMessageRequest true "Delete message request"
-// @Success 200 {object} common.SuccessResponse{data=message.DeleteResponse} "Message deleted successfully"
-// @Failure 400 {object} object "Invalid request"
-// @Failure 404 {object} object "Session not found"
-// @Failure 500 {object} object "Internal server error"
-// @Router /sessions/{sessionId}/messages/delete [post]
-func (h *MessageHandler) DeleteMessage(c *fiber.Ctx) error {
-	sessionIdentifier := c.Params("sessionId")
-	if sessionIdentifier == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
-	}
-
-	var deleteReq struct {
-		To        string `json:"to" validate:"required"`
-		MessageID string `json:"messageId" validate:"required"`
-		ForAll    bool   `json:"forAll,omitempty"` // Delete for everyone or just for me
-	}
-
-	if err := c.BodyParser(&deleteReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
-	}
-
-	if deleteReq.To == "" || deleteReq.MessageID == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'to' and 'messageId' are required"))
-	}
-
-	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
-	if err != nil {
-		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
-	}
-
-	err = h.wameowManager.DeleteMessage(sess.ID.String(), deleteReq.To, deleteReq.MessageID, deleteReq.ForAll)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to delete message", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"to":         deleteReq.To,
-			"message_id": deleteReq.MessageID,
-			"error":      err.Error(),
-		})
-
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to delete message"))
-	}
-
-	response := map[string]interface{}{
-		"id":        deleteReq.MessageID,
-		"status":    "deleted",
-		"forAll":    deleteReq.ForAll,
-		"timestamp": time.Now(),
-	}
-
-	return c.JSON(common.NewSuccessResponse(response, "Message deleted successfully"))
 }
 
 // @Summary Mark message as read

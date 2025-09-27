@@ -71,8 +71,6 @@ type WameowManager interface {
 
 	EditMessage(sessionID, to, messageID, newText string) error
 
-	DeleteMessage(sessionID, to, messageID string, forAll bool) error
-
 	MarkRead(sessionID, to, messageID string) error
 
 	// Advanced message operations
@@ -106,6 +104,12 @@ type WameowManager interface {
 	RegisterEventHandler(sessionID string, handler EventHandler) error
 
 	UnregisterEventHandler(sessionID string, handlerID string) error
+
+	// Contact-related methods for WhatsApp client operations
+	IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbers []string) (map[string]interface{}, error)
+	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
+	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
+	GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error)
 }
 
 type GroupInfo struct {
