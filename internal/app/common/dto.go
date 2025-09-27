@@ -57,7 +57,6 @@ type MessageResponse struct {
 	Message string `json:"message" example:"Operation completed successfully"`
 } //@name MessageResponse
 
-
 func NewSuccessResponse(data interface{}, message ...string) *SuccessResponse {
 	response := &SuccessResponse{
 		Success: true,

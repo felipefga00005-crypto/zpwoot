@@ -78,7 +78,6 @@ func (s *Service) DeleteConfig(ctx context.Context) error {
 	return nil
 }
 
-
 func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*ChatwootContact, error) {
 	s.logger.InfoWithFields("Syncing contact", map[string]interface{}{
 		"phone_number": req.PhoneNumber,
@@ -98,7 +97,6 @@ func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*Ch
 	return contact, nil
 }
 
-
 func (s *Service) SyncConversation(ctx context.Context, req *SyncConversationRequest) (*ChatwootConversation, error) {
 	s.logger.InfoWithFields("Syncing conversation", map[string]interface{}{
 		"contact_id": req.ContactID,
@@ -115,7 +113,6 @@ func (s *Service) SyncConversation(ctx context.Context, req *SyncConversationReq
 
 	return conversation, nil
 }
-
 
 func (s *Service) SendMessage(ctx context.Context, req *SendMessageToChatwootRequest) (*ChatwootMessage, error) {
 	s.logger.InfoWithFields("Sending message to Chatwoot", map[string]interface{}{
@@ -136,7 +133,6 @@ func (s *Service) SendMessage(ctx context.Context, req *SendMessageToChatwootReq
 
 	return message, nil
 }
-
 
 func (s *Service) ProcessWebhook(ctx context.Context, payload *ChatwootWebhookPayload) error {
 	s.logger.InfoWithFields("Processing Chatwoot webhook", map[string]interface{}{

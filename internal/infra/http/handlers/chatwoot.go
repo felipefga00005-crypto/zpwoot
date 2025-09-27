@@ -112,7 +112,6 @@ func (h *ChatwootHandler) UpdateConfig(c *fiber.Ctx) error {
 		})
 	}
 
-
 	return c.JSON(fiber.Map{
 		"success": true,
 		"data":    config,
@@ -230,7 +229,6 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 func (h *ChatwootHandler) TestConnection(c *fiber.Ctx) error {
 	ctx := c.Context()
 
-
 	result, err := h.chatwootUC.TestConnection(ctx)
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
@@ -277,7 +275,6 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 			"error":   err.Error(),
 		})
 	}
-
 
 	ctx := c.Context()
 

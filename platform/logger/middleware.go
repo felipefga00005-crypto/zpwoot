@@ -13,44 +13,44 @@ type ContextKey string
 const (
 	RequestIDKey ContextKey = "request_id"
 	SessionIDKey ContextKey = "session_id"
-	LoggerKey ContextKey = "logger"
+	LoggerKey    ContextKey = "logger"
 )
 
 func FiberMiddleware(logger *Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		start := time.Now()
-		
+
 		requestID := c.Get("X-Request-ID")
 		if requestID == "" {
 			requestID = uuid.New().String()
 			c.Set("X-Request-ID", requestID)
 		}
-		
+
 		sessionID := c.Params("sessionId")
 		if sessionID == "" {
 			sessionID = c.Params("session_id")
 		}
-		
+
 		requestLogger := logger.WithRequest(requestID)
 		if sessionID != "" {
 			requestLogger = requestLogger.WithSession(sessionID)
 		}
-		
+
 		c.Locals(string(LoggerKey), requestLogger)
 		c.Locals(string(RequestIDKey), requestID)
 		if sessionID != "" {
 			c.Locals(string(SessionIDKey), sessionID)
 		}
-		
+
 		requestLogger.EventDebug("http.request.start").
 			Str("method", c.Method()).
 			Str("path", c.Path()).
 			Str("user_agent", c.Get("User-Agent")).
 			Str("remote_ip", c.IP()).
 			Msg("")
-		
+
 		err := c.Next()
-		
+
 		elapsed := time.Since(start)
 		event := requestLogger.Event("http.request.complete").
 			Str("method", c.Method()).
@@ -58,13 +58,13 @@ func FiberMiddleware(logger *Logger) fiber.Handler {
 			Int("status", c.Response().StatusCode()).
 			Int64("elapsed_ms", elapsed.Milliseconds()).
 			Int("response_size", len(c.Response().Body()))
-		
+
 		if err != nil {
 			event = event.Err(err)
 		}
-		
+
 		event.Msg("")
-		
+
 		return err
 	}
 }

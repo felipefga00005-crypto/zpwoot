@@ -108,8 +108,6 @@ type Row struct {
 	Description string `json:"description" example:"Get help from our support team"`
 } //@name Row
 
-
-
 type MediaMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/media.file"`
@@ -166,10 +164,10 @@ type ContactMessageRequest struct {
 type ContactInfo struct {
 	Name         string `json:"name" validate:"required" example:"João Santos"`
 	Phone        string `json:"phone" validate:"required" example:"+5511987654321"`
-	Email        string `json:"email,omitempty" example:"joao.santos@email.com"`        // Not displayed in WhatsApp
-	Organization string `json:"organization,omitempty" example:"Tech Solutions Ltda"`  // Displayed in WhatsApp
-	Title        string `json:"title,omitempty" example:"Software Engineer"`           // Not displayed in WhatsApp
-	Website      string `json:"website,omitempty" example:"https://joaosantos.dev"`   // Not displayed in WhatsApp
+	Email        string `json:"email,omitempty" example:"joao.santos@email.com"`                 // Not displayed in WhatsApp
+	Organization string `json:"organization,omitempty" example:"Tech Solutions Ltda"`            // Displayed in WhatsApp
+	Title        string `json:"title,omitempty" example:"Software Engineer"`                     // Not displayed in WhatsApp
+	Website      string `json:"website,omitempty" example:"https://joaosantos.dev"`              // Not displayed in WhatsApp
 	Address      string `json:"address,omitempty" example:"Rua das Flores, 123 - São Paulo, SP"` // Not displayed in WhatsApp
 } //@name ContactInfo
 

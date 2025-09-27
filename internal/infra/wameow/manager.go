@@ -145,7 +145,6 @@ func (m *Manager) ConnectSession(sessionID string) error {
 		})
 	}
 
-
 	err := client.Connect()
 	if err != nil {
 		m.sessionMgr.UpdateConnectionStatus(sessionID, false)
@@ -584,7 +583,6 @@ func (m *Manager) applyProxyConfig(client *whatsmeow.Client, config *session.Pro
 		return fmt.Errorf("failed to parse proxy URL: %w", err)
 	}
 
-
 	m.logger.InfoWithFields("Proxy configuration validated (not yet applied)", map[string]interface{}{
 		"type":      config.Type,
 		"host":      config.Host,
@@ -757,8 +755,6 @@ func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string)
 
 	m.SetupEventHandlers(client, sessionID)
 }
-
-
 
 type ContactListResult struct {
 	TotalContacts int

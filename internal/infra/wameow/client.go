@@ -914,10 +914,10 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 	}
 
 	c.logger.InfoWithFields("Sending contacts array message (WhatsApp native format)", map[string]interface{}{
-		"session_id":     c.sessionID,
-		"to":             to,
-		"contact_count":  len(contacts),
-		"display_name":   displayName,
+		"session_id":    c.sessionID,
+		"to":            to,
+		"contact_count": len(contacts),
+		"display_name":  displayName,
 	})
 
 	resp, err := c.client.SendMessage(ctx, jid, message)
@@ -931,9 +931,9 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 	}
 
 	c.logger.InfoWithFields("Contacts array message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
+		"session_id":    c.sessionID,
+		"to":            to,
+		"message_id":    resp.ID,
 		"contact_count": len(contacts),
 	})
 
@@ -1008,10 +1008,10 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 	}
 
 	c.logger.InfoWithFields("Sending contacts array message (Business format)", map[string]interface{}{
-		"session_id":     c.sessionID,
-		"to":             to,
-		"contact_count":  len(contacts),
-		"display_name":   displayName,
+		"session_id":    c.sessionID,
+		"to":            to,
+		"contact_count": len(contacts),
+		"display_name":  displayName,
 	})
 
 	resp, err := c.client.SendMessage(ctx, jid, message)
@@ -1025,9 +1025,9 @@ func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to st
 	}
 
 	c.logger.InfoWithFields("Business contacts array message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
+		"session_id":    c.sessionID,
+		"to":            to,
+		"message_id":    resp.ID,
 		"contact_count": len(contacts),
 	})
 

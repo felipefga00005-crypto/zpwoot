@@ -137,7 +137,6 @@ type ChatwootStatsResponse struct {
 	MessagesReceived    int `json:"messages_received" example:"890"`
 } // @name ChatwootStatsResponse
 
-
 func (r *CreateChatwootConfigRequest) ToCreateChatwootConfigRequest() *chatwoot.CreateChatwootConfigRequest {
 	return &chatwoot.CreateChatwootConfigRequest{
 		URL:       r.URL,

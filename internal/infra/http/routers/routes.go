@@ -90,24 +90,24 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Get("/:sessionId/chatwoot/find", chatwootHandler.FindConfig) // GET /sessions/:sessionId/chatwoot/find
 
 	messageHandler := handlers.NewMessageHandler(container.GetMessageUseCase(), WameowManager, container.GetSessionRepository(), appLogger)
-	sessions.Post("/:sessionId/messages/send", messageHandler.SendMessage)              // POST /sessions/:sessionId/messages/send (generic)
-	sessions.Post("/:sessionId/messages/send/text", messageHandler.SendText)            // POST /sessions/:sessionId/messages/send/text
-	sessions.Post("/:sessionId/messages/send/media", messageHandler.SendMedia)          // POST /sessions/:sessionId/messages/send/media
-	sessions.Post("/:sessionId/messages/send/image", messageHandler.SendImage)          // POST /sessions/:sessionId/messages/send/image
-	sessions.Post("/:sessionId/messages/send/audio", messageHandler.SendAudio)          // POST /sessions/:sessionId/messages/send/audio
-	sessions.Post("/:sessionId/messages/send/video", messageHandler.SendVideo)          // POST /sessions/:sessionId/messages/send/video
-	sessions.Post("/:sessionId/messages/send/document", messageHandler.SendDocument)    // POST /sessions/:sessionId/messages/send/document
-	sessions.Post("/:sessionId/messages/send/sticker", messageHandler.SendSticker)      // POST /sessions/:sessionId/messages/send/sticker
-	sessions.Post("/:sessionId/messages/send/button", messageHandler.SendButtonMessage) // POST /sessions/:sessionId/messages/send/button
-	sessions.Post("/:sessionId/messages/send/contact", messageHandler.SendContact)      // POST /sessions/:sessionId/messages/send/contact
+	sessions.Post("/:sessionId/messages/send", messageHandler.SendMessage)                          // POST /sessions/:sessionId/messages/send (generic)
+	sessions.Post("/:sessionId/messages/send/text", messageHandler.SendText)                        // POST /sessions/:sessionId/messages/send/text
+	sessions.Post("/:sessionId/messages/send/media", messageHandler.SendMedia)                      // POST /sessions/:sessionId/messages/send/media
+	sessions.Post("/:sessionId/messages/send/image", messageHandler.SendImage)                      // POST /sessions/:sessionId/messages/send/image
+	sessions.Post("/:sessionId/messages/send/audio", messageHandler.SendAudio)                      // POST /sessions/:sessionId/messages/send/audio
+	sessions.Post("/:sessionId/messages/send/video", messageHandler.SendVideo)                      // POST /sessions/:sessionId/messages/send/video
+	sessions.Post("/:sessionId/messages/send/document", messageHandler.SendDocument)                // POST /sessions/:sessionId/messages/send/document
+	sessions.Post("/:sessionId/messages/send/sticker", messageHandler.SendSticker)                  // POST /sessions/:sessionId/messages/send/sticker
+	sessions.Post("/:sessionId/messages/send/button", messageHandler.SendButtonMessage)             // POST /sessions/:sessionId/messages/send/button
+	sessions.Post("/:sessionId/messages/send/contact", messageHandler.SendContact)                  // POST /sessions/:sessionId/messages/send/contact
 	sessions.Post("/:sessionId/messages/send/profile/business", messageHandler.SendBusinessProfile) // POST /sessions/:sessionId/messages/send/profile/business
-	sessions.Post("/:sessionId/messages/send/list", messageHandler.SendListMessage)     // POST /sessions/:sessionId/messages/send/list
-	sessions.Post("/:sessionId/messages/send/location", messageHandler.SendLocation)    // POST /sessions/:sessionId/messages/send/location
-	sessions.Post("/:sessionId/messages/send/contact", messageHandler.SendContact)      // POST /sessions/:sessionId/messages/send/contact
-	sessions.Post("/:sessionId/messages/send/reaction", messageHandler.SendReaction)    // POST /sessions/:sessionId/messages/send/reaction
-	sessions.Post("/:sessionId/messages/send/presence", messageHandler.SendPresence)    // POST /sessions/:sessionId/messages/send/presence
-	sessions.Post("/:sessionId/messages/edit", messageHandler.EditMessage)              // POST /sessions/:sessionId/messages/edit
-	sessions.Post("/:sessionId/messages/delete", messageHandler.DeleteMessage)          // POST /sessions/:sessionId/messages/delete
+	sessions.Post("/:sessionId/messages/send/list", messageHandler.SendListMessage)                 // POST /sessions/:sessionId/messages/send/list
+	sessions.Post("/:sessionId/messages/send/location", messageHandler.SendLocation)                // POST /sessions/:sessionId/messages/send/location
+	sessions.Post("/:sessionId/messages/send/contact", messageHandler.SendContact)                  // POST /sessions/:sessionId/messages/send/contact
+	sessions.Post("/:sessionId/messages/send/reaction", messageHandler.SendReaction)                // POST /sessions/:sessionId/messages/send/reaction
+	sessions.Post("/:sessionId/messages/send/presence", messageHandler.SendPresence)                // POST /sessions/:sessionId/messages/send/presence
+	sessions.Post("/:sessionId/messages/edit", messageHandler.EditMessage)                          // POST /sessions/:sessionId/messages/edit
+	sessions.Post("/:sessionId/messages/delete", messageHandler.DeleteMessage)                      // POST /sessions/:sessionId/messages/delete
 
 }
 

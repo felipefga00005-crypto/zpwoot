@@ -142,7 +142,6 @@ func (s *Service) ConnectSession(ctx context.Context, id string) error {
 		return errors.Wrap(err, "failed to connect to Wameow")
 	}
 
-
 	return nil
 }
 

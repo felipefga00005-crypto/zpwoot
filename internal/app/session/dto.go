@@ -88,7 +88,6 @@ type ProxyResponse struct {
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 } //@name ProxyResponse
 
-
 func (r *CreateSessionRequest) ToCreateSessionRequest() *domainSession.CreateSessionRequest {
 	var proxyConfig *domainSession.ProxyConfig
 	if r.ProxyConfig != nil {

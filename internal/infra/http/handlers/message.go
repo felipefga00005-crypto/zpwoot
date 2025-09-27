@@ -196,8 +196,6 @@ func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 	return c.JSON(common.NewSuccessResponse(response, "Text message sent successfully"))
 }
 
-
-
 // @Summary Send media message
 // @Description Send a media message (image, audio, video, document) through WhatsApp
 // @Tags Messages
@@ -388,10 +386,10 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send contact message", map[string]interface{}{
-			"session_id":    sess.ID.String(),
-			"to":            contactReq.To,
-			"contact_name":  contactReq.ContactName,
-			"error":         err.Error(),
+			"session_id":   sess.ID.String(),
+			"to":           contactReq.To,
+			"contact_name": contactReq.ContactName,
+			"error":        err.Error(),
 		})
 
 		if strings.Contains(err.Error(), "not connected") {
@@ -470,20 +468,20 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.To, contact)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send single contact", map[string]interface{}{
-				"session_id":     sess.ID.String(),
-				"to":             contactListReq.To,
-				"contact_name":   contact.Name,
-				"error":          err.Error(),
+				"session_id":   sess.ID.String(),
+				"to":           contactListReq.To,
+				"contact_name": contact.Name,
+				"error":        err.Error(),
 			})
 		}
 	} else {
 		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.To, contacts)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
-				"session_id":     sess.ID.String(),
-				"to":             contactListReq.To,
-				"contact_count":  len(contactListReq.Contacts),
-				"error":          err.Error(),
+				"session_id":    sess.ID.String(),
+				"to":            contactListReq.To,
+				"contact_count": len(contactListReq.Contacts),
+				"error":         err.Error(),
 			})
 		}
 	}
@@ -591,10 +589,10 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.To, contact)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send business profile", map[string]interface{}{
-			"session_id":     sess.ID.String(),
-			"to":             businessReq.To,
-			"business_name":  businessReq.Name,
-			"error":          err.Error(),
+			"session_id":    sess.ID.String(),
+			"to":            businessReq.To,
+			"business_name": businessReq.Name,
+			"error":         err.Error(),
 		})
 
 		if strings.Contains(err.Error(), "not connected") {
@@ -605,10 +603,10 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoWithFields("Business profile sent successfully", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"to":             businessReq.To,
-		"business_name":  businessReq.Name,
-		"format_type":    "Business",
+		"session_id":    sess.ID.String(),
+		"to":            businessReq.To,
+		"business_name": businessReq.Name,
+		"format_type":   "Business",
 	})
 
 	response := message.SendMessageResponse{

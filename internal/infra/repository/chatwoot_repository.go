@@ -37,8 +37,6 @@ type chatwootConfigModel struct {
 	UpdatedAt time.Time      `db:"updatedAt"`
 }
 
-
-
 func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootdomain.ChatwootConfig) error {
 	r.logger.InfoWithFields("Creating chatwoot config", map[string]interface{}{
 		"config_id": config.ID.String(),
@@ -141,7 +139,6 @@ func (r *chatwootRepository) DeleteConfig(ctx context.Context) error {
 	return nil
 }
 
-
 func (r *chatwootRepository) CreateContact(ctx context.Context, contact *chatwootdomain.ChatwootContact) error {
 	r.logger.InfoWithFields("Contact operations handled via Chatwoot API", map[string]interface{}{
 		"chatwoot_id":  contact.ID,
@@ -191,7 +188,6 @@ func (r *chatwootRepository) ListContacts(ctx context.Context, limit, offset int
 
 	return []*chatwootdomain.ChatwootContact{}, 0, nil
 }
-
 
 func (r *chatwootRepository) GetContactCount(ctx context.Context) (int, error) {
 	return 0, nil
@@ -308,7 +304,6 @@ func (r *chatwootRepository) GetSyncRecordsBySession(ctx context.Context, sessio
 	return nil, fmt.Errorf("not implemented")
 }
 
-
 func (r *chatwootRepository) configToModel(config *chatwootdomain.ChatwootConfig) *chatwootConfigModel {
 	model := &chatwootConfigModel{
 		ID:        config.ID.String(),
@@ -349,4 +344,3 @@ func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatw
 
 	return config, nil
 }
-

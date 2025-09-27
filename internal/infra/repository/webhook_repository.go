@@ -408,7 +408,6 @@ func (r *webhookRepository) UpdateWebhookStats(ctx context.Context, webhookID st
 	return nil
 }
 
-
 func (r *webhookRepository) toModel(wh *webhook.WebhookConfig) *webhookModel {
 	model := &webhookModel{
 		ID:        wh.ID.String(),

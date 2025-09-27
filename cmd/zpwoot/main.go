@@ -70,10 +70,10 @@ func main() {
 	cfg := config.Load()
 
 	loggerConfig := &logger.LogConfig{
-		Level:      cfg.LogLevel,
-		Format:     cfg.LogFormat,
-		Output:     cfg.LogOutput,
-		Caller:     cfg.IsDevelopment(), // Show caller info in development
+		Level:  cfg.LogLevel,
+		Format: cfg.LogFormat,
+		Output: cfg.LogOutput,
+		Caller: cfg.IsDevelopment(), // Show caller info in development
 	}
 
 	if cfg.IsProduction() {

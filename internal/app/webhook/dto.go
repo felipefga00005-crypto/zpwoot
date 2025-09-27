@@ -83,7 +83,6 @@ type WebhookEventInfo struct {
 	DataSchema  string `json:"data_schema,omitempty" example:"MessageEventData"`
 }
 
-
 func (r *SetConfigRequest) ToSetConfigRequest() *webhook.SetConfigRequest {
 	return &webhook.SetConfigRequest{
 		SessionID: r.SessionID,

@@ -55,8 +55,6 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
-
-
 func (c *Config) IsProduction() bool {
 	return c.NodeEnv == "production"
 }

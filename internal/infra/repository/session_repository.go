@@ -392,7 +392,6 @@ func (r *sessionRepository) CountByConnectionStatus(ctx context.Context, isConne
 	return count, nil
 }
 
-
 func (r *sessionRepository) toModel(sess *session.Session) *sessionModel {
 	model := &sessionModel{
 		ID:          sess.ID.String(),

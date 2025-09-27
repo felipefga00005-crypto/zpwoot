@@ -98,7 +98,6 @@ func NewWithConfig(config *LogConfig) *Logger {
 	}
 }
 
-
 func (l *Logger) Event(event string) *zerolog.Event {
 	return l.logger.Info().Str("event", event)
 }
@@ -166,7 +165,6 @@ func parseLogLevel(level string) zerolog.Level {
 		return zerolog.InfoLevel
 	}
 }
-
 
 func (l *Logger) Info(msg string) {
 	l.logger.Info().Msg(msg)

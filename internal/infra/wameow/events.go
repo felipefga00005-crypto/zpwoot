@@ -26,7 +26,6 @@ func NewEventHandler(manager *Manager, sessionMgr *SessionManager, qrGen *QRCode
 	}
 }
 
-
 func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 	switch v := evt.(type) {
 	case *events.Connected:
@@ -171,22 +170,22 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 	}
 
 	h.logger.InfoWithFields("🔍 DETAILED MESSAGE ANALYSIS", map[string]interface{}{
-		"session_id":                sessionID,
-		"from":                      evt.Info.Sender.String(),
-		"message_id":                evt.Info.ID,
-		"has_contact_message":       evt.Message.ContactMessage != nil,
+		"session_id":                 sessionID,
+		"from":                       evt.Info.Sender.String(),
+		"message_id":                 evt.Info.ID,
+		"has_contact_message":        evt.Message.ContactMessage != nil,
 		"has_contacts_array_message": evt.Message.ContactsArrayMessage != nil,
-		"has_conversation":          evt.Message.GetConversation() != "",
-		"has_image_message":         evt.Message.ImageMessage != nil,
-		"has_audio_message":         evt.Message.AudioMessage != nil,
-		"has_video_message":         evt.Message.VideoMessage != nil,
-		"has_document_message":      evt.Message.DocumentMessage != nil,
-		"has_sticker_message":       evt.Message.StickerMessage != nil,
-		"has_location_message":      evt.Message.LocationMessage != nil,
-		"has_extended_text_message": evt.Message.ExtendedTextMessage != nil,
-		"has_template_message":      evt.Message.TemplateMessage != nil,
-		"has_list_message":          evt.Message.ListMessage != nil,
-		"has_buttons_message":       evt.Message.ButtonsMessage != nil,
+		"has_conversation":           evt.Message.GetConversation() != "",
+		"has_image_message":          evt.Message.ImageMessage != nil,
+		"has_audio_message":          evt.Message.AudioMessage != nil,
+		"has_video_message":          evt.Message.VideoMessage != nil,
+		"has_document_message":       evt.Message.DocumentMessage != nil,
+		"has_sticker_message":        evt.Message.StickerMessage != nil,
+		"has_location_message":       evt.Message.LocationMessage != nil,
+		"has_extended_text_message":  evt.Message.ExtendedTextMessage != nil,
+		"has_template_message":       evt.Message.TemplateMessage != nil,
+		"has_list_message":           evt.Message.ListMessage != nil,
+		"has_buttons_message":        evt.Message.ButtonsMessage != nil,
 	})
 
 	if evt.Message.ContactMessage != nil {
