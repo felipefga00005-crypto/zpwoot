@@ -714,8 +714,6 @@ func (m *Manager) EditMessage(sessionID, to, messageID, newText string) error {
 	return client.EditMessage(ctx, to, messageID, newText)
 }
 
-
-
 func (m *Manager) MarkRead(sessionID, to, messageID string) error {
 	client := m.getClient(sessionID)
 	if client == nil {

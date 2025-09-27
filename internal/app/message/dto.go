@@ -255,8 +255,6 @@ type MarkAsReadResponse struct {
 	Timestamp  time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name MarkAsReadResponse
 
-
-
 type MessageResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
 	Status    string    `json:"status" example:"sent"`
@@ -282,8 +280,6 @@ type EditResponse struct {
 	NewBody   string    `json:"newBody" example:"Updated message text"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name EditResponse
-
-
 
 type BusinessProfileRequest struct {
 	Phone        string `json:"Phone" validate:"required" example:"5511987654321@s.whatsapp.net"`
@@ -323,14 +319,14 @@ type CreatePollResponse struct {
 	MessageID string    `json:"messageId" example:"3EB0C767D71D"`
 	PollName  string    `json:"pollName" example:"What's your favorite color?"`
 	Options   []string  `json:"options" example:"Red,Blue,Green"`
-	To        string    `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Phone     string    `json:"Phone" example:"5511999999999@s.whatsapp.net"`
 	Status    string    `json:"status" example:"sent"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name CreatePollResponse
 
 // VotePollRequest represents a request to vote in a poll
 type VotePollRequest struct {
-	To              string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	Phone           string   `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	PollMessageID   string   `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
 	SelectedOptions []string `json:"selectedOptions" validate:"required,min=1,dive,required" example:"Red"`
 } //@name VotePollRequest
@@ -339,7 +335,7 @@ type VotePollRequest struct {
 type VotePollResponse struct {
 	PollMessageID   string    `json:"pollMessageId" example:"3EB0C767D71D"`
 	SelectedOptions []string  `json:"selectedOptions" example:"Red"`
-	To              string    `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Phone           string    `json:"Phone" example:"5511999999999@s.whatsapp.net"`
 	Status          string    `json:"status" example:"sent"`
 	Timestamp       time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name VotePollResponse
@@ -366,5 +362,5 @@ type GetPollResultsResponse struct {
 	SelectableOptionCount int          `json:"selectableOptionCount" example:"1"`
 	AllowMultipleAnswers  bool         `json:"allowMultipleAnswers" example:"false"`
 	CreatedAt             time.Time    `json:"createdAt" example:"2024-01-01T12:00:00Z"`
-	To                    string       `json:"to" example:"5511999999999@s.whatsapp.net"`
+	Phone                 string       `json:"Phone" example:"5511999999999@s.whatsapp.net"`
 } //@name GetPollResultsResponse

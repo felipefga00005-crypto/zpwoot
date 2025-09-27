@@ -165,7 +165,7 @@ func (uc *useCaseImpl) GetPollResults(ctx context.Context, req *GetPollResultsRe
 		TotalVotes:            0,
 		SelectableOptionCount: 1,
 		AllowMultipleAnswers:  false,
-		To:                    req.Phone,
+		Phone:                 req.Phone,
 	}, fmt.Errorf("poll results collection not yet implemented - requires event handling")
 }
 

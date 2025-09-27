@@ -1489,7 +1489,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 		MessageID: result.MessageID,
 		PollName:  pollReq.Name,
 		Options:   pollReq.Options,
-		To:        pollReq.Phone,
+		Phone:     pollReq.Phone,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
 	}
