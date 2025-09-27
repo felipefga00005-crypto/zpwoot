@@ -1,77 +1,165 @@
 package logger
 
 import (
-	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Logger wraps zerolog.Logger with additional functionality
+// Logger wraps zerolog.Logger with zpwoot-specific functionality
 type Logger struct {
 	logger zerolog.Logger
-	level  string
+	config *LogConfig
 }
 
-// New creates a new logger instance with the specified configuration
-func New(level string) *Logger {
-	config := &LogConfig{
-		Level:      level,
-		Format:     "console", // default to console for development
-		Output:     "stdout",
-		TimeFormat: time.RFC3339,
+// New creates a new logger instance based on environment
+func New() *Logger {
+	env := strings.ToLower(os.Getenv("ZPWOOT_ENV"))
+	logLevel := strings.ToLower(os.Getenv("LOG_LEVEL"))
+
+	var config *LogConfig
+	switch env {
+	case "development", "dev":
+		config = DevelopmentConfig()
+	case "production", "prod":
+		config = ProductionConfig()
+	default:
+		// Default to development for safety
+		config = DevelopmentConfig()
 	}
+
+	// Override log level if specified
+	if logLevel != "" {
+		config.Level = logLevel
+	}
+
 	return NewWithConfig(config)
 }
 
 // NewWithConfig creates a new logger with custom configuration
 func NewWithConfig(config *LogConfig) *Logger {
+	// Validate and set defaults
+	config.Validate()
+
 	// Set global log level
 	logLevel := parseLogLevel(config.Level)
 	zerolog.SetGlobalLevel(logLevel)
 
 	// Configure time format
-	if config.TimeFormat != "" {
-		zerolog.TimeFieldFormat = config.TimeFormat
-	}
+	zerolog.TimeFieldFormat = time.RFC3339
 
 	// Configure output writer
-	var writer io.Writer
-	switch strings.ToLower(config.Output) {
-	case "stderr":
-		writer = os.Stderr
-	case "stdout", "":
-		writer = os.Stdout
-	case "file":
-		writer = createLogFile("logs/app.log")
-	default:
-		// Treat as file path
-		writer = createLogFile(config.Output)
+	var writer io.Writer = os.Stdout
+
+	if config.Output == "file" {
+		// Use lumberjack for log rotation
+		writer = &lumberjack.Logger{
+			Filename:   "logs/zpwoot.log",
+			MaxSize:    100, // MB
+			MaxBackups: 3,
+			MaxAge:     28, // days
+			Compress:   true,
+		}
 	}
 
-	// Configure format
-	if strings.ToLower(config.Format) == "console" {
+	// Configure format based on environment
+	if config.Format == "console" {
 		writer = zerolog.ConsoleWriter{
 			Out:        writer,
 			TimeFormat: time.RFC3339,
 			NoColor:    false,
+			FormatLevel: func(i interface{}) string {
+				return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
+			},
+			FormatMessage: func(i interface{}) string {
+				return fmt.Sprintf("%-50s", i)
+			},
+			FormatFieldName: func(i interface{}) string {
+				return fmt.Sprintf("%s=", i)
+			},
 		}
 	}
 
-	// Create logger
-	logger := zerolog.New(writer).With().
+	// Create base logger with global fields
+	ctx := zerolog.New(writer).With().
 		Timestamp().
-		Caller().
-		Logger()
+		Str("service", "zpwoot")
+
+	// Add environment info
+	if env := os.Getenv("ZPWOOT_ENV"); env != "" {
+		ctx = ctx.Str("env", env)
+	}
+
+	// Add caller info with proper skip level
+	if config.Caller {
+		ctx = ctx.CallerWithSkipFrameCount(3) // Skip wrapper functions
+	}
+
+	logger := ctx.Logger()
 
 	return &Logger{
 		logger: logger,
-		level:  config.Level,
+		config: config,
+	}
+}
+
+// Event-based logging methods following zpwoot patterns
+
+// Event logs a structured event with consistent fields
+func (l *Logger) Event(event string) *zerolog.Event {
+	return l.logger.Info().Str("event", event)
+}
+
+// EventDebug logs a debug-level structured event
+func (l *Logger) EventDebug(event string) *zerolog.Event {
+	return l.logger.Debug().Str("event", event)
+}
+
+// EventError logs an error-level structured event
+func (l *Logger) EventError(event string) *zerolog.Event {
+	return l.logger.Error().Str("event", event)
+}
+
+// EventWarn logs a warning-level structured event
+func (l *Logger) EventWarn(event string) *zerolog.Event {
+	return l.logger.Warn().Str("event", event)
+}
+
+// WithSession returns a logger with session context
+func (l *Logger) WithSession(sessionID string) *Logger {
+	return &Logger{
+		logger: l.logger.With().Str("session_id", sessionID).Logger(),
+		config: l.config,
+	}
+}
+
+// WithRequest returns a logger with request context
+func (l *Logger) WithRequest(requestID string) *Logger {
+	return &Logger{
+		logger: l.logger.With().Str("request_id", requestID).Logger(),
+		config: l.config,
+	}
+}
+
+// WithMessage returns a logger with message context
+func (l *Logger) WithMessage(messageID string) *Logger {
+	return &Logger{
+		logger: l.logger.With().Str("message_id", messageID).Logger(),
+		config: l.config,
+	}
+}
+
+// WithElapsed adds elapsed time in milliseconds
+func (l *Logger) WithElapsed(start time.Time) *Logger {
+	elapsed := time.Since(start).Milliseconds()
+	return &Logger{
+		logger: l.logger.With().Int64("elapsed_ms", elapsed).Logger(),
+		config: l.config,
 	}
 }
 
@@ -97,25 +185,6 @@ func parseLogLevel(level string) zerolog.Level {
 	default:
 		return zerolog.InfoLevel
 	}
-}
-
-// createLogFile creates a log file with proper directory structure
-func createLogFile(filePath string) io.Writer {
-	// Create directory if it doesn't exist
-	dir := filepath.Dir(filePath)
-	if err := os.MkdirAll(dir, 0755); err != nil {
-		log.Error().Err(err).Str("path", dir).Msg("Failed to create log directory")
-		return os.Stdout
-	}
-
-	// Open or create log file
-	file, err := os.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err != nil {
-		log.Error().Err(err).Str("path", filePath).Msg("Failed to create log file")
-		return os.Stdout
-	}
-
-	return file
 }
 
 // Logging methods with various signatures
