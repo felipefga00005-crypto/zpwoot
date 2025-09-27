@@ -44,8 +44,12 @@ version: ## Show version information
 	@go run -ldflags "$(LDFLAGS)" cmd/zpwoot/main.go -version
 
 run: ## Run the application (local development)
-	@echo "Running $(APP_NAME) in local mode..."
+	@echo "🚀 Running $(APP_NAME) in local mode..."
 	go run cmd/zpwoot/main.go
+
+run-build: build ## Build and run the application
+	@echo "🚀 Running built $(APP_NAME)..."
+	./$(BUILD_DIR)/$(APP_NAME)
 
 run-docker: ## Run the application with Docker environment variables
 	@echo "Running $(APP_NAME) with Docker configuration..."
@@ -57,8 +61,33 @@ run-docker: ## Run the application with Docker environment variables
 	fi
 
 dev: ## Run in development mode with hot reload (requires air)
-	@echo "Starting development server..."
-	air
+	@echo "🚀 Starting development server with hot reload..."
+	@echo "📁 Working directory: $(shell pwd)"
+	@echo "🔥 Air will watch for changes and automatically rebuild..."
+	@echo "📝 Config file: .air.toml"
+	@echo ""
+	@if command -v air >/dev/null 2>&1; then \
+		air; \
+	else \
+		echo "❌ Air not found. Installing..."; \
+		$(MAKE) install-air; \
+		air; \
+	fi
+
+dev-init: ## Initialize Air configuration
+	@echo "🔧 Initializing Air configuration..."
+	@if [ -f .air.toml ]; then \
+		echo "⚠️  .air.toml already exists. Backing up to .air.toml.backup"; \
+		cp .air.toml .air.toml.backup; \
+	fi
+	air init
+	@echo "✅ Air configuration initialized!"
+
+dev-clean: ## Clean Air temporary files
+	@echo "🧹 Cleaning Air temporary files..."
+	@rm -rf tmp/
+	@rm -f .air.toml.backup
+	@echo "✅ Air temporary files cleaned!"
 
 test: ## Run tests
 	@echo "Running tests..."
@@ -313,12 +342,24 @@ install-swag: ## Install swag tool for Swagger generation
 		echo "✅ swag installed successfully"; \
 	}
 
-install-tools: install-swag ## Install development tools
-	@echo "Installing development tools..."
-	go install github.com/cosmtrek/air@latest
+install-air: ## Install Air for hot reload
+	@echo "📦 Installing Air for hot reload..."
+	@if command -v air >/dev/null 2>&1; then \
+		echo "✅ Air is already installed"; \
+		air -v; \
+	else \
+		echo "Installing Air..."; \
+		go install github.com/air-verse/air@latest; \
+		echo "✅ Air installed successfully"; \
+		air -v; \
+	fi
+
+install-tools: install-swag install-air ## Install development tools
+	@echo "📦 Installing development tools..."
 	go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	go install github.com/securecodewarrior/gosec/v2/cmd/gosec@latest
 	curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.54.2
+	@echo "✅ All development tools installed!"
 
 # Environment setup
 setup: deps install-tools ## Setup development environment

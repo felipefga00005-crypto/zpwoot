@@ -2293,7 +2293,7 @@ const docTemplate = `{
                     "type": "string",
                     "maxLength": 50,
                     "minLength": 3,
-                    "example": "my-whatsapp-session"
+                    "example": "my-session"
                 },
                 "proxyConfig": {
                     "$ref": "#/definitions/ProxyConfig"
@@ -2317,7 +2317,7 @@ const docTemplate = `{
                 },
                 "name": {
                     "type": "string",
-                    "example": "my-whatsapp-session"
+                    "example": "my-session"
                 },
                 "proxyConfig": {
                     "$ref": "#/definitions/ProxyConfig"

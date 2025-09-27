@@ -185,7 +185,7 @@ definitions:
   CreateSessionRequest:
     properties:
       name:
-        example: my-whatsapp-session
+        example: my-session
         maxLength: 50
         minLength: 3
         type: string
@@ -206,7 +206,7 @@ definitions:
         example: false
         type: boolean
       name:
-        example: my-whatsapp-session
+        example: my-session
         type: string
       proxyConfig:
         $ref: '#/definitions/ProxyConfig'

@@ -15,13 +15,13 @@ type ProxyConfig struct {
 } //@name ProxyConfig
 
 type CreateSessionRequest struct {
-	Name        string       `json:"name" validate:"required,min=3,max=50" example:"my-whatsapp-session"`
+	Name        string       `json:"name" validate:"required,min=3,max=50" example:"my-session"`
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 } //@name CreateSessionRequest
 
 type CreateSessionResponse struct {
 	ID          string       `json:"id" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
-	Name        string       `json:"name" example:"my-whatsapp-session"`
+	Name        string       `json:"name" example:"my-session"`
 	IsConnected bool         `json:"isConnected" example:"false"`
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 	CreatedAt   time.Time    `json:"createdAt" example:"2024-01-01T00:00:00Z"`
