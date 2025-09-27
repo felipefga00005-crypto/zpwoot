@@ -53,11 +53,22 @@ func (uc *useCaseImpl) CreateSession(ctx context.Context, req *CreateSessionRequ
 	}
 
 	// Convert domain entity to response DTO
+	var proxyConfig *ProxyConfig
+	if sess.ProxyConfig != nil {
+		proxyConfig = &ProxyConfig{
+			Type:     sess.ProxyConfig.Type,
+			Host:     sess.ProxyConfig.Host,
+			Port:     sess.ProxyConfig.Port,
+			Username: sess.ProxyConfig.Username,
+			Password: sess.ProxyConfig.Password,
+		}
+	}
+
 	response := &CreateSessionResponse{
 		ID:          sess.ID.String(),
 		Name:        sess.Name,
 		IsConnected: sess.IsConnected,
-		ProxyConfig: sess.ProxyConfig,
+		ProxyConfig: proxyConfig,
 		CreatedAt:   sess.CreatedAt,
 	}
 
@@ -160,7 +171,14 @@ func (uc *useCaseImpl) PairPhone(ctx context.Context, sessionID string, req *Pai
 
 // SetProxy configures proxy for the session
 func (uc *useCaseImpl) SetProxy(ctx context.Context, sessionID string, req *SetProxyRequest) error {
-	return uc.sessionService.SetProxy(ctx, sessionID, &req.ProxyConfig)
+	domainProxyConfig := &session.ProxyConfig{
+		Type:     req.ProxyConfig.Type,
+		Host:     req.ProxyConfig.Host,
+		Port:     req.ProxyConfig.Port,
+		Username: req.ProxyConfig.Username,
+		Password: req.ProxyConfig.Password,
+	}
+	return uc.sessionService.SetProxy(ctx, sessionID, domainProxyConfig)
 }
 
 // GetProxy retrieves proxy configuration for the session
@@ -171,8 +189,19 @@ func (uc *useCaseImpl) GetProxy(ctx context.Context, sessionID string) (*ProxyRe
 		return nil, err
 	}
 
+	var appProxyConfig *ProxyConfig
+	if proxyConfig != nil {
+		appProxyConfig = &ProxyConfig{
+			Type:     proxyConfig.Type,
+			Host:     proxyConfig.Host,
+			Port:     proxyConfig.Port,
+			Username: proxyConfig.Username,
+			Password: proxyConfig.Password,
+		}
+	}
+
 	response := &ProxyResponse{
-		ProxyConfig: proxyConfig,
+		ProxyConfig: appProxyConfig,
 	}
 
 	return response, nil

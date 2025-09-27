@@ -33,18 +33,18 @@ func NewSessionRepository(db *sqlx.DB, logger *logger.Logger) ports.SessionRepos
 
 // sessionModel represents the database model for sessions
 type sessionModel struct {
-	ID               string         `db:"id"`
-	Name             string         `db:"name"`
-	DeviceJid        sql.NullString `db:"deviceJid"`
-	IsConnected      bool           `db:"isConnected"`
-	ConnectionError  sql.NullString `db:"connectionError"`
-	QRCode           sql.NullString `db:"qrCode"`
-	QRCodeExpiresAt  sql.NullTime   `db:"qrCodeExpiresAt"`
-	ProxyConfig      sql.NullString `db:"proxyConfig"` // JSON
-	CreatedAt        time.Time      `db:"createdAt"`
-	UpdatedAt        time.Time      `db:"updatedAt"`
-	ConnectedAt      sql.NullTime   `db:"connectedAt"`
-	LastSeen         sql.NullTime   `db:"lastSeen"`
+	ID              string         `db:"id"`
+	Name            string         `db:"name"`
+	DeviceJid       sql.NullString `db:"deviceJid"`
+	IsConnected     bool           `db:"isConnected"`
+	ConnectionError sql.NullString `db:"connectionError"`
+	QRCode          sql.NullString `db:"qrCode"`
+	QRCodeExpiresAt sql.NullTime   `db:"qrCodeExpiresAt"`
+	ProxyConfig     sql.NullString `db:"proxyConfig"` // JSON
+	CreatedAt       time.Time      `db:"createdAt"`
+	UpdatedAt       time.Time      `db:"updatedAt"`
+	ConnectedAt     sql.NullTime   `db:"connectedAt"`
+	LastSeen        sql.NullTime   `db:"lastSeen"`
 }
 
 // Create creates a new session
@@ -70,7 +70,7 @@ func (r *sessionRepository) Create(ctx context.Context, sess *session.Session) e
 
 		// Check if it's a unique constraint violation for session name
 		if strings.Contains(err.Error(), "duplicate key value violates unique constraint") &&
-		   strings.Contains(err.Error(), "zpSessions_name_key") {
+			strings.Contains(err.Error(), "zpSessions_name_key") {
 			return errors.NewWithDetails(409, "Session already exists", fmt.Sprintf("A session with the name '%s' already exists", sess.Name))
 		}
 

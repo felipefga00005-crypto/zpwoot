@@ -52,8 +52,6 @@ func ValidateClientAndStore(client *whatsmeow.Client, sessionID string) error {
 	return nil
 }
 
-
-
 // GetDeviceStoreForSession gets or creates a device store for a session
 func GetDeviceStoreForSession(sessionID, expectedDeviceJID string, container *sqlstore.Container) *store.Device {
 	var deviceStore *store.Device

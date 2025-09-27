@@ -51,15 +51,15 @@ type MemoryStats struct {
 
 // useCaseImpl implements the common use case
 type useCaseImpl struct {
-	startTime      time.Time
-	version        string
-	buildTime      string
-	gitCommit      string
-	db             *sql.DB
-	sessionRepo    ports.SessionRepository
-	webhookRepo    ports.WebhookRepository
-	requestCount   int64
-	errorCount     int64
+	startTime    time.Time
+	version      string
+	buildTime    string
+	gitCommit    string
+	db           *sql.DB
+	sessionRepo  ports.SessionRepository
+	webhookRepo  ports.WebhookRepository
+	requestCount int64
+	errorCount   int64
 }
 
 // NewUseCase creates a new common use case

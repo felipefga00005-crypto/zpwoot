@@ -16,10 +16,10 @@ import (
 
 // MediaProcessor handles media processing for messages
 type MediaProcessor struct {
-	logger    *logger.Logger
-	tempDir   string
-	maxSize   int64 // Maximum file size in bytes
-	timeout   time.Duration
+	logger  *logger.Logger
+	tempDir string
+	maxSize int64 // Maximum file size in bytes
+	timeout time.Duration
 }
 
 // NewMediaProcessor creates a new media processor
@@ -207,7 +207,7 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 // DetectMimeType detects MIME type from file extension
 func DetectMimeType(filename string) string {
 	ext := strings.ToLower(filepath.Ext(filename))
-	
+
 	mimeTypes := map[string]string{
 		".jpg":  "image/jpeg",
 		".jpeg": "image/jpeg",

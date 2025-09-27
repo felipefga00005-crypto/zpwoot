@@ -54,6 +54,8 @@ var (
 	ErrSessionNotConnected  = errors.New("session not connected")
 )
 
+// ProxyConfig represents proxy configuration for sessions
+// @name ProxyConfig
 type ProxyConfig struct {
 	Type     string `json:"type" db:"proxy_type" example:"http"` // http, socks5
 	Host     string `json:"host" db:"proxy_host" example:"proxy.example.com"`
@@ -141,8 +143,6 @@ func (s *Session) CanConnect() bool {
 func (s *Session) CanLogout() bool {
 	return s.IsConnected
 }
-
-
 
 // UpdateLastSeen updates the last seen timestamp
 func (s *Session) UpdateLastSeen() {

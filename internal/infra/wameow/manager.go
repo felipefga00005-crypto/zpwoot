@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	appMessage "zpwoot/internal/app/message"
 	"zpwoot/internal/domain/message"
 	"zpwoot/internal/domain/session"
 	"zpwoot/internal/ports"
@@ -18,6 +19,7 @@ import (
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
 	"go.mau.fi/whatsmeow/types/events"
+	"google.golang.org/protobuf/proto"
 )
 
 // SessionStats tracks statistics for a session
@@ -116,8 +118,6 @@ func (m *Manager) CreateSession(sessionID string, config *session.ProxyConfig) e
 
 	return nil
 }
-
-
 
 // ConnectSession connects a Wameow session
 func (m *Manager) ConnectSession(sessionID string) error {
@@ -405,8 +405,6 @@ func (m *Manager) GetSessionStats(sessionID string) (*ports.SessionStats, error)
 func (m *Manager) GetSession(sessionID string) (*session.Session, error) {
 	return m.sessionMgr.GetSession(sessionID)
 }
-
-
 
 // SendMediaMessage sends a media message
 func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error {
@@ -841,6 +839,341 @@ func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string)
 
 	// Set up the actual event handlers
 	m.SetupEventHandlers(client, sessionID)
+}
+
+
+
+// ContactListResult represents the result of sending multiple contacts
+type ContactListResult struct {
+	TotalContacts int
+	SuccessCount  int
+	FailureCount  int
+	Results       []ContactResult
+	Timestamp     time.Time
+}
+
+// ContactResult represents the result of sending a single contact
+type ContactResult struct {
+	ContactName string
+	MessageID   string
+	Status      string
+	Error       string
+}
+
+// TextMessageResult represents the result of sending a text message
+type TextMessageResult struct {
+	MessageID string
+	Status    string
+	Timestamp time.Time
+}
+
+// SendTextMessage sends a text message with optional reply/quote
+func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMessage.ContextInfo) (*TextMessageResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("session %s is not connected", sessionID)
+	}
+
+	// Parse recipient JID
+	recipientJID, err := types.ParseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid recipient JID: %w", err)
+	}
+
+	// Generate message ID
+	messageID := client.GetClient().GenerateMessageID()
+
+	// Create base message
+	msg := &waE2E.Message{
+		Conversation: proto.String(text),
+	}
+
+	// Add reply context if provided
+	if contextInfo != nil {
+		// Create context info for reply
+		waContextInfo := &waE2E.ContextInfo{
+			StanzaID:      proto.String(contextInfo.StanzaID),
+			QuotedMessage: &waE2E.Message{Conversation: proto.String("")},
+		}
+
+		// Set participant for group messages
+		if contextInfo.Participant != "" {
+			waContextInfo.Participant = proto.String(contextInfo.Participant)
+		}
+
+		// Convert to ExtendedTextMessage to include context
+		msg = &waE2E.Message{
+			ExtendedTextMessage: &waE2E.ExtendedTextMessage{
+				Text:        proto.String(text),
+				ContextInfo: waContextInfo,
+			},
+		}
+	}
+
+	// Send message
+	resp, err := client.GetClient().SendMessage(context.Background(), recipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send text message: %w", err)
+	}
+
+	m.logger.InfoWithFields("Text message sent", map[string]interface{}{
+		"session_id": sessionID,
+		"to":         to,
+		"message_id": messageID,
+		"has_reply":  contextInfo != nil,
+		"timestamp":  resp.Timestamp,
+	})
+
+	return &TextMessageResult{
+		MessageID: messageID,
+		Status:    "sent",
+		Timestamp: resp.Timestamp,
+	}, nil
+}
+
+// SendContactList sends multiple contacts in a single message
+func (m *Manager) SendContactList(sessionID, to string, contacts []ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	result := &ContactListResult{
+		TotalContacts: len(contacts),
+		Results:       make([]ContactResult, 0, len(contacts)),
+		Timestamp:     time.Now(),
+	}
+
+	// Convert to wameow ContactInfo slice
+	var wameowContacts []ContactInfo
+	for _, contact := range contacts {
+		wameowContacts = append(wameowContacts, ContactInfo{
+			Name:         contact.Name,
+			Phone:        contact.Phone,
+			Email:        contact.Email,
+			Organization: contact.Organization,
+			Title:        contact.Title,
+			Website:      contact.Website,
+			Address:      contact.Address,
+		})
+	}
+
+	// Send all contacts in a single message
+	resp, err := client.SendContactListMessage(ctx, to, wameowContacts)
+	if err != nil {
+		// If sending as a list fails, mark all as failed
+		for _, contact := range contacts {
+			result.Results = append(result.Results, ContactResult{
+				ContactName: contact.Name,
+				Status:      "failed",
+				Error:       err.Error(),
+			})
+		}
+		result.FailureCount = len(contacts)
+		return result, err
+	}
+
+	// If successful, mark all contacts as sent with the same message ID
+	for _, contact := range contacts {
+		result.Results = append(result.Results, ContactResult{
+			ContactName: contact.Name,
+			MessageID:   resp.ID,
+			Status:      "sent",
+		})
+	}
+	result.SuccessCount = len(contacts)
+
+	return result, nil
+}
+
+// SendContactListBusiness sends multiple contacts using Business format
+func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("client not found for session %s", sessionID)
+	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("session %s is not connected", sessionID)
+	}
+
+	// Convert to wameow ContactInfo slice
+	var wameowContacts []ContactInfo
+	for _, contact := range contacts {
+		wameowContacts = append(wameowContacts, ContactInfo{
+			Name:         contact.Name,
+			Phone:        contact.Phone,
+			Email:        contact.Email,
+			Organization: contact.Organization,
+			Title:        contact.Title,
+			Website:      contact.Website,
+			Address:      contact.Address,
+		})
+	}
+
+	// Send using Business format
+	resp, err := client.SendContactListMessageBusiness(context.Background(), to, wameowContacts)
+	if err != nil {
+		return nil, fmt.Errorf("failed to send WhatsApp Business contact list: %w", err)
+	}
+
+	// Create result
+	result := &ContactListResult{
+		TotalContacts: len(contacts),
+		SuccessCount:  len(contacts),
+		FailureCount:  0,
+		Results:       make([]ContactResult, len(contacts)),
+		Timestamp:     time.Now(),
+	}
+
+	// All contacts share the same message ID in a contact list
+	for i, contact := range contacts {
+		result.Results[i] = ContactResult{
+			ContactName: contact.Name,
+			MessageID:   resp.ID,
+			Status:      "sent",
+		}
+	}
+
+	return result, nil
+}
+
+// SendSingleContact sends a single contact using ContactMessage (not ContactsArrayMessage)
+func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("client not found for session %s", sessionID)
+	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("session %s is not connected", sessionID)
+	}
+
+	// Send using single contact format (ContactMessage)
+	resp, err := client.SendSingleContactMessage(context.Background(), to, ContactInfo{
+		Name:         contact.Name,
+		Phone:        contact.Phone,
+		Email:        contact.Email,
+		Organization: contact.Organization,
+		Title:        contact.Title,
+		Website:      contact.Website,
+		Address:      contact.Address,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send single contact: %w", err)
+	}
+
+	// Create result
+	result := &ContactListResult{
+		TotalContacts: 1,
+		SuccessCount:  1,
+		FailureCount:  0,
+		Results:       make([]ContactResult, 1),
+		Timestamp:     time.Now(),
+	}
+
+	result.Results[0] = ContactResult{
+		ContactName: contact.Name,
+		MessageID:   resp.ID,
+		Status:      "sent",
+	}
+
+	return result, nil
+}
+
+// SendSingleContactBusiness sends a single contact using Business format
+func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("client not found for session %s", sessionID)
+	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("session %s is not connected", sessionID)
+	}
+
+	// Send using single contact Business format
+	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
+		Name:         contact.Name,
+		Phone:        contact.Phone,
+		Email:        contact.Email,
+		Organization: contact.Organization,
+		Title:        contact.Title,
+		Website:      contact.Website,
+		Address:      contact.Address,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send Business single contact: %w", err)
+	}
+
+	// Create result
+	result := &ContactListResult{
+		TotalContacts: 1,
+		SuccessCount:  1,
+		FailureCount:  0,
+		Results:       make([]ContactResult, 1),
+		Timestamp:     time.Now(),
+	}
+
+	result.Results[0] = ContactResult{
+		ContactName: contact.Name,
+		MessageID:   resp.ID,
+		Status:      "sent",
+	}
+
+	return result, nil
+}
+
+// SendSingleContactBusinessFormat sends a single contact using Business format
+func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("client not found for session %s", sessionID)
+	}
+
+	if !client.IsConnected() {
+		return nil, fmt.Errorf("session %s is not connected", sessionID)
+	}
+
+	// Send using single contact Business format
+	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
+		Name:         contact.Name,
+		Phone:        contact.Phone,
+		Email:        contact.Email,
+		Organization: contact.Organization,
+		Title:        contact.Title,
+		Website:      contact.Website,
+		Address:      contact.Address,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to send WhatsApp Business single contact: %w", err)
+	}
+
+	// Create result
+	result := &ContactListResult{
+		TotalContacts: 1,
+		SuccessCount:  1,
+		FailureCount:  0,
+		Results:       make([]ContactResult, 1),
+		Timestamp:     time.Now(),
+	}
+
+	result.Results[0] = ContactResult{
+		ContactName: contact.Name,
+		MessageID:   resp.ID,
+		Status:      "sent",
+	}
+
+	return result, nil
 }
 
 // SetupEventHandlers sets up all event handlers for a Wameow client

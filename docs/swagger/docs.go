@@ -48,7 +48,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.CreateChatwootConfigRequest"
+                            "$ref": "#/definitions/CreateChatwootConfigRequest"
                         }
                     }
                 ],
@@ -56,7 +56,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Chatwoot configuration created successfully",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.CreateChatwootConfigResponse"
+                            "$ref": "#/definitions/CreateChatwootConfigResponse"
                         }
                     },
                     "400": {
@@ -105,7 +105,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/SessionCreateRequest"
+                            "$ref": "#/definitions/CreateSessionRequest"
                         }
                     }
                 ],
@@ -113,7 +113,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Session created successfully",
                         "schema": {
-                            "$ref": "#/definitions/SessionCreateResponse"
+                            "$ref": "#/definitions/CreateSessionResponse"
                         }
                     },
                     "400": {
@@ -722,7 +722,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaMessageRequest"
+                            "$ref": "#/definitions/AudioMessageRequest"
                         }
                     }
                 ],
@@ -850,7 +850,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send a contact message through WhatsApp",
+                "description": "Send a single contact or multiple contacts through WhatsApp. Automatically detects if it's a single contact (ContactMessage) or multiple contacts (ContactsArrayMessage) based on the array length.",
                 "consumes": [
                     "application/json"
                 ],
@@ -860,7 +860,7 @@ const docTemplate = `{
                 "tags": [
                     "Messages"
                 ],
-                "summary": "Send contact message",
+                "summary": "Send contact message(s)",
                 "parameters": [
                     {
                         "type": "string",
@@ -871,7 +871,7 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Contact message request",
+                        "description": "Contact message request (single contact) or ContactListMessageRequest (multiple contacts)",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -882,7 +882,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Message sent successfully",
+                        "description": "Contact list sent successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -892,7 +892,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/SendMessageResponse"
+                                            "$ref": "#/definitions/ContactListMessageResponse"
                                         }
                                     }
                                 }
@@ -953,7 +953,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaMessageRequest"
+                            "$ref": "#/definitions/DocumentMessageRequest"
                         }
                     }
                 ],
@@ -1030,7 +1030,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaMessageRequest"
+                            "$ref": "#/definitions/ImageMessageRequest"
                         }
                     }
                 ],
@@ -1382,6 +1382,83 @@ const docTemplate = `{
                 }
             }
         },
+        "/sessions/{sessionId}/messages/send/profile/business": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Send a business profile contact using Business format (with waid, X-ABLabel, X-WA-BIZ-NAME)",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Send business profile contact",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Business profile request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/BusinessProfileRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Business profile sent successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/SendMessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "$ref": "#/definitions/ErrorResponse"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions/{sessionId}/messages/send/reaction": {
             "post": {
                 "security": [
@@ -1543,7 +1620,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Send a simple text message through WhatsApp",
+                "description": "Send a text message with optional reply to a previous message",
                 "consumes": [
                     "application/json"
                 ],
@@ -1575,7 +1652,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Message sent successfully",
+                        "description": "Text message sent successfully",
                         "schema": {
                             "allOf": [
                                 {
@@ -1646,7 +1723,7 @@ const docTemplate = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/MediaMessageRequest"
+                            "$ref": "#/definitions/VideoMessageRequest"
                         }
                     }
                 ],
@@ -1785,13 +1862,13 @@ const docTemplate = `{
                         "schema": {
                             "allOf": [
                                 {
-                                    "$ref": "#/definitions/zpwoot_internal_app.SuccessResponse"
+                                    "$ref": "#/definitions/SuccessResponse"
                                 },
                                 {
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/zpwoot_internal_app.QRCodeResponse"
+                                            "$ref": "#/definitions/QRCodeResponse"
                                         }
                                     }
                                 }
@@ -1801,25 +1878,25 @@ const docTemplate = `{
                     "400": {
                         "description": "Invalid session identifier",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.ErrorResponse"
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "401": {
                         "description": "Unauthorized - Invalid or missing API key",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.ErrorResponse"
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "404": {
                         "description": "Session not found or no QR code available",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.ErrorResponse"
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     },
                     "500": {
                         "description": "Internal server error",
                         "schema": {
-                            "$ref": "#/definitions/zpwoot_internal_app.ErrorResponse"
+                            "$ref": "#/definitions/ErrorResponse"
                         }
                     }
                 }
@@ -1922,7 +1999,7 @@ const docTemplate = `{
                     "201": {
                         "description": "Webhook created successfully",
                         "schema": {
-                            "$ref": "#/definitions/WebhookResponse"
+                            "$ref": "#/definitions/SetConfigResponse"
                         }
                     },
                     "400": {
@@ -1954,6 +2031,77 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "AudioMessageRequest": {
+            "type": "object",
+            "required": [
+                "file",
+                "to"
+            ],
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Voice message"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "https://example.com/audio.ogg"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "voice_message.ogg"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "audio/ogg"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                }
+            }
+        },
+        "BusinessProfileRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "phone",
+                "to"
+            ],
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "Rua Teste, 123 - São Paulo, SP"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "contato@empresateste.com.br"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "Empresa Teste Ltda"
+                },
+                "organization": {
+                    "type": "string",
+                    "example": "Empresa Teste Ltda"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "+5511987654321"
+                },
+                "title": {
+                    "type": "string",
+                    "example": "Atendimento ao Cliente"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://www.empresateste.com.br"
+                }
+            }
+        },
         "Button": {
             "type": "object",
             "required": [
@@ -1962,11 +2110,11 @@ const docTemplate = `{
             "properties": {
                 "id": {
                     "type": "string",
-                    "example": "btn_1"
+                    "example": "btn_yes"
                 },
                 "text": {
                     "type": "string",
-                    "example": "Option 1"
+                    "example": "Yes, I agree"
                 }
             }
         },
@@ -1980,7 +2128,7 @@ const docTemplate = `{
             "properties": {
                 "body": {
                     "type": "string",
-                    "example": "Choose an option:"
+                    "example": "Please choose one of the options below:"
                 },
                 "buttons": {
                     "type": "array",
@@ -1996,6 +2144,33 @@ const docTemplate = `{
                 }
             }
         },
+        "ContactListMessageResponse": {
+            "type": "object",
+            "properties": {
+                "failureCount": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/ContactSendResult"
+                    }
+                },
+                "successCount": {
+                    "type": "integer",
+                    "example": 3
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "totalContacts": {
+                    "type": "integer",
+                    "example": 3
+                }
+            }
+        },
         "ContactMessageRequest": {
             "type": "object",
             "required": [
@@ -2006,15 +2181,147 @@ const docTemplate = `{
             "properties": {
                 "contactName": {
                     "type": "string",
-                    "example": "John Doe"
+                    "example": "Maria Silva"
                 },
                 "contactPhone": {
                     "type": "string",
-                    "example": "+5511999999999"
+                    "example": "+5511987654321"
                 },
                 "to": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
+                }
+            }
+        },
+        "ContactSendResult": {
+            "type": "object",
+            "properties": {
+                "contactName": {
+                    "type": "string",
+                    "example": "João Santos"
+                },
+                "error": {
+                    "type": "string"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB07F264CA1B4AD714A3F"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "sent"
+                }
+            }
+        },
+        "ContextInfo": {
+            "type": "object",
+            "required": [
+                "stanzaId"
+            ],
+            "properties": {
+                "participant": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "stanzaId": {
+                    "type": "string",
+                    "example": "ABCD1234abcd"
+                }
+            }
+        },
+        "CreateChatwootConfigRequest": {
+            "type": "object",
+            "required": [
+                "accountId",
+                "apiKey",
+                "url"
+            ],
+            "properties": {
+                "accountId": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "apiKey": {
+                    "type": "string",
+                    "example": "chatwoot-api-key-123"
+                },
+                "inboxId": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://chatwoot.example.com"
+                }
+            }
+        },
+        "CreateChatwootConfigResponse": {
+            "type": "object",
+            "properties": {
+                "accountId": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "chatwoot-config-123"
+                },
+                "inboxId": {
+                    "type": "string",
+                    "example": "1"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://chatwoot.example.com"
+                }
+            }
+        },
+        "CreateSessionRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "minLength": 3,
+                    "example": "my-whatsapp-session"
+                },
+                "proxyConfig": {
+                    "$ref": "#/definitions/ProxyConfig"
+                }
+            }
+        },
+        "CreateSessionResponse": {
+            "type": "object",
+            "properties": {
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"
+                },
+                "isConnected": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "example": "my-whatsapp-session"
+                },
+                "proxyConfig": {
+                    "$ref": "#/definitions/ProxyConfig"
                 }
             }
         },
@@ -2081,6 +2388,36 @@ const docTemplate = `{
                 }
             }
         },
+        "DocumentMessageRequest": {
+            "type": "object",
+            "required": [
+                "file",
+                "filename",
+                "to"
+            ],
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Important document"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "https://example.com/document.pdf"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "important_document.pdf"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "application/pdf"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                }
+            }
+        },
         "EditMessageRequest": {
             "type": "object",
             "required": [
@@ -2142,6 +2479,35 @@ const docTemplate = `{
                 }
             }
         },
+        "ImageMessageRequest": {
+            "type": "object",
+            "required": [
+                "file",
+                "to"
+            ],
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Beautiful sunset photo"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "https://example.com/image.jpg"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "sunset.jpg"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                }
+            }
+        },
         "ListMessageRequest": {
             "type": "object",
             "required": [
@@ -2153,11 +2519,11 @@ const docTemplate = `{
             "properties": {
                 "body": {
                     "type": "string",
-                    "example": "Please select an option:"
+                    "example": "Please select one of the available options:"
                 },
                 "buttonText": {
                     "type": "string",
-                    "example": "View Options"
+                    "example": "Select Option"
                 },
                 "sections": {
                     "type": "array",
@@ -2205,7 +2571,7 @@ const docTemplate = `{
             "properties": {
                 "address": {
                     "type": "string",
-                    "example": "São Paulo, SP"
+                    "example": "Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"
                 },
                 "latitude": {
                     "type": "number",
@@ -2230,19 +2596,19 @@ const docTemplate = `{
             "properties": {
                 "caption": {
                     "type": "string",
-                    "example": "Image caption"
+                    "example": "Media caption"
                 },
                 "file": {
                     "type": "string",
-                    "example": "https://example.com/image.jpg"
+                    "example": "https://example.com/media.file"
                 },
                 "filename": {
                     "type": "string",
-                    "example": "image.jpg"
+                    "example": "media.file"
                 },
                 "mimeType": {
                     "type": "string",
-                    "example": "image/jpeg"
+                    "example": "application/octet-stream"
                 },
                 "to": {
                     "type": "string",
@@ -2308,6 +2674,49 @@ const docTemplate = `{
                 }
             }
         },
+        "ProxyConfig": {
+            "type": "object",
+            "properties": {
+                "host": {
+                    "type": "string",
+                    "example": "proxy.example.com"
+                },
+                "password": {
+                    "type": "string",
+                    "example": "proxypass123"
+                },
+                "port": {
+                    "type": "integer",
+                    "example": 8080
+                },
+                "type": {
+                    "description": "http, socks5",
+                    "type": "string",
+                    "example": "http"
+                },
+                "username": {
+                    "type": "string",
+                    "example": "proxyuser"
+                }
+            }
+        },
+        "QRCodeResponse": {
+            "type": "object",
+            "properties": {
+                "expiresAt": {
+                    "type": "string",
+                    "example": "2024-01-01T00:01:00Z"
+                },
+                "qrCode": {
+                    "type": "string",
+                    "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+                },
+                "timeoutSeconds": {
+                    "type": "integer",
+                    "example": 60
+                }
+            }
+        },
         "ReactionMessageRequest": {
             "type": "object",
             "required": [
@@ -2359,15 +2768,15 @@ const docTemplate = `{
             "properties": {
                 "description": {
                     "type": "string",
-                    "example": "Description for option 1"
+                    "example": "Get help from our support team"
                 },
                 "id": {
                     "type": "string",
-                    "example": "row_1"
+                    "example": "service_support"
                 },
                 "title": {
                     "type": "string",
-                    "example": "Option 1"
+                    "example": "Customer Support"
                 }
             }
         },
@@ -2387,7 +2796,7 @@ const docTemplate = `{
                 },
                 "title": {
                     "type": "string",
-                    "example": "Main Options"
+                    "example": "Available Services"
                 }
             }
         },
@@ -2477,47 +2886,6 @@ const docTemplate = `{
                 }
             }
         },
-        "SessionCreateRequest": {
-            "type": "object",
-            "required": [
-                "name"
-            ],
-            "properties": {
-                "name": {
-                    "type": "string",
-                    "maxLength": 50,
-                    "minLength": 3,
-                    "example": "mySession"
-                },
-                "proxyConfig": {
-                    "$ref": "#/definitions/zpwoot_internal_domain_session.ProxyConfig"
-                }
-            }
-        },
-        "SessionCreateResponse": {
-            "type": "object",
-            "properties": {
-                "createdAt": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "session-123"
-                },
-                "isConnected": {
-                    "type": "boolean",
-                    "example": false
-                },
-                "name": {
-                    "type": "string",
-                    "example": "mySession"
-                },
-                "proxyConfig": {
-                    "$ref": "#/definitions/zpwoot_internal_domain_session.ProxyConfig"
-                }
-            }
-        },
         "SessionInfoResponse": {
             "type": "object",
             "properties": {
@@ -2561,7 +2929,7 @@ const docTemplate = `{
                     "example": "my-Wameow-session"
                 },
                 "proxyConfig": {
-                    "$ref": "#/definitions/zpwoot_internal_domain_session.ProxyConfig"
+                    "$ref": "#/definitions/ProxyConfig"
                 },
                 "updatedAt": {
                     "type": "string",
@@ -2584,20 +2952,57 @@ const docTemplate = `{
                     },
                     "example": [
                         "message",
-                        "status"
+                        "status",
+                        "connection"
                     ]
                 },
                 "secret": {
                     "type": "string",
-                    "example": "webhook-secret-key"
+                    "example": "my-webhook-secret-key-123"
                 },
                 "sessionId": {
                     "type": "string",
-                    "example": "session-123"
+                    "example": "1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"
                 },
                 "url": {
                     "type": "string",
-                    "example": "https://example.com/webhook"
+                    "example": "https://myapp.com/webhook/whatsapp"
+                }
+            }
+        },
+        "SetConfigResponse": {
+            "type": "object",
+            "properties": {
+                "active": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-01-01T00:00:00Z"
+                },
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "message",
+                        "status",
+                        "connection"
+                    ]
+                },
+                "id": {
+                    "type": "string",
+                    "example": "webhook-456def"
+                },
+                "sessionId": {
+                    "type": "string",
+                    "example": "1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://myapp.com/webhook/whatsapp"
                 }
             }
         },
@@ -2618,13 +3023,45 @@ const docTemplate = `{
         "TextMessageRequest": {
             "type": "object",
             "required": [
-                "body",
+                "text",
                 "to"
             ],
             "properties": {
-                "body": {
+                "contextInfo": {
+                    "$ref": "#/definitions/ContextInfo"
+                },
+                "text": {
                     "type": "string",
-                    "example": "Hello World!"
+                    "example": "Hello, this is a text message"
+                },
+                "to": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
+                }
+            }
+        },
+        "VideoMessageRequest": {
+            "type": "object",
+            "required": [
+                "file",
+                "to"
+            ],
+            "properties": {
+                "caption": {
+                    "type": "string",
+                    "example": "Check out this amazing video!"
+                },
+                "file": {
+                    "type": "string",
+                    "example": "https://example.com/video.mp4"
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "amazing_video.mp4"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "video/mp4"
                 },
                 "to": {
                     "type": "string",
@@ -2668,136 +3105,6 @@ const docTemplate = `{
                 "url": {
                     "type": "string",
                     "example": "https://example.com/webhook"
-                }
-            }
-        },
-        "zpwoot_internal_app.CreateChatwootConfigRequest": {
-            "type": "object",
-            "required": [
-                "accountId",
-                "apiKey",
-                "url"
-            ],
-            "properties": {
-                "accountId": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "apiKey": {
-                    "type": "string",
-                    "example": "chatwoot-api-key-123"
-                },
-                "inboxId": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://chatwoot.example.com"
-                }
-            }
-        },
-        "zpwoot_internal_app.CreateChatwootConfigResponse": {
-            "type": "object",
-            "properties": {
-                "accountId": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "active": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "createdAt": {
-                    "type": "string",
-                    "example": "2024-01-01T00:00:00Z"
-                },
-                "id": {
-                    "type": "string",
-                    "example": "chatwoot-config-123"
-                },
-                "inboxId": {
-                    "type": "string",
-                    "example": "1"
-                },
-                "url": {
-                    "type": "string",
-                    "example": "https://chatwoot.example.com"
-                }
-            }
-        },
-        "zpwoot_internal_app.ErrorResponse": {
-            "type": "object",
-            "properties": {
-                "code": {
-                    "type": "string",
-                    "example": "VALIDATION_ERROR"
-                },
-                "details": {},
-                "error": {
-                    "type": "string",
-                    "example": "Invalid request"
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": false
-                }
-            }
-        },
-        "zpwoot_internal_app.QRCodeResponse": {
-            "type": "object",
-            "properties": {
-                "expiresAt": {
-                    "type": "string",
-                    "example": "2024-01-01T00:01:00Z"
-                },
-                "qrCode": {
-                    "type": "string",
-                    "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
-                },
-                "timeoutSeconds": {
-                    "type": "integer",
-                    "example": 60
-                }
-            }
-        },
-        "zpwoot_internal_app.SuccessResponse": {
-            "type": "object",
-            "properties": {
-                "data": {},
-                "message": {
-                    "type": "string",
-                    "example": "Operation completed successfully"
-                },
-                "success": {
-                    "type": "boolean",
-                    "example": true
-                }
-            }
-        },
-        "zpwoot_internal_domain_session.ProxyConfig": {
-            "type": "object",
-            "properties": {
-                "host": {
-                    "type": "string",
-                    "example": "proxy.example.com"
-                },
-                "password": {
-                    "type": "string",
-                    "example": "password"
-                },
-                "port": {
-                    "type": "integer",
-                    "example": 8080
-                },
-                "type": {
-                    "description": "http, socks5",
-                    "type": "string",
-                    "example": "http"
-                },
-                "username": {
-                    "type": "string",
-                    "example": "user"
                 }
             }
         }

@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 
 	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/message"
 	messageApp "zpwoot/internal/app/message"
 	"zpwoot/internal/infra/http/helpers"
 	"zpwoot/internal/infra/wameow"
@@ -39,8 +41,6 @@ func NewMessageHandler(
 	}
 }
 
-
-
 // SendMessage sends a message through WhatsApp
 // @Summary Send WhatsApp message
 // @Description Send a message through WhatsApp. Supports text, image, audio, video, document, location, and contact messages. Media can be provided via URL or base64.
@@ -50,8 +50,8 @@ func NewMessageHandler(
 // @Security ApiKeyAuth
 
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.SendMessageRequest true "Message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.SendMessageRequest true "Message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -64,7 +64,7 @@ func (h *MessageHandler) SendMessage(c *fiber.Ctx) error {
 	}
 
 	// Parse request body
-	var req messageApp.SendMessageRequest
+	var req message.SendMessageRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.ErrorWithFields("Failed to parse request body", map[string]interface{}{
 			"error": err.Error(),
@@ -153,8 +153,8 @@ func (h *MessageHandler) SendMessage(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.TextMessageRequest true "Text message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.TextMessageRequest true "Text message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -165,26 +165,33 @@ func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse simple text request
+	// Parse simple text request with backward compatibility
 	var textReq struct {
 		To   string `json:"to" validate:"required"`
-		Body string `json:"body" validate:"required"`
+		Body string `json:"body,omitempty"`
+		Text string `json:"text,omitempty"` // Deprecated: use 'body' instead
 	}
 
 	if err := c.BodyParser(&textReq); err != nil {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if textReq.To == "" || textReq.Body == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Both 'to' and 'body' are required"))
+	// Get text content with backward compatibility (prioritize body)
+	textContent := textReq.Body
+	if textContent == "" {
+		textContent = textReq.Text
+	}
+
+	if textReq.To == "" || textContent == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Both 'to' and 'body' (or 'text') are required"))
 	}
 
 	// Convert to full message request
-	req := messageApp.SendMessageRequest{
+	req := message.SendMessageRequest{
 		To:   textReq.To,
 		Type: "text",
-		Body: textReq.Body,
 	}
+	req.SetText(textContent)
 
 	// Resolve session
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
@@ -212,23 +219,7 @@ func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 	return c.JSON(common.NewSuccessResponse(response, "Text message sent successfully"))
 }
 
-// SendText sends a text message (convenience endpoint)
-// @Summary Send text message
-// @Description Send a simple text message through WhatsApp
-// @Tags Messages
-// @Accept json
-// @Produce json
-// @Security ApiKeyAuth
-// @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.TextMessageRequest true "Text message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
-// @Failure 400 {object} common.ErrorResponse "Invalid request"
-// @Failure 404 {object} common.ErrorResponse "Session not found"
-// @Failure 500 {object} common.ErrorResponse "Internal server error"
-// @Router /sessions/{sessionId}/messages/send/text [post]
-func (h *MessageHandler) SendText(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "text")
-}
+
 
 // SendMedia sends a media message (generic media endpoint)
 // @Summary Send media message
@@ -238,8 +229,8 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Media message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.MediaMessageRequest true "Media message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -256,8 +247,8 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Image message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.ImageMessageRequest true "Image message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -274,8 +265,8 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Audio message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.AudioMessageRequest true "Audio message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -292,8 +283,8 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Video message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.VideoMessageRequest true "Video message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -310,8 +301,8 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Document message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.DocumentMessageRequest true "Document message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -328,8 +319,8 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.MediaMessageRequest true "Sticker message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.MediaMessageRequest true "Sticker message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -346,8 +337,8 @@ func (h *MessageHandler) SendSticker(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.LocationMessageRequest true "Location message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.LocationMessageRequest true "Location message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -356,22 +347,417 @@ func (h *MessageHandler) SendLocation(c *fiber.Ctx) error {
 	return h.sendSpecificMessageType(c, "location")
 }
 
-// SendContact sends a contact message
-// @Summary Send contact message
-// @Description Send a contact message through WhatsApp
+// SendContact sends a contact message or contact list
+// @Summary Send contact message(s)
+// @Description Send a single contact or multiple contacts through WhatsApp. Automatically detects if it's a single contact (ContactMessage) or multiple contacts (ContactsArrayMessage) based on the array length.
 // @Tags Messages
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.ContactMessageRequest true "Contact message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.SendMessageResponse} "Message sent successfully"
+// @Param request body message.ContactMessageRequest true "Contact message request (single contact) or ContactListMessageRequest (multiple contacts)"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Single contact sent successfully"
+// @Success 200 {object} common.SuccessResponse{data=message.ContactListMessageResponse} "Contact list sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/contact [post]
 func (h *MessageHandler) SendContact(c *fiber.Ctx) error {
-	return h.sendSpecificMessageType(c, "contact")
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	// Parse raw JSON to detect format
+	var rawBody map[string]interface{}
+	if err := c.BodyParser(&rawBody); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+	}
+
+	// Check if it's a contact list (has "contacts" array) or single contact
+	if _, hasContacts := rawBody["contacts"]; hasContacts {
+		// It's a contact list - automatically detect single vs multiple
+		return h.handleContactList(c, sessionIdentifier, rawBody)
+	} else if _, hasContactName := rawBody["contactName"]; hasContactName {
+		// It's a single contact (legacy format)
+		return h.handleSingleContact(c, sessionIdentifier, rawBody)
+	} else {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid contact format. Use either single contact format (contactName, contactPhone) or contact list format (contacts array)"))
+	}
+}
+
+// handleSingleContact handles sending a single contact
+func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier string, rawBody map[string]interface{}) error {
+	// Parse as single contact
+	var contactReq message.ContactMessageRequest
+	if err := c.BodyParser(&contactReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid single contact format"))
+	}
+
+	// Validate single contact
+	if contactReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+	if contactReq.ContactName == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'contactName' field is required"))
+	}
+	if contactReq.ContactPhone == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'contactPhone' field is required"))
+	}
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Send single contact using existing logic
+	result, err := h.wameowManager.SendMessage(
+		sess.ID.String(),
+		contactReq.To,
+		"contact",
+		"",
+		"",
+		"",
+		"",
+		0,
+		0,
+		contactReq.ContactName,
+		contactReq.ContactPhone,
+	)
+
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send contact message", map[string]interface{}{
+			"session_id":    sess.ID.String(),
+			"to":            contactReq.To,
+			"contact_name":  contactReq.ContactName,
+			"error":         err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send contact message"))
+	}
+
+	response := &message.SendMessageResponse{
+		ID:        result.MessageID,
+		Status:    result.Status,
+		Timestamp: result.Timestamp,
+	}
+
+	h.logger.InfoWithFields("Contact message sent successfully", map[string]interface{}{
+		"session_id":   sess.ID.String(),
+		"to":           contactReq.To,
+		"contact_name": contactReq.ContactName,
+		"message_id":   result.MessageID,
+	})
+
+	return c.JSON(common.NewSuccessResponse(response, "Contact message sent successfully"))
+}
+
+// handleContactList handles sending contacts (automatically detects single vs multiple)
+func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier string, rawBody map[string]interface{}) error {
+	// Parse contact list request
+	var contactListReq message.ContactListMessageRequest
+	if err := c.BodyParser(&contactListReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid contact list format"))
+	}
+
+	// Validate request
+	if contactListReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if len(contactListReq.Contacts) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("At least one contact is required"))
+	}
+
+	if len(contactListReq.Contacts) > 10 {
+		return c.Status(400).JSON(common.NewErrorResponse("Maximum 10 contacts allowed per request"))
+	}
+
+	// Validate each contact
+	for i, contact := range contactListReq.Contacts {
+		if contact.Name == "" {
+			return c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: name is required", i+1)))
+		}
+		if contact.Phone == "" {
+			return c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: phone is required", i+1)))
+		}
+	}
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to wameow ContactInfo
+	var contacts []wameow.ContactInfo
+	for _, contact := range contactListReq.Contacts {
+		contacts = append(contacts, wameow.ContactInfo{
+			Name:         contact.Name,
+			Phone:        contact.Phone,
+			Email:        contact.Email,
+			Organization: contact.Organization,
+			Title:        contact.Title,
+			Website:      contact.Website,
+			Address:      contact.Address,
+		})
+	}
+
+	// Send contact using the appropriate format based on count
+	var result *wameow.ContactListResult
+
+	if len(contactListReq.Contacts) == 1 {
+		// Single contact - use ContactMessage (not ContactsArrayMessage)
+		contact := contacts[0]
+
+		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.To, contact)
+		if err != nil {
+			h.logger.ErrorWithFields("Failed to send single contact", map[string]interface{}{
+				"session_id":     sess.ID.String(),
+				"to":             contactListReq.To,
+				"contact_name":   contact.Name,
+				"error":          err.Error(),
+			})
+		}
+	} else {
+		// Multiple contacts - use ContactsArrayMessage
+		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.To, contacts)
+		if err != nil {
+			h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
+				"session_id":     sess.ID.String(),
+				"to":             contactListReq.To,
+				"contact_count":  len(contactListReq.Contacts),
+				"error":          err.Error(),
+			})
+		}
+	}
+
+	if err != nil {
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send contact list"))
+	}
+
+	// Convert results
+	var contactResults []message.ContactSendResult
+	for _, r := range result.Results {
+		contactResults = append(contactResults, message.ContactSendResult{
+			ContactName: r.ContactName,
+			MessageID:   r.MessageID,
+			Status:      r.Status,
+			Error:       r.Error,
+		})
+	}
+
+	response := &message.ContactListMessageResponse{
+		TotalContacts: result.TotalContacts,
+		SuccessCount:  result.SuccessCount,
+		FailureCount:  result.FailureCount,
+		Results:       contactResults,
+		Timestamp:     result.Timestamp.Format(time.RFC3339),
+	}
+
+	contactType := "single contact"
+	if len(contactListReq.Contacts) > 1 {
+		contactType = "contact list"
+	}
+
+	h.logger.InfoWithFields("Contact sent successfully", map[string]interface{}{
+		"session_id":     sess.ID.String(),
+		"to":             contactListReq.To,
+		"total_contacts": result.TotalContacts,
+		"success_count":  result.SuccessCount,
+		"failure_count":  result.FailureCount,
+		"contact_type":   contactType,
+		"format_type":    "standard",
+	})
+
+	successMessage := "Contact sent successfully"
+	if len(contactListReq.Contacts) > 1 {
+		successMessage = "Contact list sent successfully"
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, successMessage))
+}
+
+// SendBusinessProfile sends a business profile contact
+// @Summary Send business profile contact
+// @Description Send a business profile contact using Business format (with waid, X-ABLabel, X-WA-BIZ-NAME)
+// @Tags Messages
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param request body message.BusinessProfileRequest true "Business profile request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Business profile sent successfully"
+// @Failure 400 {object} common.ErrorResponse "Invalid request"
+// @Failure 404 {object} common.ErrorResponse "Session not found"
+// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Router /sessions/{sessionId}/messages/send/profile/business [post]
+func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	// Parse business profile request
+	var businessReq message.BusinessProfileRequest
+	if err := c.BodyParser(&businessReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid business profile format"))
+	}
+
+	// Validate request
+	if businessReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	if businessReq.Name == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'name' field is required"))
+	}
+
+	if businessReq.Phone == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'phone' field is required"))
+	}
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Convert to wameow ContactInfo
+	contact := wameow.ContactInfo{
+		Name:         businessReq.Name,
+		Phone:        businessReq.Phone,
+		Email:        businessReq.Email,
+		Organization: businessReq.Organization,
+		Title:        businessReq.Title,
+		Website:      businessReq.Website,
+		Address:      businessReq.Address,
+	}
+
+	// Send business profile using Business format
+	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.To, contact)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send business profile", map[string]interface{}{
+			"session_id":     sess.ID.String(),
+			"to":             businessReq.To,
+			"business_name":  businessReq.Name,
+			"error":          err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send business profile"))
+	}
+
+	h.logger.InfoWithFields("Business profile sent successfully", map[string]interface{}{
+		"session_id":     sess.ID.String(),
+		"to":             businessReq.To,
+		"business_name":  businessReq.Name,
+		"format_type":    "Business",
+	})
+
+	// Create response
+	response := message.SendMessageResponse{
+		ID:        result.Results[0].MessageID,
+		Status:    result.Results[0].Status,
+		Timestamp: result.Timestamp,
+	}
+
+	return c.Status(200).JSON(common.NewSuccessResponse(response, "Business profile sent successfully"))
+}
+
+// SendText sends a text message with optional reply/quote
+// @Summary Send text message
+// @Description Send a text message with optional reply to a previous message
+// @Tags Messages
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param request body message.TextMessageRequest true "Text message request"
+// @Success 200 {object} common.SuccessResponse{data=message.SendMessageResponse} "Text message sent successfully"
+// @Failure 400 {object} common.ErrorResponse "Invalid request"
+// @Failure 404 {object} common.ErrorResponse "Session not found"
+// @Failure 500 {object} common.ErrorResponse "Internal server error"
+// @Router /sessions/{sessionId}/messages/send/text [post]
+func (h *MessageHandler) SendText(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	// Parse text message request
+	var textReq message.TextMessageRequest
+	if err := c.BodyParser(&textReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid text message format"))
+	}
+
+	// Validate request
+	if textReq.To == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
+	}
+
+	textContent := textReq.GetText()
+	if textContent == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'body' (or 'text') field is required"))
+	}
+
+	// Validate context info if provided
+	if textReq.ContextInfo != nil {
+		if textReq.ContextInfo.StanzaID == "" {
+			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
+		}
+	}
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Send text message
+	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.To, textContent, textReq.ContextInfo)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send text message", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         textReq.To,
+			"has_reply":  textReq.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to send text message"))
+	}
+
+	h.logger.InfoWithFields("Text message sent successfully", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"to":         textReq.To,
+		"message_id": result.MessageID,
+		"has_reply":  textReq.ContextInfo != nil,
+	})
+
+	// Create response
+	response := message.SendMessageResponse{
+		ID:        result.MessageID,
+		Status:    result.Status,
+		Timestamp: result.Timestamp,
+	}
+
+	return c.Status(200).JSON(common.NewSuccessResponse(response, "Text message sent successfully"))
 }
 
 // SendButtonMessage sends a button message
@@ -382,8 +768,8 @@ func (h *MessageHandler) SendContact(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.ButtonMessageRequest true "Button message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.MessageResponse} "Button message sent successfully"
+// @Param request body message.ButtonMessageRequest true "Button message request"
+// @Success 200 {object} common.SuccessResponse{data=message.MessageResponse} "Button message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -394,10 +780,11 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse button message request
+	// Parse button message request with backward compatibility
 	var buttonReq struct {
 		To      string `json:"to" validate:"required"`
-		Body    string `json:"body" validate:"required"`
+		Body    string `json:"body,omitempty"`
+		Text    string `json:"text,omitempty"` // Deprecated: use 'body' instead
 		Buttons []struct {
 			ID   string `json:"id" validate:"required"`
 			Text string `json:"text" validate:"required"`
@@ -408,8 +795,14 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if buttonReq.To == "" || buttonReq.Body == "" || len(buttonReq.Buttons) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'buttons' are required"))
+	// Get text content with backward compatibility (prioritize body)
+	textContent := buttonReq.Body
+	if textContent == "" {
+		textContent = buttonReq.Text
+	}
+
+	if buttonReq.To == "" || textContent == "" || len(buttonReq.Buttons) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body' (or 'text'), and 'buttons' are required"))
 	}
 
 	// Convert buttons to the format expected by the manager
@@ -428,7 +821,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 	}
 
 	// Send button message using the real implementation
-	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.To, buttonReq.Body, buttons)
+	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.To, textContent, buttons)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send button message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -443,7 +836,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to send button message"))
 	}
 
-	response := &messageApp.SendMessageResponse{
+	response := &message.SendMessageResponse{
 		ID:        result.MessageID,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
@@ -460,8 +853,8 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.ListMessageRequest true "List message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.MessageResponse} "List message sent successfully"
+// @Param request body message.ListMessageRequest true "List message request"
+// @Success 200 {object} common.SuccessResponse{data=message.MessageResponse} "List message sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -472,10 +865,11 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse list message request
+	// Parse list message request with backward compatibility
 	var listReq struct {
 		To         string `json:"to" validate:"required"`
-		Body       string `json:"body" validate:"required"`
+		Body       string `json:"body,omitempty"`
+		Text       string `json:"text,omitempty"` // Deprecated: use 'body' instead
 		ButtonText string `json:"buttonText" validate:"required"`
 		Sections   []struct {
 			Title string `json:"title" validate:"required"`
@@ -491,8 +885,14 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if listReq.To == "" || listReq.Body == "" || len(listReq.Sections) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'sections' are required"))
+	// Get text content with backward compatibility (prioritize body)
+	textContent := listReq.Body
+	if textContent == "" {
+		textContent = listReq.Text
+	}
+
+	if listReq.To == "" || textContent == "" || len(listReq.Sections) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body' (or 'text'), and 'sections' are required"))
 	}
 
 	// Convert sections to the format expected by the manager
@@ -519,7 +919,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	}
 
 	// Send list message using the real implementation
-	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.To, listReq.Body, listReq.ButtonText, sections)
+	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.To, textContent, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -534,7 +934,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to send list message"))
 	}
 
-	response := &messageApp.SendMessageResponse{
+	response := &message.SendMessageResponse{
 		ID:        result.MessageID,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
@@ -551,8 +951,8 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.ReactionMessageRequest true "Reaction request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.ReactionResponse} "Reaction sent successfully"
+// @Param request body message.ReactionMessageRequest true "Reaction request"
+// @Success 200 {object} common.SuccessResponse{data=message.ReactionResponse} "Reaction sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -619,8 +1019,8 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.PresenceMessageRequest true "Presence request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.PresenceResponse} "Presence sent successfully"
+// @Param request body message.PresenceMessageRequest true "Presence request"
+// @Success 200 {object} common.SuccessResponse{data=message.PresenceResponse} "Presence sent successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -699,8 +1099,8 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.EditMessageRequest true "Edit message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.EditResponse} "Message edited successfully"
+// @Param request body message.EditMessageRequest true "Edit message request"
+// @Success 200 {object} common.SuccessResponse{data=message.EditResponse} "Message edited successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -711,19 +1111,26 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse edit request
+	// Parse edit request with backward compatibility
 	var editReq struct {
 		To        string `json:"to" validate:"required"`
 		MessageID string `json:"messageId" validate:"required"`
-		NewBody   string `json:"newBody" validate:"required"`
+		NewBody   string `json:"newBody,omitempty"`
+		NewText   string `json:"newText,omitempty"` // Deprecated: use 'newBody' instead
 	}
 
 	if err := c.BodyParser(&editReq); err != nil {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if editReq.To == "" || editReq.MessageID == "" || editReq.NewBody == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'messageId', and 'newBody' are required"))
+	// Get new text content with backward compatibility (prioritize newBody)
+	newTextContent := editReq.NewBody
+	if newTextContent == "" {
+		newTextContent = editReq.NewText
+	}
+
+	if editReq.To == "" || editReq.MessageID == "" || newTextContent == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'messageId', and 'newBody' (or 'newText') are required"))
 	}
 
 	// Resolve session
@@ -733,7 +1140,7 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 	}
 
 	// Edit message using the real implementation
-	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.To, editReq.MessageID, editReq.NewBody)
+	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.To, editReq.MessageID, newTextContent)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -767,8 +1174,8 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param request body messageApp.DeleteMessageRequest true "Delete message request"
-// @Success 200 {object} common.SuccessResponse{data=messageApp.DeleteResponse} "Message deleted successfully"
+// @Param request body message.DeleteMessageRequest true "Delete message request"
+// @Success 200 {object} common.SuccessResponse{data=message.DeleteResponse} "Message deleted successfully"
 // @Failure 400 {object} common.ErrorResponse "Invalid request"
 // @Failure 404 {object} common.ErrorResponse "Session not found"
 // @Failure 500 {object} common.ErrorResponse "Internal server error"
@@ -836,7 +1243,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	}
 
 	// Parse request body
-	var req messageApp.SendMessageRequest
+	var req message.SendMessageRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.ErrorWithFields("Failed to parse request body", map[string]interface{}{
 			"error": err.Error(),
@@ -855,7 +1262,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	// Type-specific validations
 	switch messageType {
 	case "text":
-		if req.Body == "" {
+		if req.GetText() == "" {
 			return c.Status(400).JSON(common.NewErrorResponse("Body is required for text messages"))
 		}
 	case "image", "audio", "video", "document", "sticker":

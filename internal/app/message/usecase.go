@@ -16,10 +16,10 @@ type UseCase interface {
 
 // useCaseImpl implements the message use case
 type useCaseImpl struct {
-	sessionRepo   ports.SessionRepository
-	wameowManager ports.WameowManager
+	sessionRepo    ports.SessionRepository
+	wameowManager  ports.WameowManager
 	mediaProcessor *message.MediaProcessor
-	logger        *logger.Logger
+	logger         *logger.Logger
 }
 
 // NewUseCase creates a new message use case

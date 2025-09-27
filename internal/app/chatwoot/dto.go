@@ -11,7 +11,7 @@ type CreateChatwootConfigRequest struct {
 	APIKey    string  `json:"apiKey" validate:"required" example:"chatwoot-api-key-123"`
 	AccountID string  `json:"accountId" validate:"required" example:"1"`
 	InboxID   *string `json:"inboxId,omitempty" example:"1"`
-} // @name CreateChatwootConfigRequest
+} //@name CreateChatwootConfigRequest
 
 // CreateChatwootConfigResponse represents the response after creating Chatwoot configuration
 type CreateChatwootConfigResponse struct {
@@ -21,7 +21,7 @@ type CreateChatwootConfigResponse struct {
 	InboxID   *string   `json:"inboxId,omitempty" example:"1"`
 	Active    bool      `json:"active" example:"true"`
 	CreatedAt time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
-} // @name CreateChatwootConfigResponse
+} //@name CreateChatwootConfigResponse
 
 // UpdateChatwootConfigRequest represents the request to update Chatwoot configuration
 type UpdateChatwootConfigRequest struct {
@@ -30,7 +30,7 @@ type UpdateChatwootConfigRequest struct {
 	AccountID *string `json:"account_id,omitempty" example:"2"`
 	InboxID   *string `json:"inbox_id,omitempty" example:"2"`
 	Active    *bool   `json:"active,omitempty" example:"false"`
-} // @name UpdateChatwootConfigRequest
+}
 
 // ChatwootConfigResponse represents Chatwoot configuration in responses
 type ChatwootConfigResponse struct {
@@ -41,7 +41,7 @@ type ChatwootConfigResponse struct {
 	Active    bool      `json:"active" example:"true"`
 	CreatedAt time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-} // @name ChatwootConfigResponse
+}
 
 // SyncContactRequest represents the request to sync a contact with Chatwoot
 type SyncContactRequest struct {
@@ -49,7 +49,7 @@ type SyncContactRequest struct {
 	Name        string                 `json:"name" validate:"required" example:"John Doe"`
 	Email       string                 `json:"email,omitempty" validate:"omitempty,email" example:"john@example.com"`
 	Attributes  map[string]interface{} `json:"attributes,omitempty"`
-} // @name SyncContactRequest
+}
 
 // SyncContactResponse represents the response after syncing a contact
 type SyncContactResponse struct {
@@ -60,14 +60,14 @@ type SyncContactResponse struct {
 	Attributes  map[string]interface{} `json:"attributes,omitempty"`
 	CreatedAt   time.Time              `json:"created_at" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt   time.Time              `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-} // @name SyncContactResponse
+}
 
 // SyncConversationRequest represents the request to sync a conversation with Chatwoot
 type SyncConversationRequest struct {
 	ContactID   int    `json:"contact_id" validate:"required" example:"123"`
 	SessionID   string `json:"session_id" validate:"required" example:"session-123"`
 	PhoneNumber string `json:"phone_number" validate:"required" example:"+5511999999999"`
-} // @name SyncConversationRequest
+}
 
 // SyncConversationResponse represents the response after syncing a conversation
 type SyncConversationResponse struct {
@@ -78,7 +78,7 @@ type SyncConversationResponse struct {
 	Status      string    `json:"status" example:"open"`
 	CreatedAt   time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt   time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
-} // @name SyncConversationResponse
+}
 
 // SendMessageToChatwootRequest represents the request to send a message to Chatwoot
 type SendMessageToChatwootRequest struct {
@@ -88,14 +88,14 @@ type SendMessageToChatwootRequest struct {
 	ContentType    string                 `json:"content_type,omitempty" example:"text"`
 	Attachments    []ChatwootAttachment   `json:"attachments,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-} // @name SendMessageToChatwootRequest
+}
 
 // ChatwootAttachment represents an attachment in Chatwoot messages
 type ChatwootAttachment struct {
 	URL      string `json:"url" example:"https://example.com/image.jpg"`
 	FileType string `json:"file_type" example:"image"`
 	FileName string `json:"file_name" example:"image.jpg"`
-} // @name ChatwootAttachment
+}
 
 // SendMessageToChatwootResponse represents the response after sending a message to Chatwoot
 type SendMessageToChatwootResponse struct {
@@ -106,7 +106,7 @@ type SendMessageToChatwootResponse struct {
 	ContentType    string                 `json:"content_type" example:"text"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 	CreatedAt      time.Time              `json:"created_at" example:"2024-01-01T00:00:00Z"`
-} // @name SendMessageToChatwootResponse
+}
 
 // ChatwootWebhookPayload represents the payload received from Chatwoot webhooks
 type ChatwootWebhookPayload struct {
@@ -115,19 +115,19 @@ type ChatwootWebhookPayload struct {
 	Account      ChatwootAccount        `json:"account"`
 	Conversation ChatwootConversation   `json:"conversation,omitempty"`
 	Message      ChatwootMessage        `json:"message,omitempty"`
-} // @name ChatwootWebhookPayload
+}
 
 // ChatwootAccount represents account information in webhook
 type ChatwootAccount struct {
 	ID   int    `json:"id" example:"1"`
 	Name string `json:"name" example:"My Company"`
-} // @name ChatwootAccount
+}
 
 // ChatwootConversation represents conversation information in webhook
 type ChatwootConversation struct {
 	ID     int    `json:"id" example:"456"`
 	Status string `json:"status" example:"open"`
-} // @name ChatwootConversation
+}
 
 // ChatwootMessage represents message information in webhook
 type ChatwootMessage struct {
@@ -135,7 +135,7 @@ type ChatwootMessage struct {
 	Content     string `json:"content" example:"Hello!"`
 	MessageType string `json:"message_type" example:"incoming"`
 	ContentType string `json:"content_type" example:"text"`
-} // @name ChatwootMessage
+}
 
 // TestChatwootConnectionResponse represents the response after testing Chatwoot connection
 type TestChatwootConnectionResponse struct {

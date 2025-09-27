@@ -139,7 +139,7 @@ func (s *Service) ConnectSession(ctx context.Context, id string) error {
 
 	// Always allow connection attempts to enable QR code restart
 	// Mark as connecting (will be updated to connected after successful QR scan)
-	session.SetConnected(false) // Ensure it starts as disconnected during QR process
+	session.SetConnected(false)   // Ensure it starts as disconnected during QR process
 	session.ConnectionError = nil // Clear any previous errors
 	if err := s.repo.Update(ctx, session); err != nil {
 		return errors.Wrap(err, "failed to update session status to connecting")

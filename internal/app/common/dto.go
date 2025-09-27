@@ -5,7 +5,7 @@ type SuccessResponse struct {
 	Success bool        `json:"success" example:"true"`
 	Message string      `json:"message,omitempty" example:"Operation completed successfully"`
 	Data    interface{} `json:"data,omitempty"`
-} // @name SuccessResponse
+} //@name SuccessResponse
 
 // ErrorResponse represents an error API response
 type ErrorResponse struct {
@@ -13,7 +13,7 @@ type ErrorResponse struct {
 	Error   string      `json:"error" example:"Invalid request"`
 	Details interface{} `json:"details,omitempty"`
 	Code    string      `json:"code,omitempty" example:"VALIDATION_ERROR"`
-} // @name ErrorResponse
+} //@name ErrorResponse
 
 // HealthResponse represents health check response
 type HealthResponse struct {
@@ -21,7 +21,7 @@ type HealthResponse struct {
 	Service string `json:"service" example:"zpwoot"`
 	Version string `json:"version,omitempty" example:"1.0.0"`
 	Uptime  string `json:"uptime,omitempty" example:"2h30m15s"`
-} // @name HealthResponse
+}
 
 // PaginationResponse represents pagination metadata
 type PaginationResponse struct {
@@ -32,21 +32,21 @@ type PaginationResponse struct {
 	Pages   int  `json:"pages" example:"5"`
 	HasNext bool `json:"has_next" example:"true"`
 	HasPrev bool `json:"has_prev" example:"false"`
-} // @name PaginationResponse
+}
 
 // ValidationError represents a validation error detail
 type ValidationError struct {
 	Field   string `json:"field" example:"name"`
 	Message string `json:"message" example:"Name is required"`
 	Value   string `json:"value,omitempty" example:""`
-} // @name ValidationError
+}
 
 // ValidationErrorResponse represents validation errors response
 type ValidationErrorResponse struct {
 	Success bool              `json:"success" example:"false"`
 	Error   string            `json:"error" example:"Validation failed"`
 	Details []ValidationError `json:"details"`
-} // @name ValidationErrorResponse
+}
 
 // APIKeyResponse represents API key information
 type APIKeyResponse struct {
@@ -54,17 +54,17 @@ type APIKeyResponse struct {
 	Name      string   `json:"name" example:"My API Key"`
 	ExpiresAt string   `json:"expires_at,omitempty" example:"2024-12-31T23:59:59Z"`
 	Scopes    []string `json:"scopes" example:"sessions:read,sessions:write"`
-} // @name APIKeyResponse
+}
 
 // StatusResponse represents a simple status response
 type StatusResponse struct {
 	Status string `json:"status" example:"active"`
-} // @name StatusResponse
+}
 
 // MessageResponse represents a simple message response
 type MessageResponse struct {
 	Message string `json:"message" example:"Operation completed successfully"`
-} // @name MessageResponse
+} //@name MessageResponse
 
 // Helper functions
 

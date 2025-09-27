@@ -406,10 +406,10 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 		// Always attempt to reconnect sessions with device JID, regardless of stored connection status
 		// The IsConnected flag in database may be stale after server restart
 		logger.InfoWithFields("Attempting to reconnect session with saved credentials", map[string]interface{}{
-			"session_id":     sessionID,
-			"session_name":   sess.Name,
-			"device_jid":     sess.DeviceJid,
-			"was_connected":  sess.IsConnected,
+			"session_id":    sessionID,
+			"session_name":  sess.Name,
+			"device_jid":    sess.DeviceJid,
+			"was_connected": sess.IsConnected,
 		})
 
 		// Try to connect the session using session use case

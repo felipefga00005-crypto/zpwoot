@@ -19,7 +19,7 @@ func Metrics(container *app.Container, logger *logger.Logger) fiber.Handler {
 		// If there was an error, increment error count
 		if err != nil {
 			container.GetCommonUseCase().IncrementErrorCount()
-			
+
 			// Log the error for debugging
 			logger.ErrorWithFields("Request error", map[string]interface{}{
 				"method":     c.Method(),

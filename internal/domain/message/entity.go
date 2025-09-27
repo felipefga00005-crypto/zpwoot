@@ -38,19 +38,19 @@ type SendResult struct {
 
 // SendMessageRequest represents a request to send a message
 type SendMessageRequest struct {
-	To          string      `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
-	Type        MessageType `json:"type" validate:"required,oneof=text image audio video document sticker location contact" example:"text"`
-	Body        string      `json:"body,omitempty" example:"Hello World!"`
-	Caption     string      `json:"caption,omitempty" example:"Image caption"`
-	File        string      `json:"file,omitempty" example:"https://example.com/image.jpg"`
-	Filename    string      `json:"filename,omitempty" example:"document.pdf"`
-	MimeType    string      `json:"mimeType,omitempty" example:"image/jpeg"`
-	
+	To       string      `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	Type     MessageType `json:"type" validate:"required,oneof=text image audio video document sticker location contact" example:"text"`
+	Body     string      `json:"body,omitempty" example:"Hello World!"`
+	Caption  string      `json:"caption,omitempty" example:"Image caption"`
+	File     string      `json:"file,omitempty" example:"https://example.com/image.jpg"`
+	Filename string      `json:"filename,omitempty" example:"document.pdf"`
+	MimeType string      `json:"mimeType,omitempty" example:"image/jpeg"`
+
 	// Location specific fields
 	Latitude  float64 `json:"latitude,omitempty" example:"-23.5505"`
 	Longitude float64 `json:"longitude,omitempty" example:"-46.6333"`
 	Address   string  `json:"address,omitempty" example:"São Paulo, SP"`
-	
+
 	// Contact specific fields
 	ContactName  string `json:"contactName,omitempty" example:"John Doe"`
 	ContactPhone string `json:"contactPhone,omitempty" example:"+5511999999999"`
@@ -98,14 +98,14 @@ func (req *SendMessageRequest) GetMediaSource() MediaSource {
 	if req.File == "" {
 		return ""
 	}
-	
+
 	if strings.HasPrefix(req.File, "data:") {
 		return MediaSourceBase64
 	}
-	
+
 	if strings.HasPrefix(req.File, "http://") || strings.HasPrefix(req.File, "https://") {
 		return MediaSourceURL
 	}
-	
+
 	return MediaSourceFile
 }

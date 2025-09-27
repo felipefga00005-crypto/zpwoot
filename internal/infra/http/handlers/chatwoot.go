@@ -5,28 +5,28 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
-	"zpwoot/internal/app"
-	"zpwoot/internal/domain/chatwoot"
+	"zpwoot/internal/app/chatwoot"
+	domainChatwoot "zpwoot/internal/domain/chatwoot"
 	"zpwoot/pkg/errors"
 	"zpwoot/platform/logger"
 )
 
 type ChatwootHandler struct {
-	chatwootUC app.ChatwootUseCase
+	chatwootUC chatwoot.UseCase
 	logger     *logger.Logger
 }
 
 type ChatwootService interface {
-	CreateConfig(ctx context.Context, req *app.CreateChatwootConfigRequest) (*app.CreateChatwootConfigResponse, error)
-	GetConfig(ctx context.Context) (*app.ChatwootConfigResponse, error)
-	UpdateConfig(ctx context.Context, req *app.UpdateChatwootConfigRequest) (*app.ChatwootConfigResponse, error)
+	CreateConfig(ctx context.Context, req *chatwoot.CreateChatwootConfigRequest) (*chatwoot.CreateChatwootConfigResponse, error)
+	GetConfig(ctx context.Context) (*chatwoot.ChatwootConfigResponse, error)
+	UpdateConfig(ctx context.Context, req *chatwoot.UpdateChatwootConfigRequest) (*chatwoot.ChatwootConfigResponse, error)
 	DeleteConfig(ctx context.Context) error
-	SyncContact(ctx context.Context, req *app.SyncContactRequest) (*app.SyncContactResponse, error)
-	SyncConversation(ctx context.Context, req *app.SyncConversationRequest) (*app.SyncConversationResponse, error)
-	ProcessWebhook(ctx context.Context, payload *app.ChatwootWebhookPayload) error
+	SyncContact(ctx context.Context, req *chatwoot.SyncContactRequest) (*chatwoot.SyncContactResponse, error)
+	SyncConversation(ctx context.Context, req *chatwoot.SyncConversationRequest) (*chatwoot.SyncConversationResponse, error)
+	ProcessWebhook(ctx context.Context, payload *chatwoot.ChatwootWebhookPayload) error
 }
 
-func NewChatwootHandler(chatwootUC app.ChatwootUseCase, logger *logger.Logger) *ChatwootHandler {
+func NewChatwootHandler(chatwootUC chatwoot.UseCase, logger *logger.Logger) *ChatwootHandler {
 	return &ChatwootHandler{
 		chatwootUC: chatwootUC,
 		logger:     logger,
@@ -40,14 +40,14 @@ func NewChatwootHandler(chatwootUC app.ChatwootUseCase, logger *logger.Logger) *
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param request body app.CreateChatwootConfigRequest true "Chatwoot configuration request"
-// @Success 201 {object} app.CreateChatwootConfigResponse "Chatwoot configuration created successfully"
+// @Param request body chatwoot.CreateChatwootConfigRequest true "Chatwoot configuration request"
+// @Success 201 {object} chatwoot.CreateChatwootConfigResponse "Chatwoot configuration created successfully"
 // @Failure 400 {object} object "Invalid request body or parameters"
 // @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
 // @Failure 500 {object} object "Internal server error"
 // @Router /chatwoot/config [post]
 func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
-	var req app.CreateChatwootConfigRequest
+	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -97,7 +97,7 @@ func (h *ChatwootHandler) GetConfig(c *fiber.Ctx) error {
 // UpdateConfig updates Chatwoot configuration
 // PUT /chatwoot/config
 func (h *ChatwootHandler) UpdateConfig(c *fiber.Ctx) error {
-	var req app.UpdateChatwootConfigRequest
+	var req chatwoot.UpdateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -149,7 +149,7 @@ func (h *ChatwootHandler) DeleteConfig(c *fiber.Ctx) error {
 // SyncContacts synchronizes contacts with Chatwoot
 // POST /chatwoot/sync/contacts
 func (h *ChatwootHandler) SyncContacts(c *fiber.Ctx) error {
-	var req app.SyncContactRequest
+	var req chatwoot.SyncContactRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -178,7 +178,7 @@ func (h *ChatwootHandler) SyncContacts(c *fiber.Ctx) error {
 // SyncConversations synchronizes conversations with Chatwoot
 // POST /chatwoot/sync/conversations
 func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
-	var req app.SyncConversationRequest
+	var req chatwoot.SyncConversationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid request body",
@@ -207,7 +207,7 @@ func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
 // ReceiveWebhook receives webhook from Chatwoot
 // POST /chatwoot/webhook
 func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
-	var payload app.ChatwootWebhookPayload
+	var payload chatwoot.ChatwootWebhookPayload
 	if err := c.BodyParser(&payload); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid webhook payload",
@@ -215,7 +215,7 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	}
 
 	// Validate event type
-	if !chatwoot.IsValidChatwootEvent(payload.Event) {
+	if !domainChatwoot.IsValidChatwootEvent(payload.Event) {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid event type",
 			"event": payload.Event,
@@ -294,7 +294,7 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 	// sessionID := c.Params("sessionId") // Not used in current implementation
 
-	var req app.CreateChatwootConfigRequest
+	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"success": false,
@@ -329,7 +329,7 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 	}
 
 	// Config exists, update it
-	updateReq := app.UpdateChatwootConfigRequest{
+	updateReq := chatwoot.UpdateChatwootConfigRequest{
 		URL:       &req.URL,
 		APIKey:    &req.APIKey,
 		AccountID: &req.AccountID,

@@ -41,10 +41,10 @@ func APIKeyAuth(cfg *config.Config, logger *logger.Logger) fiber.Handler {
 		// Check if API key is valid
 		if apiKey != cfg.GlobalAPIKey {
 			logger.WarnWithFields("Invalid API key", map[string]interface{}{
-				"path":     path,
-				"method":   c.Method(),
-				"ip":       c.IP(),
-				"api_key":  maskAPIKey(apiKey),
+				"path":    path,
+				"method":  c.Method(),
+				"ip":      c.IP(),
+				"api_key": maskAPIKey(apiKey),
 			})
 			return c.Status(401).JSON(fiber.Map{
 				"error":   "Unauthorized",

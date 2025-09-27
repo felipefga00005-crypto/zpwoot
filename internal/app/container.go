@@ -4,9 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 
-	"zpwoot/internal/domain/chatwoot"
-	"zpwoot/internal/domain/session"
-	"zpwoot/internal/domain/webhook"
+	"zpwoot/internal/app/chatwoot"
+	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/message"
+	"zpwoot/internal/app/session"
+	"zpwoot/internal/app/webhook"
+	domainChatwoot "zpwoot/internal/domain/chatwoot"
+	domainSession "zpwoot/internal/domain/session"
+	domainWebhook "zpwoot/internal/domain/webhook"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -14,11 +19,11 @@ import (
 // Container holds all use cases and their dependencies
 type Container struct {
 	// Use Cases
-	CommonUseCase   CommonUseCase
-	SessionUseCase  SessionUseCase
-	WebhookUseCase  WebhookUseCase
-	ChatwootUseCase ChatwootUseCase
-	MessageUseCase  MessageUseCase
+	CommonUseCase   common.UseCase
+	SessionUseCase  session.UseCase
+	WebhookUseCase  webhook.UseCase
+	ChatwootUseCase chatwoot.UseCase
+	MessageUseCase  message.UseCase
 
 	// Dependencies
 	logger      *logger.Logger
@@ -49,21 +54,21 @@ type ContainerConfig struct {
 // NewContainer creates a new application container with all use cases
 func NewContainer(config *ContainerConfig) *Container {
 	// Create domain services
-	sessionService := session.NewService(
+	sessionService := domainSession.NewService(
 		config.SessionRepo,
 		config.WameowManager,
 	)
 
-	webhookService := webhook.NewService(
+	webhookService := domainWebhook.NewService(
 		config.Logger,
 	)
 
-	chatwootService := chatwoot.NewService(
+	chatwootService := domainChatwoot.NewService(
 		config.Logger,
 	)
 
 	// Create use cases
-	commonUseCase := NewCommonUseCase(
+	commonUseCase := common.NewUseCase(
 		config.Version,
 		config.BuildTime,
 		config.GitCommit,
@@ -72,24 +77,24 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.WebhookRepo,
 	)
 
-	sessionUseCase := NewSessionUseCase(
+	sessionUseCase := session.NewUseCase(
 		config.SessionRepo,
 		config.WameowManager,
 		sessionService,
 	)
 
-	webhookUseCase := NewWebhookUseCase(
+	webhookUseCase := webhook.NewUseCase(
 		config.WebhookRepo,
 		webhookService,
 	)
 
-	chatwootUseCase := NewChatwootUseCase(
+	chatwootUseCase := chatwoot.NewUseCase(
 		config.ChatwootRepo,
 		config.ChatwootIntegration,
 		chatwootService,
 	)
 
-	messageUseCase := NewMessageUseCase(
+	messageUseCase := message.NewUseCase(
 		config.SessionRepo,
 		config.WameowManager,
 		config.Logger,
@@ -107,22 +112,22 @@ func NewContainer(config *ContainerConfig) *Container {
 }
 
 // GetCommonUseCase returns the common use case
-func (c *Container) GetCommonUseCase() CommonUseCase {
+func (c *Container) GetCommonUseCase() common.UseCase {
 	return c.CommonUseCase
 }
 
 // GetSessionUseCase returns the session use case
-func (c *Container) GetSessionUseCase() SessionUseCase {
+func (c *Container) GetSessionUseCase() session.UseCase {
 	return c.SessionUseCase
 }
 
 // GetWebhookUseCase returns the webhook use case
-func (c *Container) GetWebhookUseCase() WebhookUseCase {
+func (c *Container) GetWebhookUseCase() webhook.UseCase {
 	return c.WebhookUseCase
 }
 
 // GetChatwootUseCase returns the chatwoot use case
-func (c *Container) GetChatwootUseCase() ChatwootUseCase {
+func (c *Container) GetChatwootUseCase() chatwoot.UseCase {
 	return c.ChatwootUseCase
 }
 
@@ -137,7 +142,7 @@ func (c *Container) GetSessionRepository() ports.SessionRepository {
 }
 
 // GetMessageUseCase returns the message use case
-func (c *Container) GetMessageUseCase() MessageUseCase {
+func (c *Container) GetMessageUseCase() message.UseCase {
 	return c.MessageUseCase
 }
 

@@ -1,12 +1,64 @@
 basePath: /
 definitions:
+  AudioMessageRequest:
+    properties:
+      caption:
+        example: Voice message
+        type: string
+      file:
+        example: https://example.com/audio.ogg
+        type: string
+      filename:
+        example: voice_message.ogg
+        type: string
+      mimeType:
+        example: audio/ogg
+        type: string
+      to:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+    required:
+    - file
+    - to
+    type: object
+  BusinessProfileRequest:
+    properties:
+      address:
+        example: Rua Teste, 123 - São Paulo, SP
+        type: string
+      email:
+        example: contato@empresateste.com.br
+        type: string
+      name:
+        example: Empresa Teste Ltda
+        type: string
+      organization:
+        example: Empresa Teste Ltda
+        type: string
+      phone:
+        example: "+5511987654321"
+        type: string
+      title:
+        example: Atendimento ao Cliente
+        type: string
+      to:
+        example: 5511987654321@s.whatsapp.net
+        type: string
+      website:
+        example: https://www.empresateste.com.br
+        type: string
+    required:
+    - name
+    - phone
+    - to
+    type: object
   Button:
     properties:
       id:
-        example: btn_1
+        example: btn_yes
         type: string
       text:
-        example: Option 1
+        example: Yes, I agree
         type: string
     required:
     - text
@@ -14,7 +66,7 @@ definitions:
   ButtonMessageRequest:
     properties:
       body:
-        example: 'Choose an option:'
+        example: 'Please choose one of the options below:'
         type: string
       buttons:
         items:
@@ -30,13 +82,32 @@ definitions:
     - buttons
     - to
     type: object
+  ContactListMessageResponse:
+    properties:
+      failureCount:
+        example: 0
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/ContactSendResult'
+        type: array
+      successCount:
+        example: 3
+        type: integer
+      timestamp:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      totalContacts:
+        example: 3
+        type: integer
+    type: object
   ContactMessageRequest:
     properties:
       contactName:
-        example: John Doe
+        example: Maria Silva
         type: string
       contactPhone:
-        example: "+5511999999999"
+        example: "+5511987654321"
         type: string
       to:
         example: 5511999999999@s.whatsapp.net
@@ -45,6 +116,100 @@ definitions:
     - contactName
     - contactPhone
     - to
+    type: object
+  ContactSendResult:
+    properties:
+      contactName:
+        example: João Santos
+        type: string
+      error:
+        type: string
+      messageId:
+        example: 3EB07F264CA1B4AD714A3F
+        type: string
+      status:
+        example: sent
+        type: string
+    type: object
+  ContextInfo:
+    properties:
+      participant:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      stanzaId:
+        example: ABCD1234abcd
+        type: string
+    required:
+    - stanzaId
+    type: object
+  CreateChatwootConfigRequest:
+    properties:
+      accountId:
+        example: "1"
+        type: string
+      apiKey:
+        example: chatwoot-api-key-123
+        type: string
+      inboxId:
+        example: "1"
+        type: string
+      url:
+        example: https://chatwoot.example.com
+        type: string
+    required:
+    - accountId
+    - apiKey
+    - url
+    type: object
+  CreateChatwootConfigResponse:
+    properties:
+      accountId:
+        example: "1"
+        type: string
+      active:
+        example: true
+        type: boolean
+      createdAt:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: chatwoot-config-123
+        type: string
+      inboxId:
+        example: "1"
+        type: string
+      url:
+        example: https://chatwoot.example.com
+        type: string
+    type: object
+  CreateSessionRequest:
+    properties:
+      name:
+        example: my-whatsapp-session
+        maxLength: 50
+        minLength: 3
+        type: string
+      proxyConfig:
+        $ref: '#/definitions/ProxyConfig'
+    required:
+    - name
+    type: object
+  CreateSessionResponse:
+    properties:
+      createdAt:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      id:
+        example: 1b2e424c-a2a0-41a4-b992-15b7ec06b9bc
+        type: string
+      isConnected:
+        example: false
+        type: boolean
+      name:
+        example: my-whatsapp-session
+        type: string
+      proxyConfig:
+        $ref: '#/definitions/ProxyConfig'
     type: object
   DeleteMessageRequest:
     properties:
@@ -91,6 +256,28 @@ definitions:
         example: android
         type: string
     type: object
+  DocumentMessageRequest:
+    properties:
+      caption:
+        example: Important document
+        type: string
+      file:
+        example: https://example.com/document.pdf
+        type: string
+      filename:
+        example: important_document.pdf
+        type: string
+      mimeType:
+        example: application/pdf
+        type: string
+      to:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+    required:
+    - file
+    - filename
+    - to
+    type: object
   EditMessageRequest:
     properties:
       messageId:
@@ -135,13 +322,34 @@ definitions:
         example: false
         type: boolean
     type: object
+  ImageMessageRequest:
+    properties:
+      caption:
+        example: Beautiful sunset photo
+        type: string
+      file:
+        example: https://example.com/image.jpg
+        type: string
+      filename:
+        example: sunset.jpg
+        type: string
+      mimeType:
+        example: image/jpeg
+        type: string
+      to:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+    required:
+    - file
+    - to
+    type: object
   ListMessageRequest:
     properties:
       body:
-        example: 'Please select an option:'
+        example: 'Please select one of the available options:'
         type: string
       buttonText:
-        example: View Options
+        example: Select Option
         type: string
       sections:
         items:
@@ -176,7 +384,7 @@ definitions:
   LocationMessageRequest:
     properties:
       address:
-        example: São Paulo, SP
+        example: Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil
         type: string
       latitude:
         example: -23.5505
@@ -195,16 +403,16 @@ definitions:
   MediaMessageRequest:
     properties:
       caption:
-        example: Image caption
+        example: Media caption
         type: string
       file:
-        example: https://example.com/image.jpg
+        example: https://example.com/media.file
         type: string
       filename:
-        example: image.jpg
+        example: media.file
         type: string
       mimeType:
-        example: image/jpeg
+        example: application/octet-stream
         type: string
       to:
         example: 5511999999999@s.whatsapp.net
@@ -255,6 +463,37 @@ definitions:
         example: "2024-01-01T12:00:00Z"
         type: string
     type: object
+  ProxyConfig:
+    properties:
+      host:
+        example: proxy.example.com
+        type: string
+      password:
+        example: proxypass123
+        type: string
+      port:
+        example: 8080
+        type: integer
+      type:
+        description: http, socks5
+        example: http
+        type: string
+      username:
+        example: proxyuser
+        type: string
+    type: object
+  QRCodeResponse:
+    properties:
+      expiresAt:
+        example: "2024-01-01T00:01:00Z"
+        type: string
+      qrCode:
+        example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
+        type: string
+      timeoutSeconds:
+        example: 60
+        type: integer
+    type: object
   ReactionMessageRequest:
     properties:
       messageId:
@@ -289,13 +528,13 @@ definitions:
   Row:
     properties:
       description:
-        example: Description for option 1
+        example: Get help from our support team
         type: string
       id:
-        example: row_1
+        example: service_support
         type: string
       title:
-        example: Option 1
+        example: Customer Support
         type: string
     required:
     - title
@@ -309,7 +548,7 @@ definitions:
         minItems: 1
         type: array
       title:
-        example: Main Options
+        example: Available Services
         type: string
     required:
     - rows
@@ -379,35 +618,6 @@ definitions:
         example: "2024-01-01T12:00:00Z"
         type: string
     type: object
-  SessionCreateRequest:
-    properties:
-      name:
-        example: mySession
-        maxLength: 50
-        minLength: 3
-        type: string
-      proxyConfig:
-        $ref: '#/definitions/zpwoot_internal_domain_session.ProxyConfig'
-    required:
-    - name
-    type: object
-  SessionCreateResponse:
-    properties:
-      createdAt:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      id:
-        example: session-123
-        type: string
-      isConnected:
-        example: false
-        type: boolean
-      name:
-        example: mySession
-        type: string
-      proxyConfig:
-        $ref: '#/definitions/zpwoot_internal_domain_session.ProxyConfig'
-    type: object
   SessionInfoResponse:
     properties:
       deviceInfo:
@@ -439,7 +649,7 @@ definitions:
         example: my-Wameow-session
         type: string
       proxyConfig:
-        $ref: '#/definitions/zpwoot_internal_domain_session.ProxyConfig'
+        $ref: '#/definitions/ProxyConfig'
       updatedAt:
         example: "2024-01-01T00:00:00Z"
         type: string
@@ -450,22 +660,49 @@ definitions:
         example:
         - message
         - status
+        - connection
         items:
           type: string
         minItems: 1
         type: array
       secret:
-        example: webhook-secret-key
+        example: my-webhook-secret-key-123
         type: string
       sessionId:
-        example: session-123
+        example: 1b2e424c-a2a0-41a4-b992-15b7ec06b9bc
         type: string
       url:
-        example: https://example.com/webhook
+        example: https://myapp.com/webhook/whatsapp
         type: string
     required:
     - events
     - url
+    type: object
+  SetConfigResponse:
+    properties:
+      active:
+        example: true
+        type: boolean
+      createdAt:
+        example: "2024-01-01T00:00:00Z"
+        type: string
+      events:
+        example:
+        - message
+        - status
+        - connection
+        items:
+          type: string
+        type: array
+      id:
+        example: webhook-456def
+        type: string
+      sessionId:
+        example: 1b2e424c-a2a0-41a4-b992-15b7ec06b9bc
+        type: string
+      url:
+        example: https://myapp.com/webhook/whatsapp
+        type: string
     type: object
   SuccessResponse:
     properties:
@@ -479,14 +716,37 @@ definitions:
     type: object
   TextMessageRequest:
     properties:
-      body:
-        example: Hello World!
+      contextInfo:
+        $ref: '#/definitions/ContextInfo'
+      text:
+        example: Hello, this is a text message
+        type: string
+      to:
+        example: 5511987654321@s.whatsapp.net
+        type: string
+    required:
+    - text
+    - to
+    type: object
+  VideoMessageRequest:
+    properties:
+      caption:
+        example: Check out this amazing video!
+        type: string
+      file:
+        example: https://example.com/video.mp4
+        type: string
+      filename:
+        example: amazing_video.mp4
+        type: string
+      mimeType:
+        example: video/mp4
         type: string
       to:
         example: 5511999999999@s.whatsapp.net
         type: string
     required:
-    - body
+    - file
     - to
     type: object
   WebhookResponse:
@@ -515,100 +775,6 @@ definitions:
         type: string
       url:
         example: https://example.com/webhook
-        type: string
-    type: object
-  zpwoot_internal_app.CreateChatwootConfigRequest:
-    properties:
-      accountId:
-        example: "1"
-        type: string
-      apiKey:
-        example: chatwoot-api-key-123
-        type: string
-      inboxId:
-        example: "1"
-        type: string
-      url:
-        example: https://chatwoot.example.com
-        type: string
-    required:
-    - accountId
-    - apiKey
-    - url
-    type: object
-  zpwoot_internal_app.CreateChatwootConfigResponse:
-    properties:
-      accountId:
-        example: "1"
-        type: string
-      active:
-        example: true
-        type: boolean
-      createdAt:
-        example: "2024-01-01T00:00:00Z"
-        type: string
-      id:
-        example: chatwoot-config-123
-        type: string
-      inboxId:
-        example: "1"
-        type: string
-      url:
-        example: https://chatwoot.example.com
-        type: string
-    type: object
-  zpwoot_internal_app.ErrorResponse:
-    properties:
-      code:
-        example: VALIDATION_ERROR
-        type: string
-      details: {}
-      error:
-        example: Invalid request
-        type: string
-      success:
-        example: false
-        type: boolean
-    type: object
-  zpwoot_internal_app.QRCodeResponse:
-    properties:
-      expiresAt:
-        example: "2024-01-01T00:01:00Z"
-        type: string
-      qrCode:
-        example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
-        type: string
-      timeoutSeconds:
-        example: 60
-        type: integer
-    type: object
-  zpwoot_internal_app.SuccessResponse:
-    properties:
-      data: {}
-      message:
-        example: Operation completed successfully
-        type: string
-      success:
-        example: true
-        type: boolean
-    type: object
-  zpwoot_internal_domain_session.ProxyConfig:
-    properties:
-      host:
-        example: proxy.example.com
-        type: string
-      password:
-        example: password
-        type: string
-      port:
-        example: 8080
-        type: integer
-      type:
-        description: http, socks5
-        example: http
-        type: string
-      username:
-        example: user
         type: string
     type: object
 host: localhost:8080
@@ -641,14 +807,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/zpwoot_internal_app.CreateChatwootConfigRequest'
+          $ref: '#/definitions/CreateChatwootConfigRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Chatwoot configuration created successfully
           schema:
-            $ref: '#/definitions/zpwoot_internal_app.CreateChatwootConfigResponse'
+            $ref: '#/definitions/CreateChatwootConfigResponse'
         "400":
           description: Invalid request body or parameters
           schema:
@@ -981,7 +1147,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/MediaMessageRequest'
+          $ref: '#/definitions/AudioMessageRequest'
       produces:
       - application/json
       responses:
@@ -1062,7 +1228,9 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a contact message through WhatsApp
+      description: Send a single contact or multiple contacts through WhatsApp. Automatically
+        detects if it's a single contact (ContactMessage) or multiple contacts (ContactsArrayMessage)
+        based on the array length.
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1070,7 +1238,8 @@ paths:
         name: sessionId
         required: true
         type: string
-      - description: Contact message request
+      - description: Contact message request (single contact) or ContactListMessageRequest
+          (multiple contacts)
         in: body
         name: request
         required: true
@@ -1080,13 +1249,13 @@ paths:
       - application/json
       responses:
         "200":
-          description: Message sent successfully
+          description: Contact list sent successfully
           schema:
             allOf:
             - $ref: '#/definitions/SuccessResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/SendMessageResponse'
+                  $ref: '#/definitions/ContactListMessageResponse'
               type: object
         "400":
           description: Invalid request
@@ -1102,7 +1271,7 @@ paths:
             $ref: '#/definitions/ErrorResponse'
       security:
       - ApiKeyAuth: []
-      summary: Send contact message
+      summary: Send contact message(s)
       tags:
       - Messages
   /sessions/{sessionId}/messages/send/document:
@@ -1122,7 +1291,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/MediaMessageRequest'
+          $ref: '#/definitions/DocumentMessageRequest'
       produces:
       - application/json
       responses:
@@ -1169,7 +1338,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/MediaMessageRequest'
+          $ref: '#/definitions/ImageMessageRequest'
       produces:
       - application/json
       responses:
@@ -1387,6 +1556,54 @@ paths:
       summary: Send presence
       tags:
       - Messages
+  /sessions/{sessionId}/messages/send/profile/business:
+    post:
+      consumes:
+      - application/json
+      description: Send a business profile contact using Business format (with waid,
+        X-ABLabel, X-WA-BIZ-NAME)
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Business profile request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/BusinessProfileRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Business profile sent successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/SendMessageResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "404":
+          description: Session not found
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/ErrorResponse'
+      security:
+      - ApiKeyAuth: []
+      summary: Send business profile contact
+      tags:
+      - Messages
   /sessions/{sessionId}/messages/send/reaction:
     post:
       consumes:
@@ -1485,7 +1702,7 @@ paths:
     post:
       consumes:
       - application/json
-      description: Send a simple text message through WhatsApp
+      description: Send a text message with optional reply to a previous message
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1503,7 +1720,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: Message sent successfully
+          description: Text message sent successfully
           schema:
             allOf:
             - $ref: '#/definitions/SuccessResponse'
@@ -1545,7 +1762,7 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/MediaMessageRequest'
+          $ref: '#/definitions/VideoMessageRequest'
       produces:
       - application/json
       responses:
@@ -1636,27 +1853,27 @@ paths:
           description: QR code retrieved successfully
           schema:
             allOf:
-            - $ref: '#/definitions/zpwoot_internal_app.SuccessResponse'
+            - $ref: '#/definitions/SuccessResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/zpwoot_internal_app.QRCodeResponse'
+                  $ref: '#/definitions/QRCodeResponse'
               type: object
         "400":
           description: Invalid session identifier
           schema:
-            $ref: '#/definitions/zpwoot_internal_app.ErrorResponse'
+            $ref: '#/definitions/ErrorResponse'
         "401":
           description: Unauthorized - Invalid or missing API key
           schema:
-            $ref: '#/definitions/zpwoot_internal_app.ErrorResponse'
+            $ref: '#/definitions/ErrorResponse'
         "404":
           description: Session not found or no QR code available
           schema:
-            $ref: '#/definitions/zpwoot_internal_app.ErrorResponse'
+            $ref: '#/definitions/ErrorResponse'
         "500":
           description: Internal server error
           schema:
-            $ref: '#/definitions/zpwoot_internal_app.ErrorResponse'
+            $ref: '#/definitions/ErrorResponse'
   /sessions/{sessionId}/webhook/config:
     get:
       consumes:
@@ -1720,7 +1937,7 @@ paths:
         "201":
           description: Webhook created successfully
           schema:
-            $ref: '#/definitions/WebhookResponse'
+            $ref: '#/definitions/SetConfigResponse'
         "400":
           description: Invalid request body or parameters
           schema:
@@ -1754,14 +1971,14 @@ paths:
         name: request
         required: true
         schema:
-          $ref: '#/definitions/SessionCreateRequest'
+          $ref: '#/definitions/CreateSessionRequest'
       produces:
       - application/json
       responses:
         "201":
           description: Session created successfully
           schema:
-            $ref: '#/definitions/SessionCreateResponse'
+            $ref: '#/definitions/CreateSessionResponse'
         "400":
           description: Invalid request body or parameters
           schema:

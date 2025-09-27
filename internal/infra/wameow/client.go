@@ -497,14 +497,14 @@ func (c *WameowClient) SendImageMessage(ctx context.Context, to, filePath, capti
 	mimetype := "image/jpeg" // Default mimetype
 	message := &waE2E.Message{
 		ImageMessage: &waE2E.ImageMessage{
-			Caption:        &caption,
-			URL:            &uploaded.URL,
-			DirectPath:     &uploaded.DirectPath,
-			MediaKey:       uploaded.MediaKey,
-			Mimetype:       &mimetype,
-			FileEncSHA256:  uploaded.FileEncSHA256,
-			FileSHA256:     uploaded.FileSHA256,
-			FileLength:     &uploaded.FileLength,
+			Caption:       &caption,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
 		},
 	}
 
@@ -561,13 +561,13 @@ func (c *WameowClient) SendAudioMessage(ctx context.Context, to, filePath string
 	mimetype := "audio/ogg; codecs=opus" // Default mimetype
 	message := &waE2E.Message{
 		AudioMessage: &waE2E.AudioMessage{
-			URL:            &uploaded.URL,
-			DirectPath:     &uploaded.DirectPath,
-			MediaKey:       uploaded.MediaKey,
-			Mimetype:       &mimetype,
-			FileEncSHA256:  uploaded.FileEncSHA256,
-			FileSHA256:     uploaded.FileSHA256,
-			FileLength:     &uploaded.FileLength,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
 		},
 	}
 
@@ -623,14 +623,14 @@ func (c *WameowClient) SendVideoMessage(ctx context.Context, to, filePath, capti
 	mimetype := "video/mp4" // Default mimetype
 	message := &waE2E.Message{
 		VideoMessage: &waE2E.VideoMessage{
-			Caption:        &caption,
-			URL:            &uploaded.URL,
-			DirectPath:     &uploaded.DirectPath,
-			MediaKey:       uploaded.MediaKey,
-			Mimetype:       &mimetype,
-			FileEncSHA256:  uploaded.FileEncSHA256,
-			FileSHA256:     uploaded.FileSHA256,
-			FileLength:     &uploaded.FileLength,
+			Caption:       &caption,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
 		},
 	}
 
@@ -687,15 +687,15 @@ func (c *WameowClient) SendDocumentMessage(ctx context.Context, to, filePath, fi
 	mimetype := "application/octet-stream" // Default mimetype
 	message := &waE2E.Message{
 		DocumentMessage: &waE2E.DocumentMessage{
-			Title:          &filename,
-			FileName:       &filename,
-			URL:            &uploaded.URL,
-			DirectPath:     &uploaded.DirectPath,
-			MediaKey:       uploaded.MediaKey,
-			Mimetype:       &mimetype,
-			FileEncSHA256:  uploaded.FileEncSHA256,
-			FileSHA256:     uploaded.FileSHA256,
-			FileLength:     &uploaded.FileLength,
+			Title:         &filename,
+			FileName:      &filename,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
 		},
 	}
 
@@ -820,6 +820,439 @@ func (c *WameowClient) SendContactMessage(ctx context.Context, to, contactName, 
 	return &resp, nil
 }
 
+// ContactInfo represents detailed contact information for vCard
+type ContactInfo struct {
+	Name         string
+	Phone        string
+	Email        string
+	Organization string
+	Title        string
+	Website      string
+	Address      string
+}
+
+// SendDetailedContactMessage sends a contact message with detailed information
+func (c *WameowClient) SendDetailedContactMessage(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	// Create detailed vCard
+	vcard := fmt.Sprintf("BEGIN:VCARD\nVERSION:3.0\nFN:%s\nTEL:%s", contact.Name, contact.Phone)
+
+	if contact.Email != "" {
+		vcard += fmt.Sprintf("\nEMAIL:%s", contact.Email)
+	}
+	if contact.Organization != "" {
+		vcard += fmt.Sprintf("\nORG:%s", contact.Organization)
+	}
+	if contact.Title != "" {
+		vcard += fmt.Sprintf("\nTITLE:%s", contact.Title)
+	}
+	if contact.Website != "" {
+		vcard += fmt.Sprintf("\nURL:%s", contact.Website)
+	}
+	if contact.Address != "" {
+		vcard += fmt.Sprintf("\nADR:%s", contact.Address)
+	}
+
+	vcard += "\nEND:VCARD"
+
+	// Create contact message
+	message := &waE2E.Message{
+		ContactMessage: &waE2E.ContactMessage{
+			DisplayName: &contact.Name,
+			Vcard:       &vcard,
+		},
+	}
+
+	c.logger.InfoWithFields("Sending detailed contact message", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"to":            to,
+		"contact_name":  contact.Name,
+		"contact_phone": contact.Phone,
+		"has_email":     contact.Email != "",
+		"has_org":       contact.Organization != "",
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send detailed contact message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Detailed contact message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+	})
+
+	return &resp, nil
+}
+
+// SendContactListMessage sends multiple contacts using ContactsArrayMessage (like WhatsApp native)
+func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, contacts []ContactInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	if len(contacts) == 0 {
+		return nil, fmt.Errorf("at least one contact is required")
+	}
+
+	// Create display name for the contact list
+	displayName := fmt.Sprintf("%d contatos", len(contacts))
+	if len(contacts) == 1 {
+		displayName = contacts[0].Name
+	}
+
+	// Create individual contact messages for ContactsArrayMessage
+	var contactMessages []*waE2E.ContactMessage
+
+	for _, contact := range contacts {
+		// Create optimized vCard for WhatsApp (only supported fields)
+		vcard := "BEGIN:VCARD\n"
+		vcard += "VERSION:3.0\n"
+		vcard += fmt.Sprintf("FN:%s\n", contact.Name)
+		vcard += fmt.Sprintf("N:%s;;;;\n", contact.Name)
+		vcard += fmt.Sprintf("TEL:%s\n", contact.Phone)
+
+		// Only include fields that WhatsApp actually supports and displays
+		if contact.Organization != "" {
+			vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
+		}
+
+		// Note: EMAIL, TITLE, URL, ADR are not displayed by WhatsApp
+		// but we'll include them as optional for compatibility with other apps
+		if contact.Email != "" {
+			vcard += fmt.Sprintf("EMAIL:%s\n", contact.Email)
+		}
+		if contact.Title != "" {
+			vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
+		}
+		if contact.Website != "" {
+			vcard += fmt.Sprintf("URL:%s\n", contact.Website)
+		}
+		if contact.Address != "" {
+			vcard += fmt.Sprintf("ADR:%s\n", contact.Address)
+		}
+
+		vcard += "END:VCARD"
+
+		// Log the generated vCard for analysis
+		c.logger.InfoWithFields("📋 Generated vCard for contact", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"contact_name":  contact.Name,
+			"vcard_content": vcard,
+		})
+
+		// Create individual contact message
+		contactMessage := &waE2E.ContactMessage{
+			DisplayName: &contact.Name,
+			Vcard:       &vcard,
+		}
+
+		contactMessages = append(contactMessages, contactMessage)
+	}
+
+	// Create ContactsArrayMessage with all contacts
+	message := &waE2E.Message{
+		ContactsArrayMessage: &waE2E.ContactsArrayMessage{
+			DisplayName: &displayName,
+			Contacts:    contactMessages,
+		},
+	}
+
+	c.logger.InfoWithFields("Sending contacts array message (WhatsApp native format)", map[string]interface{}{
+		"session_id":     c.sessionID,
+		"to":             to,
+		"contact_count":  len(contacts),
+		"display_name":   displayName,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send contacts array message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Contacts array message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+		"contact_count": len(contacts),
+	})
+
+	return &resp, nil
+}
+
+// SendContactListMessageBusiness sends multiple contacts using Business format
+func (c *WameowClient) SendContactListMessageBusiness(ctx context.Context, to string, contacts []ContactInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	if len(contacts) == 0 {
+		return nil, fmt.Errorf("at least one contact is required")
+	}
+
+	// Create display name for the contact list
+	displayName := fmt.Sprintf("%d contatos", len(contacts))
+	if len(contacts) == 1 {
+		displayName = contacts[0].Name
+	}
+
+	// Create individual contact messages for ContactsArrayMessage using WhatsApp Business format
+	var contactMessages []*waE2E.ContactMessage
+
+	for _, contact := range contacts {
+		// Create WhatsApp Business style vCard
+		vcard := "BEGIN:VCARD\n"
+		vcard += "VERSION:3.0\n"
+		vcard += fmt.Sprintf("N:;%s;;;\n", contact.Name)
+		vcard += fmt.Sprintf("FN:%s\n", contact.Name)
+
+		if contact.Organization != "" {
+			vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
+		}
+
+		// WhatsApp Business style TITLE (empty if not provided)
+		if contact.Title != "" {
+			vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
+		} else {
+			vcard += "TITLE:\n"
+		}
+
+		// WhatsApp Business style phone with waid
+		phoneClean := strings.ReplaceAll(strings.ReplaceAll(contact.Phone, "+", ""), " ", "")
+		phoneFormatted := contact.Phone
+		vcard += fmt.Sprintf("item1.TEL;waid=%s:%s\n", phoneClean, phoneFormatted)
+		vcard += "item1.X-ABLabel:Celular\n"
+
+		// WhatsApp Business name field
+		vcard += fmt.Sprintf("X-WA-BIZ-NAME:%s\n", contact.Name)
+
+		vcard += "END:VCARD"
+
+		// Log the generated Business style vCard
+		c.logger.InfoWithFields("📋 Generated Business style vCard", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"contact_name":  contact.Name,
+			"vcard_content": vcard,
+		})
+
+		// Create individual contact message
+		contactMessage := &waE2E.ContactMessage{
+			DisplayName: &contact.Name,
+			Vcard:       &vcard,
+		}
+
+		contactMessages = append(contactMessages, contactMessage)
+	}
+
+	// Create ContactsArrayMessage with all contacts
+	message := &waE2E.Message{
+		ContactsArrayMessage: &waE2E.ContactsArrayMessage{
+			DisplayName: &displayName,
+			Contacts:    contactMessages,
+		},
+	}
+
+	c.logger.InfoWithFields("Sending contacts array message (Business format)", map[string]interface{}{
+		"session_id":     c.sessionID,
+		"to":             to,
+		"contact_count":  len(contacts),
+		"display_name":   displayName,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send Business contacts array message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Business contacts array message sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": resp.ID,
+		"contact_count": len(contacts),
+	})
+
+	return &resp, nil
+}
+
+// SendSingleContactMessage sends a single contact using ContactMessage (standard format)
+func (c *WameowClient) SendSingleContactMessage(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	// Create standard vCard
+	vcard := "BEGIN:VCARD\n"
+	vcard += "VERSION:3.0\n"
+	vcard += fmt.Sprintf("FN:%s\n", contact.Name)
+	vcard += fmt.Sprintf("N:%s;;;;\n", contact.Name)
+	vcard += fmt.Sprintf("TEL:%s\n", contact.Phone)
+
+	if contact.Organization != "" {
+		vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
+	}
+	if contact.Email != "" {
+		vcard += fmt.Sprintf("EMAIL:%s\n", contact.Email)
+	}
+	if contact.Title != "" {
+		vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
+	}
+	if contact.Website != "" {
+		vcard += fmt.Sprintf("URL:%s\n", contact.Website)
+	}
+	if contact.Address != "" {
+		vcard += fmt.Sprintf("ADR:%s\n", contact.Address)
+	}
+
+	vcard += "END:VCARD"
+
+	// Create single ContactMessage
+	message := &waE2E.Message{
+		ContactMessage: &waE2E.ContactMessage{
+			DisplayName: &contact.Name,
+			Vcard:       &vcard,
+		},
+	}
+
+	c.logger.InfoWithFields("Sending single contact message (standard format)", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"to":            to,
+		"contact_name":  contact.Name,
+		"vcard_content": vcard,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send single contact message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Single contact message sent successfully", map[string]interface{}{
+		"session_id":   c.sessionID,
+		"to":           to,
+		"message_id":   resp.ID,
+		"contact_name": contact.Name,
+	})
+
+	return &resp, nil
+}
+
+// SendSingleContactMessageBusiness sends a single contact using Business format
+func (c *WameowClient) SendSingleContactMessageBusiness(ctx context.Context, to string, contact ContactInfo) (*whatsmeow.SendResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return nil, fmt.Errorf("invalid JID: %w", err)
+	}
+
+	// Create Business style vCard
+	vcard := "BEGIN:VCARD\n"
+	vcard += "VERSION:3.0\n"
+	vcard += fmt.Sprintf("N:;%s;;;\n", contact.Name)
+	vcard += fmt.Sprintf("FN:%s\n", contact.Name)
+
+	if contact.Organization != "" {
+		vcard += fmt.Sprintf("ORG:%s\n", contact.Organization)
+	}
+
+	// Business style TITLE (empty if not provided)
+	if contact.Title != "" {
+		vcard += fmt.Sprintf("TITLE:%s\n", contact.Title)
+	} else {
+		vcard += "TITLE:\n"
+	}
+
+	// Business style phone with waid
+	phoneClean := strings.ReplaceAll(strings.ReplaceAll(contact.Phone, "+", ""), " ", "")
+	phoneFormatted := contact.Phone
+	vcard += fmt.Sprintf("item1.TEL;waid=%s:%s\n", phoneClean, phoneFormatted)
+	vcard += "item1.X-ABLabel:Celular\n"
+
+	// Business name field
+	vcard += fmt.Sprintf("X-WA-BIZ-NAME:%s\n", contact.Name)
+
+	vcard += "END:VCARD"
+
+	// Create single ContactMessage with Business format
+	message := &waE2E.Message{
+		ContactMessage: &waE2E.ContactMessage{
+			DisplayName: &contact.Name,
+			Vcard:       &vcard,
+		},
+	}
+
+	c.logger.InfoWithFields("Sending single contact message (Business format)", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"to":            to,
+		"contact_name":  contact.Name,
+		"vcard_content": vcard,
+	})
+
+	resp, err := c.client.SendMessage(ctx, jid, message)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send Business single contact message", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Business single contact message sent successfully", map[string]interface{}{
+		"session_id":   c.sessionID,
+		"to":           to,
+		"message_id":   resp.ID,
+		"contact_name": contact.Name,
+	})
+
+	return &resp, nil
+}
+
 // parseJID parses a JID string into a types.JID
 func (c *WameowClient) parseJID(jidStr string) (waTypes.JID, error) {
 	if jidStr == "" {
@@ -871,13 +1304,13 @@ func (c *WameowClient) SendStickerMessage(ctx context.Context, to, filePath stri
 	mimetype := "image/webp" // Stickers are typically WebP
 	message := &waE2E.Message{
 		StickerMessage: &waE2E.StickerMessage{
-			URL:            &uploaded.URL,
-			DirectPath:     &uploaded.DirectPath,
-			MediaKey:       uploaded.MediaKey,
-			Mimetype:       &mimetype,
-			FileEncSHA256:  uploaded.FileEncSHA256,
-			FileSHA256:     uploaded.FileSHA256,
-			FileLength:     &uploaded.FileLength,
+			URL:           &uploaded.URL,
+			DirectPath:    &uploaded.DirectPath,
+			MediaKey:      uploaded.MediaKey,
+			Mimetype:      &mimetype,
+			FileEncSHA256: uploaded.FileEncSHA256,
+			FileSHA256:    uploaded.FileSHA256,
+			FileLength:    &uploaded.FileLength,
 		},
 	}
 
@@ -932,10 +1365,10 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 	}
 
 	c.logger.InfoWithFields("Sending button message (as text)", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"to":            to,
-		"button_count":  len(buttons),
-		"body_length":   len(body),
+		"session_id":   c.sessionID,
+		"to":           to,
+		"button_count": len(buttons),
+		"body_length":  len(body),
 	})
 
 	resp, err := c.client.SendMessage(ctx, jid, message)
@@ -1005,10 +1438,10 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 	}
 
 	c.logger.InfoWithFields("Sending list message (as text)", map[string]interface{}{
-		"session_id":     c.sessionID,
-		"to":             to,
-		"section_count":  len(sections),
-		"body_length":    len(body),
+		"session_id":    c.sessionID,
+		"to":            to,
+		"section_count": len(sections),
+		"body_length":   len(body),
 	})
 
 	resp, err := c.client.SendMessage(ctx, jid, message)

@@ -1,18 +1,19 @@
 package handlers
 
 import (
-	"zpwoot/internal/app"
+	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/webhook"
 	"zpwoot/platform/logger"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 type WebhookHandler struct {
-	webhookUC app.WebhookUseCase
+	webhookUC webhook.UseCase
 	logger    *logger.Logger
 }
 
-func NewWebhookHandler(webhookUC app.WebhookUseCase, appLogger *logger.Logger) *WebhookHandler {
+func NewWebhookHandler(webhookUC webhook.UseCase, appLogger *logger.Logger) *WebhookHandler {
 	return &WebhookHandler{
 		webhookUC: webhookUC,
 		logger:    appLogger,
@@ -27,8 +28,8 @@ func NewWebhookHandler(webhookUC app.WebhookUseCase, appLogger *logger.Logger) *
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Session ID" format(uuid) example("123e4567-e89b-12d3-a456-426614174000")
-// @Param request body zpwoot_internal_app_webhook.SetConfigRequest true "Webhook configuration request"
-// @Success 201 {object} zpwoot_internal_app_webhook.WebhookResponse "Webhook created successfully"
+// @Param request body webhook.SetConfigRequest true "Webhook configuration request"
+// @Success 201 {object} webhook.SetConfigResponse "Webhook created successfully"
 // @Failure 400 {object} object "Invalid request body or parameters"
 // @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
 // @Failure 404 {object} object "Session not found"
@@ -41,10 +42,10 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 	})
 
 	// Parse request body
-	var req app.SetConfigRequest
+	var req webhook.SetConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.Error("Failed to parse webhook request: " + err.Error())
-		return c.Status(400).JSON(app.NewErrorResponse("Invalid request body"))
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
 	// Set session ID from URL parameter
@@ -55,11 +56,11 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 	result, err := h.webhookUC.SetConfig(ctx, &req)
 	if err != nil {
 		h.logger.Error("Failed to create webhook: " + err.Error())
-		return c.Status(500).JSON(app.NewErrorResponse("Failed to create webhook"))
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to create webhook"))
 	}
 
 	// Return success response
-	response := app.NewSuccessResponse(result, "Webhook configuration created successfully")
+	response := common.NewSuccessResponse(result, "Webhook configuration created successfully")
 	return c.Status(201).JSON(response)
 }
 
@@ -71,7 +72,7 @@ func (h *WebhookHandler) SetConfig(c *fiber.Ctx) error {
 // @Produce json
 // @Security ApiKeyAuth
 // @Param id path string true "Session ID" format(uuid) example("123e4567-e89b-12d3-a456-426614174000")
-// @Success 200 {object} zpwoot_internal_app_webhook.WebhookResponse "Webhook configuration retrieved successfully"
+// @Success 200 {object} webhook.WebhookResponse "Webhook configuration retrieved successfully"
 // @Failure 401 {object} object "Unauthorized - Invalid or missing API key"
 // @Failure 404 {object} object "Session or webhook configuration not found"
 // @Failure 500 {object} object "Internal server error"
@@ -86,10 +87,10 @@ func (h *WebhookHandler) FindConfig(c *fiber.Ctx) error {
 	webhook, err := h.webhookUC.FindConfig(ctx, sessionID)
 	if err != nil {
 		h.logger.Error("Failed to get webhook config: " + err.Error())
-		return c.Status(500).JSON(app.NewErrorResponse("Failed to get webhook configuration"))
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to get webhook configuration"))
 	}
 
 	// Return success response
-	response := app.NewSuccessResponse(webhook, "Webhook configuration retrieved successfully")
+	response := common.NewSuccessResponse(webhook, "Webhook configuration retrieved successfully")
 	return c.JSON(response)
 }

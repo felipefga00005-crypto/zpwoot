@@ -2,6 +2,7 @@ package wameow
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"zpwoot/platform/logger"
@@ -182,12 +183,119 @@ func (h *EventHandler) handlePairError(evt *events.PairError, sessionID string) 
 
 // handleMessage handles incoming messages
 func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
-	h.logger.InfoWithFields("Message received", map[string]interface{}{
+	// Basic message info
+	messageInfo := map[string]interface{}{
 		"session_id": sessionID,
 		"from":       evt.Info.Sender.String(),
 		"message_id": evt.Info.ID,
 		"timestamp":  evt.Info.Timestamp,
+	}
+
+	// DETAILED MESSAGE ANALYSIS - Print ALL message fields for debugging
+	h.logger.InfoWithFields("🔍 DETAILED MESSAGE ANALYSIS", map[string]interface{}{
+		"session_id":                sessionID,
+		"from":                      evt.Info.Sender.String(),
+		"message_id":                evt.Info.ID,
+		"has_contact_message":       evt.Message.ContactMessage != nil,
+		"has_contacts_array_message": evt.Message.ContactsArrayMessage != nil,
+		"has_conversation":          evt.Message.GetConversation() != "",
+		"has_image_message":         evt.Message.ImageMessage != nil,
+		"has_audio_message":         evt.Message.AudioMessage != nil,
+		"has_video_message":         evt.Message.VideoMessage != nil,
+		"has_document_message":      evt.Message.DocumentMessage != nil,
+		"has_sticker_message":       evt.Message.StickerMessage != nil,
+		"has_location_message":      evt.Message.LocationMessage != nil,
+		"has_extended_text_message": evt.Message.ExtendedTextMessage != nil,
+		"has_template_message":      evt.Message.TemplateMessage != nil,
+		"has_list_message":          evt.Message.ListMessage != nil,
+		"has_buttons_message":       evt.Message.ButtonsMessage != nil,
 	})
+
+	// Check if it's a contact message and add detailed logging
+	if evt.Message.ContactMessage != nil {
+		contactMsg := evt.Message.ContactMessage
+		messageInfo["message_type"] = "contact"
+
+		if contactMsg.DisplayName != nil {
+			messageInfo["contact_display_name"] = *contactMsg.DisplayName
+		}
+
+		if contactMsg.Vcard != nil {
+			messageInfo["contact_vcard"] = *contactMsg.Vcard
+			messageInfo["vcard_length"] = len(*contactMsg.Vcard)
+		}
+
+		h.logger.InfoWithFields("📞 CONTACT MESSAGE RECEIVED", messageInfo)
+
+		// Print the full vCard for analysis
+		if contactMsg.Vcard != nil {
+			h.logger.InfoWithFields("📋 FULL VCARD CONTENT", map[string]interface{}{
+				"session_id": sessionID,
+				"from":       evt.Info.Sender.String(),
+				"vcard":      *contactMsg.Vcard,
+			})
+		}
+	} else if evt.Message.ContactsArrayMessage != nil {
+		// Check for ContactsArrayMessage (multiple contacts)
+		contactsMsg := evt.Message.ContactsArrayMessage
+		messageInfo["message_type"] = "contacts_array"
+
+		if contactsMsg.DisplayName != nil {
+			messageInfo["contacts_display_name"] = *contactsMsg.DisplayName
+		}
+
+		if contactsMsg.Contacts != nil {
+			messageInfo["contacts_count"] = len(contactsMsg.Contacts)
+		}
+
+		h.logger.InfoWithFields("📞📞📞 CONTACTS ARRAY MESSAGE RECEIVED", messageInfo)
+
+		// Print details of each contact
+		if contactsMsg.Contacts != nil {
+			for i, contact := range contactsMsg.Contacts {
+				contactInfo := map[string]interface{}{
+					"session_id":    sessionID,
+					"from":          evt.Info.Sender.String(),
+					"contact_index": i,
+				}
+
+				if contact.DisplayName != nil {
+					contactInfo["contact_display_name"] = *contact.DisplayName
+				}
+
+				if contact.Vcard != nil {
+					contactInfo["contact_vcard"] = *contact.Vcard
+					contactInfo["vcard_length"] = len(*contact.Vcard)
+				}
+
+				h.logger.InfoWithFields(fmt.Sprintf("📋 CONTACT %d VCARD CONTENT", i+1), contactInfo)
+			}
+		}
+	} else {
+		// For non-contact messages, just log basic info
+		messageType := "text"
+		if evt.Message.ImageMessage != nil {
+			messageType = "image"
+		} else if evt.Message.AudioMessage != nil {
+			messageType = "audio"
+		} else if evt.Message.VideoMessage != nil {
+			messageType = "video"
+		} else if evt.Message.DocumentMessage != nil {
+			messageType = "document"
+		} else if evt.Message.StickerMessage != nil {
+			messageType = "sticker"
+		} else if evt.Message.LocationMessage != nil {
+			messageType = "location"
+		}
+
+		messageInfo["message_type"] = messageType
+
+		if evt.Message.GetConversation() != "" {
+			messageInfo["text_content"] = evt.Message.GetConversation()
+		}
+
+		h.logger.InfoWithFields("Message received", messageInfo)
+	}
 
 	// Update last seen
 	h.updateSessionLastSeen(sessionID)

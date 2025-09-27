@@ -35,7 +35,7 @@ func NewSessionResolver(logger *logger.Logger, sessionRepo SessionRepository) *S
 func (sr *SessionResolver) ResolveSessionIdentifier(idOrName string) (identifierType string, value string, isValid bool) {
 	// Clean the input
 	idOrName = strings.TrimSpace(idOrName)
-	
+
 	if idOrName == "" {
 		sr.logger.Warn("Empty session identifier provided")
 		return "", "", false
@@ -95,11 +95,11 @@ func (sr *SessionResolver) isValidSessionName(name string) bool {
 
 	// Don't allow reserved names
 	reservedNames := []string{
-		"create", "list", "info", "delete", "connect", "logout", 
+		"create", "list", "info", "delete", "connect", "logout",
 		"qr", "pair", "proxy", "webhook", "chatwoot", "health",
 		"swagger", "api", "admin", "config", "status", "test",
 	}
-	
+
 	lowerName := strings.ToLower(name)
 	for _, reserved := range reservedNames {
 		if lowerName == reserved {
@@ -121,7 +121,7 @@ func (sr *SessionResolver) looksLikeUUID(str string) bool {
 // This is more strict than URL validation and should be used when creating sessions
 func (sr *SessionResolver) ValidateSessionName(name string) (bool, string) {
 	name = strings.TrimSpace(name)
-	
+
 	if name == "" {
 		return false, "Session name cannot be empty"
 	}
@@ -142,12 +142,12 @@ func (sr *SessionResolver) ValidateSessionName(name string) (bool, string) {
 
 	// Check reserved names
 	reservedNames := []string{
-		"create", "list", "info", "delete", "connect", "logout", 
+		"create", "list", "info", "delete", "connect", "logout",
 		"qr", "pair", "proxy", "webhook", "chatwoot", "health",
 		"swagger", "api", "admin", "config", "status", "test",
 		"new", "add", "remove", "update", "edit", "view", "show",
 	}
-	
+
 	lowerName := strings.ToLower(name)
 	for _, reserved := range reservedNames {
 		if lowerName == reserved {
@@ -163,34 +163,34 @@ func (sr *SessionResolver) SuggestValidName(input string) string {
 	// Clean the input
 	input = strings.TrimSpace(input)
 	input = strings.ToLower(input)
-	
+
 	// Replace invalid characters with hyphens
 	validPattern := regexp.MustCompile(`[^a-zA-Z0-9_-]`)
 	suggested := validPattern.ReplaceAllString(input, "-")
-	
+
 	// Remove multiple consecutive hyphens
 	multiHyphen := regexp.MustCompile(`-+`)
 	suggested = multiHyphen.ReplaceAllString(suggested, "-")
-	
+
 	// Ensure it starts with a letter
 	if len(suggested) > 0 && !regexp.MustCompile(`^[a-zA-Z]`).MatchString(suggested) {
 		suggested = "session-" + suggested
 	}
-	
+
 	// Trim hyphens from start and end
 	suggested = strings.Trim(suggested, "-")
-	
+
 	// Ensure minimum length
 	if len(suggested) < 3 {
 		suggested = "session-" + suggested
 	}
-	
+
 	// Ensure maximum length
 	if len(suggested) > 50 {
 		suggested = suggested[:50]
 		suggested = strings.TrimRight(suggested, "-")
 	}
-	
+
 	return suggested
 }
 
