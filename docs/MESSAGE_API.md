@@ -2,20 +2,14 @@
 
 Este documento descreve como usar a API de envio de mensagens do zpwoot para enviar diferentes tipos de mensagens através do WhatsApp.
 
-## 🔄 Padronização de Campos de Texto
+## 📝 Padrão de Campos de Texto
 
-**A partir da versão atual, todos os endpoints foram padronizados para usar `body` como campo principal para conteúdo textual, seguindo o padrão do WhatsApp.**
+**Todos os endpoints usam `body` como campo padrão para conteúdo textual, seguindo o padrão oficial do WhatsApp.**
 
-### Mudanças Importantes:
-- ✅ **Padrão unificado**: Use `body` para conteúdo textual (alinhado com WhatsApp)
-- ⚠️ **Deprecated**: O campo `text` ainda é aceito mas será removido em versões futuras
-- 🔄 **Compatibilidade**: Durante o período de transição, ambos os campos são aceitos
-- 📝 **Prioridade**: Se ambos `body` e `text` forem fornecidos, `body` tem prioridade
-
-### Campos Afetados:
-- `body` / `text` - Conteúdo de mensagens de texto
-- `newBody` / `newText` - Novo conteúdo ao editar mensagens
-- Mensagens de botão e lista também seguem o mesmo padrão
+### Campos Utilizados:
+- `body` - Conteúdo de mensagens de texto, botões e listas
+- `newBody` - Novo conteúdo ao editar mensagens
+- `caption` - Legendas para arquivos de mídia
 
 ## Endpoints Disponíveis
 
@@ -67,8 +61,7 @@ A API suporta os seguintes tipos de mensagem:
 {
   "to": "5511999999999@s.whatsapp.net",
   "type": "text|image|audio|video|document|location|contact",
-  "body": "Texto da mensagem (padrão WhatsApp)",
-  "text": "Texto da mensagem (deprecated - use 'body')",
+  "body": "Texto da mensagem",
   "caption": "Legenda para mídia (opcional)",
   "file": "URL ou base64 do arquivo (para mídia)",
   "filename": "Nome do arquivo (para documentos)",
@@ -79,13 +72,10 @@ A API suporta os seguintes tipos de mensagem:
 }
 ```
 
-> **⚠️ Aviso de Compatibilidade**: O campo `text` está deprecated. Use `body` para novos desenvolvimentos seguindo o padrão WhatsApp. Ambos os campos são aceitos durante o período de transição.
-
 ## Exemplos de Uso
 
 ### 1. Mensagem de Texto
 
-**Formato Recomendado (usando `body` - padrão WhatsApp):**
 ```bash
 curl -X POST http://localhost:8080/sessions/mySession/messages/send \
   -H "Content-Type: application/json" \
@@ -94,18 +84,6 @@ curl -X POST http://localhost:8080/sessions/mySession/messages/send \
     "to": "5511999999999@s.whatsapp.net",
     "type": "text",
     "body": "Olá! Esta é uma mensagem de teste."
-  }'
-```
-
-**Formato Legacy (usando `text` - deprecated):**
-```bash
-curl -X POST http://localhost:8080/sessions/mySession/messages/send \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: your-api-key" \
-  -d '{
-    "to": "5511999999999@s.whatsapp.net",
-    "type": "text",
-    "text": "Olá! Esta é uma mensagem de teste."
   }'
 ```
 

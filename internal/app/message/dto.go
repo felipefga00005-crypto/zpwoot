@@ -11,7 +11,6 @@ type SendMessageRequest struct {
 	To       string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Type     string `json:"type" validate:"required,oneof=text image audio video document sticker location contact" example:"text"`
 	Body     string `json:"body,omitempty" example:"Hello World!"`
-	Text     string `json:"text,omitempty" example:"Hello World!"` // Deprecated: use 'body' instead
 	Caption  string `json:"caption,omitempty" example:"Image caption"`
 	File     string `json:"file,omitempty" example:"https://example.com/image.jpg"`
 	Filename string `json:"filename,omitempty" example:"document.pdf"`
@@ -27,20 +26,6 @@ type SendMessageRequest struct {
 	ContactPhone string `json:"contactPhone,omitempty" example:"+5511999999999"`
 } //@name SendMessageRequest
 
-// GetText returns the text content, prioritizing 'body' over 'text' for WhatsApp compatibility
-func (r *SendMessageRequest) GetText() string {
-	if r.Body != "" {
-		return r.Body
-	}
-	return r.Text
-}
-
-// SetText sets the text content in both fields for compatibility
-func (r *SendMessageRequest) SetText(text string) {
-	r.Body = text
-	r.Text = text // Keep for backward compatibility
-}
-
 // SendMessageResponse represents the response after sending a message
 type SendMessageResponse struct {
 	ID        string    `json:"id" example:"3EB0C767D71D"`
@@ -50,9 +35,10 @@ type SendMessageResponse struct {
 
 // FromDomainRequest converts domain request to DTO request
 func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
-	dto := &SendMessageRequest{
+	return &SendMessageRequest{
 		To:           req.To,
 		Type:         string(req.Type),
+		Body:         req.Body,
 		Caption:      req.Caption,
 		File:         req.File,
 		Filename:     req.Filename,
@@ -63,10 +49,6 @@ func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 		ContactName:  req.ContactName,
 		ContactPhone: req.ContactPhone,
 	}
-	// Set body as primary field
-	dto.Body = req.Body
-	dto.Text = req.Body // Keep for backward compatibility
-	return dto
 }
 
 // ToDomainRequest converts DTO request to domain request
@@ -74,7 +56,7 @@ func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 	return &message.SendMessageRequest{
 		To:           r.To,
 		Type:         message.MessageType(r.Type),
-		Body:         r.GetText(), // Use GetText() for backward compatibility
+		Body:         r.Body,
 		Caption:      r.Caption,
 		File:         r.File,
 		Filename:     r.Filename,
@@ -109,17 +91,8 @@ func (r *SendMessageResponse) ToDomainResponse() *message.SendMessageResponse {
 type ButtonMessageRequest struct {
 	To      string   `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body    string   `json:"body" validate:"required" example:"Please choose one of the options below:"`
-	Text    string   `json:"text,omitempty" example:"Please choose one of the options below:"` // Deprecated: use 'body' instead
 	Buttons []Button `json:"buttons" validate:"required,min=1,max=3"`
 } //@name ButtonMessageRequest
-
-// GetText returns the text content, prioritizing 'body' over 'text' for WhatsApp compatibility
-func (r *ButtonMessageRequest) GetText() string {
-	if r.Body != "" {
-		return r.Body
-	}
-	return r.Text
-}
 
 // Button represents a button in a button message
 type Button struct {
@@ -131,18 +104,9 @@ type Button struct {
 type ListMessageRequest struct {
 	To         string    `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body       string    `json:"body" validate:"required" example:"Please select one of the available options:"`
-	Text       string    `json:"text,omitempty" example:"Please select one of the available options:"` // Deprecated: use 'body' instead
 	ButtonText string    `json:"buttonText" validate:"required" example:"Select Option"`
 	Sections   []Section `json:"sections" validate:"required,min=1"`
 } //@name ListMessageRequest
-
-// GetText returns the text content, prioritizing 'body' over 'text' for WhatsApp compatibility
-func (r *ListMessageRequest) GetText() string {
-	if r.Body != "" {
-		return r.Body
-	}
-	return r.Text
-}
 
 // Section represents a section in a list message
 type Section struct {
@@ -272,16 +236,7 @@ type EditMessageRequest struct {
 	To        string `json:"to" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	NewBody   string `json:"newBody" validate:"required" example:"Updated message text"`
-	NewText   string `json:"newText,omitempty" example:"Updated message text"` // Deprecated: use 'newBody' instead
 } //@name EditMessageRequest
-
-// GetNewText returns the new text content, prioritizing 'newBody' over 'newText' for WhatsApp compatibility
-func (r *EditMessageRequest) GetNewText() string {
-	if r.NewBody != "" {
-		return r.NewBody
-	}
-	return r.NewText
-}
 
 // DeleteMessageRequest represents a delete message request
 type DeleteMessageRequest struct {
@@ -344,17 +299,8 @@ type BusinessProfileRequest struct {
 type TextMessageRequest struct {
 	To          string       `json:"to" validate:"required" example:"5511987654321@s.whatsapp.net"`
 	Body        string       `json:"body" validate:"required" example:"Hello, this is a text message"`
-	Text        string       `json:"text,omitempty" example:"Hello, this is a text message"` // Deprecated: use 'body' instead
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name TextMessageRequest
-
-// GetText returns the text content, prioritizing 'body' over 'text' for WhatsApp compatibility
-func (r *TextMessageRequest) GetText() string {
-	if r.Body != "" {
-		return r.Body
-	}
-	return r.Text
-}
 
 // ContextInfo represents context information for message replies
 type ContextInfo struct {

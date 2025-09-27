@@ -165,33 +165,26 @@ func (h *MessageHandler) SendTextMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse simple text request with backward compatibility
+	// Parse simple text request
 	var textReq struct {
 		To   string `json:"to" validate:"required"`
-		Body string `json:"body,omitempty"`
-		Text string `json:"text,omitempty"` // Deprecated: use 'body' instead
+		Body string `json:"body" validate:"required"`
 	}
 
 	if err := c.BodyParser(&textReq); err != nil {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	// Get text content with backward compatibility (prioritize body)
-	textContent := textReq.Body
-	if textContent == "" {
-		textContent = textReq.Text
-	}
-
-	if textReq.To == "" || textContent == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Both 'to' and 'body' (or 'text') are required"))
+	if textReq.To == "" || textReq.Body == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Both 'to' and 'body' are required"))
 	}
 
 	// Convert to full message request
 	req := message.SendMessageRequest{
 		To:   textReq.To,
 		Type: "text",
+		Body: textReq.Body,
 	}
-	req.SetText(textContent)
 
 	// Resolve session
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
@@ -708,9 +701,8 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("'to' field is required"))
 	}
 
-	textContent := textReq.GetText()
-	if textContent == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'body' (or 'text') field is required"))
+	if textReq.Body == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'body' field is required"))
 	}
 
 	// Validate context info if provided
@@ -727,7 +719,7 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 	}
 
 	// Send text message
-	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.To, textContent, textReq.ContextInfo)
+	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.To, textReq.Body, textReq.ContextInfo)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send text message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -780,11 +772,10 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse button message request with backward compatibility
+	// Parse button message request
 	var buttonReq struct {
 		To      string `json:"to" validate:"required"`
-		Body    string `json:"body,omitempty"`
-		Text    string `json:"text,omitempty"` // Deprecated: use 'body' instead
+		Body    string `json:"body" validate:"required"`
 		Buttons []struct {
 			ID   string `json:"id" validate:"required"`
 			Text string `json:"text" validate:"required"`
@@ -795,14 +786,8 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	// Get text content with backward compatibility (prioritize body)
-	textContent := buttonReq.Body
-	if textContent == "" {
-		textContent = buttonReq.Text
-	}
-
-	if buttonReq.To == "" || textContent == "" || len(buttonReq.Buttons) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body' (or 'text'), and 'buttons' are required"))
+	if buttonReq.To == "" || buttonReq.Body == "" || len(buttonReq.Buttons) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'buttons' are required"))
 	}
 
 	// Convert buttons to the format expected by the manager
@@ -821,7 +806,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 	}
 
 	// Send button message using the real implementation
-	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.To, textContent, buttons)
+	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.To, buttonReq.Body, buttons)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send button message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -865,11 +850,10 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse list message request with backward compatibility
+	// Parse list message request
 	var listReq struct {
 		To         string `json:"to" validate:"required"`
-		Body       string `json:"body,omitempty"`
-		Text       string `json:"text,omitempty"` // Deprecated: use 'body' instead
+		Body       string `json:"body" validate:"required"`
 		ButtonText string `json:"buttonText" validate:"required"`
 		Sections   []struct {
 			Title string `json:"title" validate:"required"`
@@ -885,14 +869,8 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	// Get text content with backward compatibility (prioritize body)
-	textContent := listReq.Body
-	if textContent == "" {
-		textContent = listReq.Text
-	}
-
-	if listReq.To == "" || textContent == "" || len(listReq.Sections) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body' (or 'text'), and 'sections' are required"))
+	if listReq.To == "" || listReq.Body == "" || len(listReq.Sections) == 0 {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'body', and 'sections' are required"))
 	}
 
 	// Convert sections to the format expected by the manager
@@ -919,7 +897,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	}
 
 	// Send list message using the real implementation
-	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.To, textContent, listReq.ButtonText, sections)
+	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.To, listReq.Body, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -1111,26 +1089,19 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Parse edit request with backward compatibility
+	// Parse edit request
 	var editReq struct {
 		To        string `json:"to" validate:"required"`
 		MessageID string `json:"messageId" validate:"required"`
-		NewBody   string `json:"newBody,omitempty"`
-		NewText   string `json:"newText,omitempty"` // Deprecated: use 'newBody' instead
+		NewBody   string `json:"newBody" validate:"required"`
 	}
 
 	if err := c.BodyParser(&editReq); err != nil {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	// Get new text content with backward compatibility (prioritize newBody)
-	newTextContent := editReq.NewBody
-	if newTextContent == "" {
-		newTextContent = editReq.NewText
-	}
-
-	if editReq.To == "" || editReq.MessageID == "" || newTextContent == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'to', 'messageId', and 'newBody' (or 'newText') are required"))
+	if editReq.To == "" || editReq.MessageID == "" || editReq.NewBody == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to', 'messageId', and 'newBody' are required"))
 	}
 
 	// Resolve session
@@ -1140,7 +1111,7 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 	}
 
 	// Edit message using the real implementation
-	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.To, editReq.MessageID, newTextContent)
+	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.To, editReq.MessageID, editReq.NewBody)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -1262,7 +1233,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	// Type-specific validations
 	switch messageType {
 	case "text":
-		if req.GetText() == "" {
+		if req.Body == "" {
 			return c.Status(400).JSON(common.NewErrorResponse("Body is required for text messages"))
 		}
 	case "image", "audio", "video", "document", "sticker":
