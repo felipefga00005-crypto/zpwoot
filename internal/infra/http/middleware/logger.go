@@ -31,7 +31,7 @@ func NewLogger(customLogger *logger.Logger) fiber.Handler {
 func NewLoggerWithConfig(config LoggerConfig) fiber.Handler {
 	// Set default values
 	if config.Logger == nil {
-		config.Logger = logger.New("info")
+		config.Logger = logger.New()
 	}
 
 	// Custom format for structured logging

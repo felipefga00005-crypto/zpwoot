@@ -1,115 +1,63 @@
 package logger
 
-import (
-	"time"
-)
-
-// LogConfig represents logger configuration
+// LogConfig represents zpwoot logger configuration
 type LogConfig struct {
-	Level      string          `json:"level" yaml:"level" env:"LOG_LEVEL"`
-	Format     string          `json:"format" yaml:"format" env:"LOG_FORMAT"`
-	Output     string          `json:"output" yaml:"output" env:"LOG_OUTPUT"`
-	TimeFormat string          `json:"timeFormat" yaml:"timeFormat" env:"LOG_TIME_FORMAT"`
-	Caller     bool            `json:"caller" yaml:"caller" env:"LOG_CALLER"`
-	Sampling   *SamplingConfig `json:"sampling,omitempty" yaml:"sampling,omitempty"`
-}
-
-// SamplingConfig represents sampling configuration for high-volume logging
-type SamplingConfig struct {
-	Initial    int           `json:"initial" yaml:"initial"`
-	Thereafter int           `json:"thereafter" yaml:"thereafter"`
-	Tick       time.Duration `json:"tick" yaml:"tick"`
-}
-
-// DefaultConfig returns default logger configuration
-func DefaultConfig() *LogConfig {
-	return &LogConfig{
-		Level:      "info",
-		Format:     "json",
-		Output:     "stdout",
-		TimeFormat: time.RFC3339,
-		Caller:     false,
-	}
+	Level  string `json:"level" yaml:"level" env:"LOG_LEVEL"`
+	Format string `json:"format" yaml:"format" env:"LOG_FORMAT"`
+	Output string `json:"output" yaml:"output" env:"LOG_OUTPUT"`
+	Caller bool   `json:"caller" yaml:"caller" env:"LOG_CALLER"`
 }
 
 // DevelopmentConfig returns development-friendly logger configuration
+// Features: ConsoleWriter, debug level, caller info, colorized output
 func DevelopmentConfig() *LogConfig {
 	return &LogConfig{
-		Level:      "debug",
-		Format:     "console",
-		Output:     "stdout",
-		TimeFormat: "2006-01-02 15:04:05",
-		Caller:     true,
+		Level:  "debug",
+		Format: "console",
+		Output: "stdout",
+		Caller: true,
 	}
 }
 
 // ProductionConfig returns production-optimized logger configuration
+// Features: JSON format, info level, no caller info, structured logging
 func ProductionConfig() *LogConfig {
 	return &LogConfig{
-		Level:      "info",
-		Format:     "json",
-		Output:     "stdout",
-		TimeFormat: time.RFC3339,
-		Caller:     false,
-		Sampling: &SamplingConfig{
-			Initial:    100,
-			Thereafter: 100,
-			Tick:       time.Second,
-		},
+		Level:  "info",
+		Format: "json",
+		Output: "stdout",
+		Caller: false,
 	}
 }
 
-// Validate validates the logger configuration
-func (c *LogConfig) Validate() error {
-	// Validate log level
+// Validate validates and sets defaults for logger configuration
+func (c *LogConfig) Validate() {
+	// Validate and set default log level
 	validLevels := map[string]bool{
-		"trace": true,
-		"debug": true,
-		"info":  true,
-		"warn":  true,
-		"error": true,
-		"fatal": true,
-		"panic": true,
+		"trace": true, "debug": true, "info": true,
+		"warn": true, "error": true, "fatal": true, "panic": true,
 	}
-
 	if !validLevels[c.Level] {
-		c.Level = "info" // Default fallback
+		c.Level = "info"
 	}
 
-	// Validate format
-	validFormats := map[string]bool{
-		"json":    true,
-		"console": true,
+	// Validate and set default format
+	if c.Format != "console" && c.Format != "json" {
+		c.Format = "json"
 	}
 
-	if !validFormats[c.Format] {
-		c.Format = "json" // Default fallback
+	// Validate and set default output
+	if c.Output != "stdout" && c.Output != "stderr" && c.Output != "file" {
+		c.Output = "stdout"
 	}
-
-	// Validate output
-	validOutputs := map[string]bool{
-		"stdout": true,
-		"stderr": true,
-	}
-
-	if !validOutputs[c.Output] {
-		c.Output = "stdout" // Default fallback
-	}
-
-	// Set default time format if empty
-	if c.TimeFormat == "" {
-		c.TimeFormat = time.RFC3339
-	}
-
-	return nil
 }
 
-// IsDebugEnabled returns true if debug level is enabled
-func (c *LogConfig) IsDebugEnabled() bool {
-	return c.Level == "debug" || c.Level == "trace"
+// IsDevelopment returns true if this is a development configuration
+func (c *LogConfig) IsDevelopment() bool {
+	return c.Format == "console" && (c.Level == "debug" || c.Level == "trace")
 }
 
-// IsProductionMode returns true if this is a production configuration
-func (c *LogConfig) IsProductionMode() bool {
+// IsProduction returns true if this is a production configuration
+func (c *LogConfig) IsProduction() bool {
 	return c.Format == "json" && c.Level != "debug" && c.Level != "trace"
 }

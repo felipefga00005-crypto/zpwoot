@@ -3,12 +3,11 @@ package logger
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"gopkg.in/natefinch/lumberjack.v2"
 )
 
 // Logger wraps zerolog.Logger with zpwoot-specific functionality
@@ -57,32 +56,41 @@ func NewWithConfig(config *LogConfig) *Logger {
 	var writer io.Writer = os.Stdout
 
 	if config.Output == "file" {
-		// Use lumberjack for log rotation
-		writer = &lumberjack.Logger{
-			Filename:   "logs/zpwoot.log",
-			MaxSize:    100, // MB
-			MaxBackups: 3,
-			MaxAge:     28, // days
-			Compress:   true,
-		}
+		// For now, just use stdout - file rotation can be added later
+		writer = os.Stdout
 	}
 
 	// Configure format based on environment
 	if config.Format == "console" {
-		writer = zerolog.ConsoleWriter{
+		consoleWriter := zerolog.ConsoleWriter{
 			Out:        writer,
 			TimeFormat: time.RFC3339,
-			NoColor:    false,
-			FormatLevel: func(i interface{}) string {
-				return strings.ToUpper(fmt.Sprintf("| %-6s|", i))
-			},
-			FormatMessage: func(i interface{}) string {
-				return fmt.Sprintf("%-50s", i)
-			},
-			FormatFieldName: func(i interface{}) string {
-				return fmt.Sprintf("%s=", i)
-			},
 		}
+
+		// Custom caller formatter to show relative path for clickable links
+		if config.Caller {
+			consoleWriter.FormatCaller = func(i interface{}) string {
+				if caller, ok := i.(string); ok {
+					// Convert absolute path to relative path from project root
+					if strings.Contains(caller, "/workspaces/zpwoot/") {
+						relativePath := strings.TrimPrefix(caller, "/workspaces/zpwoot/")
+						return relativePath
+					}
+					// If not in workspace, try to get relative path from current directory
+					if strings.Contains(caller, "zpwoot/") {
+						parts := strings.Split(caller, "zpwoot/")
+						if len(parts) > 1 {
+							return parts[len(parts)-1]
+						}
+					}
+					// Fallback to just filename
+					return filepath.Base(caller)
+				}
+				return ""
+			}
+		}
+
+		writer = consoleWriter
 	}
 
 	// Create base logger with global fields
@@ -187,7 +195,7 @@ func parseLogLevel(level string) zerolog.Level {
 	}
 }
 
-// Logging methods with various signatures
+// Simple logging methods for backward compatibility
 
 // Info logs an info level message
 func (l *Logger) Info(msg string) {
@@ -225,11 +233,6 @@ func (l *Logger) ErrorWithFields(msg string, fields map[string]interface{}) {
 		event = event.Interface(k, v)
 	}
 	event.Msg(msg)
-}
-
-// ErrorWithErr logs an error with an error object
-func (l *Logger) ErrorWithErr(err error, msg string) {
-	l.logger.Error().Err(err).Msg(msg)
 }
 
 // Debug logs a debug level message
@@ -275,83 +278,23 @@ func (l *Logger) Fatal(msg string) {
 	l.logger.Fatal().Msg(msg)
 }
 
-// Fatalf logs a fatal level message with formatting and exits
-func (l *Logger) Fatalf(format string, args ...interface{}) {
-	l.logger.Fatal().Msgf(format, args...)
-}
-
-// Trace logs a trace level message
-func (l *Logger) Trace(msg string) {
-	l.logger.Trace().Msg(msg)
-}
-
-// Tracef logs a trace level message with formatting
-func (l *Logger) Tracef(format string, args ...interface{}) {
-	l.logger.Trace().Msgf(format, args...)
+// WithError returns a logger with an error field
+func (l *Logger) WithError(err error) *Logger {
+	return &Logger{
+		logger: l.logger.With().Err(err).Logger(),
+		config: l.config,
+	}
 }
 
 // WithField returns a logger with a single field
 func (l *Logger) WithField(key string, value interface{}) *Logger {
 	return &Logger{
 		logger: l.logger.With().Interface(key, value).Logger(),
-		level:  l.level,
+		config: l.config,
 	}
 }
 
-// WithFields returns a logger with multiple fields
-func (l *Logger) WithFields(fields map[string]interface{}) *Logger {
-	ctx := l.logger.With()
-	for k, v := range fields {
-		ctx = ctx.Interface(k, v)
-	}
-	return &Logger{
-		logger: ctx.Logger(),
-		level:  l.level,
-	}
-}
-
-// WithError returns a logger with an error field
-func (l *Logger) WithError(err error) *Logger {
-	return &Logger{
-		logger: l.logger.With().Err(err).Logger(),
-		level:  l.level,
-	}
-}
-
-// GetLevel returns the current log level
-func (l *Logger) GetLevel() string {
-	return l.level
-}
-
-// SetLevel updates the log level
-func (l *Logger) SetLevel(level string) {
-	l.level = level
-	zerolog.SetGlobalLevel(parseLogLevel(level))
-}
-
-// GetZerologLogger returns the underlying zerolog.Logger
+// GetZerologLogger returns the underlying zerolog.Logger for advanced usage
 func (l *Logger) GetZerologLogger() zerolog.Logger {
 	return l.logger
-}
-
-// Compatibility methods for existing code that might use variadic args
-
-// InfoArgs logs info with variadic arguments (for compatibility)
-func (l *Logger) InfoArgs(args ...interface{}) {
-	l.logger.Info().Msg(fmt.Sprint(args...))
-}
-
-// ErrorArgs logs error with variadic arguments (for compatibility)
-func (l *Logger) ErrorArgs(args ...interface{}) {
-	l.logger.Error().Msg(fmt.Sprint(args...))
-}
-
-// DebugArgs logs debug with variadic arguments (for compatibility)
-func (l *Logger) DebugArgs(args ...interface{}) {
-	l.logger.Debug().Msg(fmt.Sprint(args...))
-}
-
-// WarnArgs logs warning with variadic arguments (for compatibility)
-func (l *Logger) WarnArgs(args ...interface{}) {
-	l.logger.Warn().Msg(fmt.Sprint(args...))
 }

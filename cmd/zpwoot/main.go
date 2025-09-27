@@ -84,7 +84,6 @@ func main() {
 		Level:      cfg.LogLevel,
 		Format:     cfg.LogFormat,
 		Output:     cfg.LogOutput,
-		TimeFormat: "2006-01-02 15:04:05",
 		Caller:     cfg.IsDevelopment(), // Show caller info in development
 	}
 

@@ -43,7 +43,7 @@ func GetLoggerFromContext(c *fiber.Ctx) *logger.Logger {
 		return logger
 	}
 	// Fallback to default logger
-	return logger.New("info")
+	return logger.New()
 }
 
 // LogError logs an error with request context
