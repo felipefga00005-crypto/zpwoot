@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"time"
 
 	"zpwoot/internal/domain/message"
 	"zpwoot/internal/domain/session"
@@ -70,11 +71,58 @@ type WameowManager interface {
 
 	DeleteMessage(sessionID, to, messageID string, forAll bool) error
 
+	MarkRead(sessionID, to, messageID string) error
+
+	// Group management methods
+	CreateGroup(sessionID, name string, participants []string, description string) (*GroupInfo, error)
+
+	GetGroupInfo(sessionID, groupJID string) (*GroupInfo, error)
+
+	ListJoinedGroups(sessionID string) ([]*GroupInfo, error)
+
+	UpdateGroupParticipants(sessionID, groupJID string, participants []string, action string) ([]string, []string, error)
+
+	SetGroupName(sessionID, groupJID, name string) error
+
+	SetGroupDescription(sessionID, groupJID, description string) error
+
+	SetGroupPhoto(sessionID, groupJID string, photo []byte) error
+
+	GetGroupInviteLink(sessionID, groupJID string, reset bool) (string, error)
+
+	JoinGroupViaLink(sessionID, inviteLink string) (*GroupInfo, error)
+
+	LeaveGroup(sessionID, groupJID string) error
+
+	UpdateGroupSettings(sessionID, groupJID string, announce, locked *bool) error
+
 	GetSessionStats(sessionID string) (*SessionStats, error)
 
 	RegisterEventHandler(sessionID string, handler EventHandler) error
 
 	UnregisterEventHandler(sessionID string, handlerID string) error
+}
+
+type GroupInfo struct {
+	GroupJID     string             `json:"groupJid"`
+	Name         string             `json:"name"`
+	Description  string             `json:"description"`
+	Owner        string             `json:"owner"`
+	Participants []GroupParticipant `json:"participants"`
+	Settings     GroupSettings      `json:"settings"`
+	CreatedAt    time.Time          `json:"createdAt"`
+	UpdatedAt    time.Time          `json:"updatedAt"`
+}
+
+type GroupParticipant struct {
+	JID          string `json:"jid"`
+	IsAdmin      bool   `json:"isAdmin"`
+	IsSuperAdmin bool   `json:"isSuperAdmin"`
+}
+
+type GroupSettings struct {
+	Announce bool `json:"announce"`
+	Locked   bool `json:"locked"`
 }
 
 type SessionStats struct {

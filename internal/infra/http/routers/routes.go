@@ -75,6 +75,7 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/messages/send/presence", messageHandler.SendPresence)                // POST /sessions/:sessionId/messages/send/presence
 	sessions.Post("/:sessionId/messages/edit", messageHandler.EditMessage)                          // POST /sessions/:sessionId/messages/edit
 	sessions.Post("/:sessionId/messages/delete", messageHandler.DeleteMessage)                      // POST /sessions/:sessionId/messages/delete
+	sessions.Post("/:sessionId/messages/mark-read", messageHandler.MarkAsRead)                      // POST /sessions/:sessionId/messages/mark-read
 
 }
 

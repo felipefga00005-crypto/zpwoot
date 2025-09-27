@@ -1281,6 +1281,69 @@ func (h *MessageHandler) DeleteMessage(c *fiber.Ctx) error {
 	return c.JSON(common.NewSuccessResponse(response, "Message deleted successfully"))
 }
 
+// @Summary Mark message as read
+// @Description Mark a specific message as read
+// @Tags Messages
+// @Security ApiKeyAuth
+// @Accept json
+// @Produce json
+// @Security ApiKeyAuth
+// @Param sessionId path string true "Session ID or Name" example("mySession")
+// @Param request body message.MarkReadRequest true "Mark as read request"
+// @Success 200 {object} common.SuccessResponse{data=message.MarkReadResponse} "Message marked as read successfully"
+// @Failure 400 {object} object "Invalid request"
+// @Failure 404 {object} object "Session not found"
+// @Failure 500 {object} object "Internal server error"
+// @Router /sessions/{sessionId}/messages/mark-read [post]
+func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	var markReadReq struct {
+		To        string `json:"to" validate:"required"`
+		MessageID string `json:"messageId" validate:"required"`
+	}
+
+	if err := c.BodyParser(&markReadReq); err != nil {
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+	}
+
+	if markReadReq.To == "" || markReadReq.MessageID == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("'to' and 'messageId' are required"))
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	err = h.wameowManager.MarkRead(sess.ID.String(), markReadReq.To, markReadReq.MessageID)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to mark message as read", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         markReadReq.To,
+			"message_id": markReadReq.MessageID,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse("Failed to mark message as read"))
+	}
+
+	response := map[string]interface{}{
+		"messageId": markReadReq.MessageID,
+		"status":    "read",
+		"timestamp": time.Now(),
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, "Message marked as read successfully"))
+}
+
 func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType string) error {
 	sessionIdentifier := c.Params("sessionId")
 	if sessionIdentifier == "" {

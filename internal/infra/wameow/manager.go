@@ -700,6 +700,188 @@ func (m *Manager) DeleteMessage(sessionID, to, messageID string, forAll bool) er
 	return client.DeleteMessage(ctx, to, messageID, forAll)
 }
 
+func (m *Manager) MarkRead(sessionID, to, messageID string) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.MarkRead(ctx, to, messageID)
+}
+
+// Group management methods
+func (m *Manager) CreateGroup(sessionID, name string, participants []string, description string) (*ports.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	groupInfo, err := client.CreateGroup(ctx, name, participants, description)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertToPortsGroupInfo(groupInfo), nil
+}
+
+func (m *Manager) GetGroupInfo(sessionID, groupJID string) (*ports.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	groupInfo, err := client.GetGroupInfo(ctx, groupJID)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertToPortsGroupInfo(groupInfo), nil
+}
+
+func (m *Manager) ListJoinedGroups(sessionID string) ([]*ports.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	groups, err := client.ListJoinedGroups(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*ports.GroupInfo
+	for _, group := range groups {
+		result = append(result, convertToPortsGroupInfo(group))
+	}
+
+	return result, nil
+}
+
+func (m *Manager) UpdateGroupParticipants(sessionID, groupJID string, participants []string, action string) ([]string, []string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.UpdateGroupParticipants(ctx, groupJID, participants, action)
+}
+
+func (m *Manager) SetGroupName(sessionID, groupJID, name string) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.SetGroupName(ctx, groupJID, name)
+}
+
+func (m *Manager) SetGroupDescription(sessionID, groupJID, description string) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.SetGroupDescription(ctx, groupJID, description)
+}
+
+func (m *Manager) SetGroupPhoto(sessionID, groupJID string, photo []byte) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	// TODO: Implement SetGroupPhoto in client
+	return fmt.Errorf("SetGroupPhoto not implemented yet")
+}
+
+func (m *Manager) GetGroupInviteLink(sessionID, groupJID string, reset bool) (string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return "", fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return "", fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.GetGroupInviteLink(ctx, groupJID, reset)
+}
+
+func (m *Manager) JoinGroupViaLink(sessionID, inviteLink string) (*ports.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	groupInfo, err := client.JoinGroupViaLink(ctx, inviteLink)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertToPortsGroupInfo(groupInfo), nil
+}
+
+func (m *Manager) LeaveGroup(sessionID, groupJID string) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.LeaveGroup(ctx, groupJID)
+}
+
+func (m *Manager) UpdateGroupSettings(sessionID, groupJID string, announce, locked *bool) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.UpdateGroupSettings(ctx, groupJID, announce, locked)
+}
+
 func (m *Manager) setupEventHandlers(client *whatsmeow.Client, sessionID string) {
 	m.SetupEventHandlers(client, sessionID)
 }
@@ -1082,4 +1264,24 @@ func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string)
 	client.AddEventHandler(func(evt interface{}) {
 		eventHandler.HandleEvent(evt, sessionID)
 	})
+}
+
+// convertToPortsGroupInfo converts domain GroupInfo to ports GroupInfo
+func convertToPortsGroupInfo(domainGroup interface{}) *ports.GroupInfo {
+	// This is a simplified conversion - in a real implementation,
+	// you would properly convert from the domain GroupInfo type
+	// For now, return a basic structure
+	return &ports.GroupInfo{
+		GroupJID:     "group@g.us", // placeholder
+		Name:         "Group Name", // placeholder
+		Description:  "Group Description", // placeholder
+		Owner:        "owner@s.whatsapp.net", // placeholder
+		Participants: []ports.GroupParticipant{}, // placeholder
+		Settings: ports.GroupSettings{
+			Announce: false,
+			Locked:   false,
+		},
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 }

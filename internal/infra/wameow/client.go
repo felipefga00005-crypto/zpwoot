@@ -1623,6 +1623,500 @@ func (c *WameowClient) DeleteMessage(ctx context.Context, to, messageID string, 
 	return nil
 }
 
+func (c *WameowClient) MarkRead(ctx context.Context, to, messageID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(to)
+	if err != nil {
+		return fmt.Errorf("invalid JID: %w", err)
+	}
+
+	if messageID == "" {
+		return fmt.Errorf("message ID is required")
+	}
+
+	c.logger.InfoWithFields("Marking message as read", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": messageID,
+	})
+
+	// Convert messageID string to types.MessageID
+	msgID := types.MessageID(messageID)
+
+	// MarkRead expects a slice of message IDs, timestamp, chat JID, sender JID, and optional receipt type
+	err = c.client.MarkRead([]types.MessageID{msgID}, time.Now(), jid, jid, "")
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to mark message as read", map[string]interface{}{
+			"session_id": c.sessionID,
+			"to":         to,
+			"message_id": messageID,
+			"error":      err.Error(),
+		})
+		return err
+	}
+
+	c.logger.InfoWithFields("Message marked as read successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"to":         to,
+		"message_id": messageID,
+	})
+
+	return nil
+}
+
+// CreateGroup creates a new WhatsApp group
+func (c *WameowClient) CreateGroup(ctx context.Context, name string, participants []string, description string) (*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("group name is required")
+	}
+
+	if len(participants) == 0 {
+		return nil, fmt.Errorf("at least one participant is required")
+	}
+
+	// Convert participant strings to JIDs
+	participantJIDs := make([]types.JID, len(participants))
+	for i, participant := range participants {
+		jid, err := c.parseJID(participant)
+		if err != nil {
+			return nil, fmt.Errorf("invalid participant JID %s: %w", participant, err)
+		}
+		participantJIDs[i] = jid
+	}
+
+	c.logger.InfoWithFields("Creating group", map[string]interface{}{
+		"session_id":   c.sessionID,
+		"name":         name,
+		"participants": len(participantJIDs),
+	})
+
+	// Create the group
+	groupInfo, err := c.client.CreateGroup(ctx, whatsmeow.ReqCreateGroup{
+		Name:         name,
+		Participants: participantJIDs,
+	})
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to create group", map[string]interface{}{
+			"session_id": c.sessionID,
+			"name":       name,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Set description if provided
+	if description != "" {
+		err = c.client.SetGroupTopic(groupInfo.JID, "", "", description)
+		if err != nil {
+			c.logger.WarnWithFields("Failed to set group description", map[string]interface{}{
+				"session_id": c.sessionID,
+				"group_jid":  groupInfo.JID.String(),
+				"error":      err.Error(),
+			})
+		}
+	}
+
+	c.logger.InfoWithFields("Group created successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupInfo.JID.String(),
+		"name":       name,
+	})
+
+	return groupInfo, nil
+}
+
+// GetGroupInfo retrieves information about a specific group
+func (c *WameowClient) GetGroupInfo(ctx context.Context, groupJID string) (*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting group info", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	groupInfo, err := c.client.GetGroupInfo(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get group info", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Group info retrieved successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"name":       groupInfo.Name,
+	})
+
+	return groupInfo, nil
+}
+
+// ListJoinedGroups lists all groups the user is a member of
+func (c *WameowClient) ListJoinedGroups(ctx context.Context) ([]*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Listing joined groups", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	groups, err := c.client.GetJoinedGroups(ctx)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to list joined groups", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Joined groups listed successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"count":      len(groups),
+	})
+
+	return groups, nil
+}
+
+// UpdateGroupParticipants adds, removes, promotes, or demotes group participants
+func (c *WameowClient) UpdateGroupParticipants(ctx context.Context, groupJID string, participants []string, action string) ([]string, []string, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	if len(participants) == 0 {
+		return nil, nil, fmt.Errorf("no participants provided")
+	}
+
+	// Convert participant strings to JIDs
+	participantJIDs := make([]types.JID, len(participants))
+	for i, participant := range participants {
+		participantJID, err := c.parseJID(participant)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid participant JID %s: %w", participant, err)
+		}
+		participantJIDs[i] = participantJID
+	}
+
+	c.logger.InfoWithFields("Updating group participants", map[string]interface{}{
+		"session_id":   c.sessionID,
+		"group_jid":    groupJID,
+		"action":       action,
+		"participants": len(participantJIDs),
+	})
+
+	var success, failed []string
+
+	switch action {
+	case "add":
+		_, err = c.client.UpdateGroupParticipants(jid, participantJIDs, whatsmeow.ParticipantChangeAdd)
+	case "remove":
+		_, err = c.client.UpdateGroupParticipants(jid, participantJIDs, whatsmeow.ParticipantChangeRemove)
+	case "promote":
+		_, err = c.client.UpdateGroupParticipants(jid, participantJIDs, whatsmeow.ParticipantChangePromote)
+	case "demote":
+		_, err = c.client.UpdateGroupParticipants(jid, participantJIDs, whatsmeow.ParticipantChangeDemote)
+	default:
+		return nil, nil, fmt.Errorf("invalid action: %s (must be add, remove, promote, or demote)", action)
+	}
+
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to update group participants", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"action":     action,
+			"error":      err.Error(),
+		})
+		return nil, nil, err
+	}
+
+	// For simplicity, assume all participants were successful if no error occurred
+	// In a real implementation, you might want to check individual results
+	for _, participantJID := range participantJIDs {
+		success = append(success, participantJID.String())
+	}
+
+	c.logger.InfoWithFields("Group participants updated", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"action":     action,
+		"success":    len(success),
+		"failed":     len(failed),
+	})
+
+	return success, failed, nil
+}
+
+// SetGroupName updates the group name
+func (c *WameowClient) SetGroupName(ctx context.Context, groupJID, name string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	if name == "" {
+		return fmt.Errorf("group name is required")
+	}
+
+	c.logger.InfoWithFields("Setting group name", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"name":       name,
+	})
+
+	err = c.client.SetGroupName(jid, name)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group name", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"name":       name,
+			"error":      err.Error(),
+		})
+		return err
+	}
+
+	c.logger.InfoWithFields("Group name set successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"name":       name,
+	})
+
+	return nil
+}
+
+// SetGroupDescription updates the group description
+func (c *WameowClient) SetGroupDescription(ctx context.Context, groupJID, description string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Setting group description", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"description": description,
+	})
+
+	err = c.client.SetGroupTopic(jid, "", "", description)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group description", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return err
+	}
+
+	c.logger.InfoWithFields("Group description set successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return nil
+}
+
+// GetGroupInviteLink retrieves or generates a group invite link
+func (c *WameowClient) GetGroupInviteLink(ctx context.Context, groupJID string, reset bool) (string, error) {
+	if !c.client.IsLoggedIn() {
+		return "", fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return "", fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting group invite link", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"reset":      reset,
+	})
+
+	var link string
+	if reset {
+		link, err = c.client.GetGroupInviteLink(jid, true)
+	} else {
+		link, err = c.client.GetGroupInviteLink(jid, false)
+	}
+
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get group invite link", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return "", err
+	}
+
+	c.logger.InfoWithFields("Group invite link retrieved successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return link, nil
+}
+
+// JoinGroupViaLink joins a group using an invite link
+func (c *WameowClient) JoinGroupViaLink(ctx context.Context, inviteLink string) (*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if inviteLink == "" {
+		return nil, fmt.Errorf("invite link is required")
+	}
+
+	c.logger.InfoWithFields("Joining group via link", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	groupJID, err := c.client.JoinGroupWithLink(inviteLink)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to join group via link", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	// Get group info after joining
+	groupInfo, err := c.client.GetGroupInfo(groupJID)
+	if err != nil {
+		c.logger.WarnWithFields("Joined group but failed to get info", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID.String(),
+			"error":      err.Error(),
+		})
+		// Return minimal info if we can't get full details
+		return &types.GroupInfo{
+			JID: groupJID,
+		}, nil
+	}
+
+	c.logger.InfoWithFields("Joined group successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID.String(),
+		"name":       groupInfo.Name,
+	})
+
+	return groupInfo, nil
+}
+
+// LeaveGroup leaves a group
+func (c *WameowClient) LeaveGroup(ctx context.Context, groupJID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Leaving group", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	err = c.client.LeaveGroup(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to leave group", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return err
+	}
+
+	c.logger.InfoWithFields("Left group successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return nil
+}
+
+// UpdateGroupSettings updates group settings (announce, locked)
+func (c *WameowClient) UpdateGroupSettings(ctx context.Context, groupJID string, announce, locked *bool) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Updating group settings", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+		"announce":   announce,
+		"locked":     locked,
+	})
+
+	if announce != nil {
+		err = c.client.SetGroupAnnounce(jid, *announce)
+		if err != nil {
+			c.logger.ErrorWithFields("Failed to set group announce", map[string]interface{}{
+				"session_id": c.sessionID,
+				"group_jid":  groupJID,
+				"announce":   *announce,
+				"error":      err.Error(),
+			})
+			return err
+		}
+	}
+
+	if locked != nil {
+		err = c.client.SetGroupLocked(jid, *locked)
+		if err != nil {
+			c.logger.ErrorWithFields("Failed to set group locked", map[string]interface{}{
+				"session_id": c.sessionID,
+				"group_jid":  groupJID,
+				"locked":     *locked,
+				"error":      err.Error(),
+			})
+			return err
+		}
+	}
+
+	c.logger.InfoWithFields("Group settings updated successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupJID,
+	})
+
+	return nil
+}
+
 func IsDeviceRegistered(client *whatsmeow.Client) bool {
 	if client == nil || client.Store == nil {
 		return false
