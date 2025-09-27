@@ -7,19 +7,19 @@ import (
 
 // Domain errors
 var (
-	ErrInvalidGroupJID      = errors.New("invalid group JID")
-	ErrInvalidGroupName     = errors.New("invalid group name")
-	ErrGroupNameTooLong     = errors.New("group name too long (max 25 characters)")
-	ErrDescriptionTooLong   = errors.New("description too long (max 512 characters)")
-	ErrNoParticipants       = errors.New("no participants provided")
-	ErrInvalidAction        = errors.New("invalid action (must be add, remove, promote, or demote)")
-	ErrGroupNotFound        = errors.New("group not found")
-	ErrNotGroupAdmin        = errors.New("user is not a group admin")
-	ErrCannotLeaveAsOwner   = errors.New("group owner cannot leave group")
-	ErrInvalidInviteLink    = errors.New("invalid invite link")
-	ErrParticipantNotFound  = errors.New("participant not found in group")
-	ErrAlreadyParticipant   = errors.New("user is already a participant")
-	ErrCannotRemoveOwner    = errors.New("cannot remove group owner")
+	ErrInvalidGroupJID     = errors.New("invalid group JID")
+	ErrInvalidGroupName    = errors.New("invalid group name")
+	ErrGroupNameTooLong    = errors.New("group name too long (max 25 characters)")
+	ErrDescriptionTooLong  = errors.New("description too long (max 512 characters)")
+	ErrNoParticipants      = errors.New("no participants provided")
+	ErrInvalidAction       = errors.New("invalid action (must be add, remove, promote, or demote)")
+	ErrGroupNotFound       = errors.New("group not found")
+	ErrNotGroupAdmin       = errors.New("user is not a group admin")
+	ErrCannotLeaveAsOwner  = errors.New("group owner cannot leave group")
+	ErrInvalidInviteLink   = errors.New("invalid invite link")
+	ErrParticipantNotFound = errors.New("participant not found in group")
+	ErrAlreadyParticipant  = errors.New("user is already a participant")
+	ErrCannotRemoveOwner   = errors.New("cannot remove group owner")
 )
 
 // GroupInfo represents a WhatsApp group

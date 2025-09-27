@@ -6,10 +6,12 @@ import (
 
 	"zpwoot/internal/app/chatwoot"
 	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/group"
 	"zpwoot/internal/app/message"
 	"zpwoot/internal/app/session"
 	"zpwoot/internal/app/webhook"
 	domainChatwoot "zpwoot/internal/domain/chatwoot"
+	domainGroup "zpwoot/internal/domain/group"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
 	"zpwoot/internal/ports"
@@ -22,6 +24,7 @@ type Container struct {
 	WebhookUseCase  webhook.UseCase
 	ChatwootUseCase chatwoot.UseCase
 	MessageUseCase  message.UseCase
+	GroupUseCase    group.UseCase
 
 	logger      *logger.Logger
 	sessionRepo ports.SessionRepository
@@ -31,6 +34,7 @@ type ContainerConfig struct {
 	SessionRepo  ports.SessionRepository
 	WebhookRepo  ports.WebhookRepository
 	ChatwootRepo ports.ChatwootRepository
+	GroupRepo    ports.GroupRepository
 
 	WameowManager       ports.WameowManager
 	ChatwootIntegration ports.ChatwootIntegration
@@ -55,6 +59,11 @@ func NewContainer(config *ContainerConfig) *Container {
 
 	chatwootService := domainChatwoot.NewService(
 		config.Logger,
+	)
+
+	groupService := domainGroup.NewService(
+		config.GroupRepo,
+		config.WameowManager,
 	)
 
 	commonUseCase := common.NewUseCase(
@@ -89,12 +98,19 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
+	groupUseCase := group.NewUseCase(
+		config.GroupRepo,
+		config.WameowManager,
+		groupService,
+	)
+
 	return &Container{
 		CommonUseCase:   commonUseCase,
 		SessionUseCase:  sessionUseCase,
 		WebhookUseCase:  webhookUseCase,
 		ChatwootUseCase: chatwootUseCase,
 		MessageUseCase:  messageUseCase,
+		GroupUseCase:    groupUseCase,
 		logger:          config.Logger,
 		sessionRepo:     config.SessionRepo,
 	}
@@ -126,6 +142,10 @@ func (c *Container) GetSessionRepository() ports.SessionRepository {
 
 func (c *Container) GetMessageUseCase() message.UseCase {
 	return c.MessageUseCase
+}
+
+func (c *Container) GetGroupUseCase() group.UseCase {
+	return c.GroupUseCase
 }
 
 func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowManager, error) {

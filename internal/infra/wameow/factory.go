@@ -199,7 +199,7 @@ func (m *Manager) GetStats() map[string]interface{} {
 	healthData := m.HealthCheck()
 
 	// Add additional stats
-	healthData["version"] = "1.0.0" // This should come from build info
+	healthData["version"] = "1.0.0"   // This should come from build info
 	healthData["go_version"] = "1.21" // This should come from runtime
 
 	return healthData

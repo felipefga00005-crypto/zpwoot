@@ -99,11 +99,11 @@ type WameowClient struct {
 
 // QRState encapsulates QR code related state
 type QRState struct {
-	mu           sync.RWMutex
-	code         string
-	codeBase64   string
-	loopActive   bool
-	stopChannel  chan bool
+	mu          sync.RWMutex
+	code        string
+	codeBase64  string
+	loopActive  bool
+	stopChannel chan bool
 }
 
 func NewWameowClient(
@@ -134,12 +134,12 @@ func NewWameowClient(
 	ctx, cancel := context.WithCancel(context.Background())
 
 	wameowClient := &WameowClient{
-		sessionID:   sessionID,
-		client:      client,
-		logger:      logger,
-		sessionMgr:  NewSessionManager(sessionRepo, logger),
-		qrGenerator: NewQRCodeGenerator(logger),
-		status:      "disconnected",
+		sessionID:    sessionID,
+		client:       client,
+		logger:       logger,
+		sessionMgr:   NewSessionManager(sessionRepo, logger),
+		qrGenerator:  NewQRCodeGenerator(logger),
+		status:       "disconnected",
 		lastActivity: time.Now(),
 		qrState: QRState{
 			stopChannel: make(chan bool, 1),
@@ -1921,8 +1921,8 @@ func (c *WameowClient) SetGroupDescription(ctx context.Context, groupJID, descri
 	}
 
 	c.logger.InfoWithFields("Setting group description", map[string]interface{}{
-		"session_id": c.sessionID,
-		"group_jid":  groupJID,
+		"session_id":  c.sessionID,
+		"group_jid":   groupJID,
 		"description": description,
 	})
 

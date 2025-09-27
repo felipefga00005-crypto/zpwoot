@@ -29,21 +29,21 @@ type GetGroupInfoRequest struct {
 
 // GetGroupInfoResponse represents the group information response
 type GetGroupInfoResponse struct {
-	GroupJID     string              `json:"groupJid" example:"120363123456789012@g.us"`
-	Name         string              `json:"name" example:"My Group"`
-	Description  string              `json:"description,omitempty" example:"Group description"`
-	Owner        string              `json:"owner" example:"5511999999999@s.whatsapp.net"`
-	Participants []GroupParticipant  `json:"participants"`
-	Settings     GroupSettings       `json:"settings"`
-	CreatedAt    time.Time           `json:"createdAt" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt    time.Time           `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
+	GroupJID     string             `json:"groupJid" example:"120363123456789012@g.us"`
+	Name         string             `json:"name" example:"My Group"`
+	Description  string             `json:"description,omitempty" example:"Group description"`
+	Owner        string             `json:"owner" example:"5511999999999@s.whatsapp.net"`
+	Participants []GroupParticipant `json:"participants"`
+	Settings     GroupSettings      `json:"settings"`
+	CreatedAt    time.Time          `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt    time.Time          `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 } //@name GetGroupInfoResponse
 
 // GroupParticipant represents a group participant
 type GroupParticipant struct {
-	JID      string `json:"jid" example:"5511999999999@s.whatsapp.net"`
-	IsAdmin  bool   `json:"isAdmin" example:"false"`
-	IsSuperAdmin bool `json:"isSuperAdmin" example:"false"`
+	JID          string `json:"jid" example:"5511999999999@s.whatsapp.net"`
+	IsAdmin      bool   `json:"isAdmin" example:"false"`
+	IsSuperAdmin bool   `json:"isSuperAdmin" example:"false"`
 } //@name GroupParticipant
 
 // GroupSettings represents group settings
@@ -165,8 +165,8 @@ func FromDomainGroupInfo(g *group.GroupInfo) *GetGroupInfoResponse {
 	participants := make([]GroupParticipant, len(g.Participants))
 	for i, p := range g.Participants {
 		participants[i] = GroupParticipant{
-			JID:      p.JID,
-			IsAdmin:  p.IsAdmin,
+			JID:          p.JID,
+			IsAdmin:      p.IsAdmin,
 			IsSuperAdmin: p.IsSuperAdmin,
 		}
 	}

@@ -48,15 +48,6 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/proxy/set", sessionHandler.SetProxy)     // POST /sessions/:sessionId/proxy/set
 	sessions.Get("/:sessionId/proxy/find", sessionHandler.GetProxy)     // GET /sessions/:sessionId/proxy/find
 
-	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
-
-	sessions.Post("/:sessionId/webhook/set", webhookHandler.SetConfig)  // POST /sessions/:sessionId/webhook/set
-	sessions.Get("/:sessionId/webhook/find", webhookHandler.FindConfig) // GET /sessions/:sessionId/webhook/find
-
-	chatwootHandler := handlers.NewChatwootHandler(container.GetChatwootUseCase(), appLogger)
-	sessions.Post("/:sessionId/chatwoot/set", chatwootHandler.SetConfig)  // POST /sessions/:sessionId/chatwoot/set (create/update)
-	sessions.Get("/:sessionId/chatwoot/find", chatwootHandler.FindConfig) // GET /sessions/:sessionId/chatwoot/find
-
 	messageHandler := handlers.NewMessageHandler(container.GetMessageUseCase(), WameowManager, container.GetSessionRepository(), appLogger)
 	sessions.Post("/:sessionId/messages/send/text", messageHandler.SendText)                        // POST /sessions/:sessionId/messages/send/text
 	sessions.Post("/:sessionId/messages/send/media", messageHandler.SendMedia)                      // POST /sessions/:sessionId/messages/send/media
@@ -77,6 +68,28 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/messages/delete", messageHandler.DeleteMessage)                      // POST /sessions/:sessionId/messages/delete
 	sessions.Post("/:sessionId/messages/mark-read", messageHandler.MarkAsRead)                      // POST /sessions/:sessionId/messages/mark-read
 
+	// Group management routes
+	groupHandler := handlers.NewGroupHandler(appLogger, container.GetGroupUseCase(), container.GetSessionRepository())
+	sessions.Post("/:sessionId/groups/create", groupHandler.CreateGroup)                             // POST /sessions/:sessionId/groups/create
+	sessions.Get("/:sessionId/groups", groupHandler.ListGroups)                                      // GET /sessions/:sessionId/groups
+	sessions.Get("/:sessionId/groups/:groupJid/info", groupHandler.GetGroupInfo)                     // GET /sessions/:sessionId/groups/:groupJid/info
+	sessions.Post("/:sessionId/groups/:groupJid/participants", groupHandler.UpdateGroupParticipants) // POST /sessions/:sessionId/groups/:groupJid/participants
+	sessions.Put("/:sessionId/groups/:groupJid/name", groupHandler.SetGroupName)                     // PUT /sessions/:sessionId/groups/:groupJid/name
+	sessions.Put("/:sessionId/groups/:groupJid/description", groupHandler.SetGroupDescription)       // PUT /sessions/:sessionId/groups/:groupJid/description
+	sessions.Put("/:sessionId/groups/:groupJid/photo", groupHandler.SetGroupPhoto)                   // PUT /sessions/:sessionId/groups/:groupJid/photo
+	sessions.Get("/:sessionId/groups/:groupJid/invite-link", groupHandler.GetGroupInviteLink)        // GET /sessions/:sessionId/groups/:groupJid/invite-link
+	sessions.Post("/:sessionId/groups/join", groupHandler.JoinGroup)                                 // POST /sessions/:sessionId/groups/join
+	sessions.Post("/:sessionId/groups/:groupJid/leave", groupHandler.LeaveGroup)                     // POST /sessions/:sessionId/groups/:groupJid/leave
+	sessions.Put("/:sessionId/groups/:groupJid/settings", groupHandler.UpdateGroupSettings)          // PUT /sessions/:sessionId/groups/:groupJid/settings
+
+	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
+
+	sessions.Post("/:sessionId/webhook/set", webhookHandler.SetConfig)  // POST /sessions/:sessionId/webhook/set
+	sessions.Get("/:sessionId/webhook/find", webhookHandler.FindConfig) // GET /sessions/:sessionId/webhook/find
+
+	chatwootHandler := handlers.NewChatwootHandler(container.GetChatwootUseCase(), appLogger)
+	sessions.Post("/:sessionId/chatwoot/set", chatwootHandler.SetConfig)  // POST /sessions/:sessionId/chatwoot/set (create/update)
+	sessions.Get("/:sessionId/chatwoot/find", chatwootHandler.FindConfig) // GET /sessions/:sessionId/chatwoot/find
 }
 
 func setupSessionSpecificRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger, WameowManager *wameow.Manager, container *app.Container) {

@@ -1272,10 +1272,10 @@ func convertToPortsGroupInfo(domainGroup interface{}) *ports.GroupInfo {
 	// you would properly convert from the domain GroupInfo type
 	// For now, return a basic structure
 	return &ports.GroupInfo{
-		GroupJID:     "group@g.us", // placeholder
-		Name:         "Group Name", // placeholder
-		Description:  "Group Description", // placeholder
-		Owner:        "owner@s.whatsapp.net", // placeholder
+		GroupJID:     "group@g.us",               // placeholder
+		Name:         "Group Name",               // placeholder
+		Description:  "Group Description",        // placeholder
+		Owner:        "owner@s.whatsapp.net",     // placeholder
 		Participants: []ports.GroupParticipant{}, // placeholder
 		Settings: ports.GroupSettings{
 			Announce: false,

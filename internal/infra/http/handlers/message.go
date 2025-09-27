@@ -38,10 +38,6 @@ func NewMessageHandler(
 	}
 }
 
-
-
-
-
 // @Summary Send media message
 // @Description Send a media file (image, audio, video, document) with optional caption
 // @Tags Messages

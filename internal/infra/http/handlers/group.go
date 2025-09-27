@@ -61,8 +61,8 @@ func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoWithFields("Creating group", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"name":       req.Name,
+		"session_id":   sess.ID.String(),
+		"name":         req.Name,
 		"participants": len(req.Participants),
 	})
 
@@ -247,8 +247,8 @@ func (h *GroupHandler) SetGroupDescription(c *fiber.Ctx) error {
 	req.GroupJID = groupJID
 
 	h.logger.InfoWithFields("Setting group description", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"group_jid":  groupJID,
+		"session_id":  sess.ID.String(),
+		"group_jid":   groupJID,
 		"description": req.Description,
 	})
 
