@@ -41,7 +41,7 @@ func NewUseCase(
 func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *SendMessageRequest) (*SendMessageResponse, error) {
 	uc.logger.InfoWithFields("Sending message", map[string]interface{}{
 		"session_id": sessionID,
-		"to":         req.Phone,
+		"to":         req.JID,
 		"type":       req.Type,
 	})
 
@@ -123,7 +123,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to send message", map[string]interface{}{
 			"session_id": sessionID,
-			"to":         req.Phone,
+			"to":         req.JID,
 			"type":       req.Type,
 			"error":      err.Error(),
 		})
@@ -132,7 +132,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 
 	uc.logger.InfoWithFields("Message sent successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"to":         req.Phone,
+		"to":         req.JID,
 		"type":       req.Type,
 		"message_id": result.MessageID,
 	})
@@ -149,7 +149,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 // GetPollResults retrieves poll results for a specific poll message
 func (uc *useCaseImpl) GetPollResults(ctx context.Context, req *GetPollResultsRequest) (*GetPollResultsResponse, error) {
 	uc.logger.InfoWithFields("Getting poll results", map[string]interface{}{
-		"to":              req.Phone,
+		"to":              req.JID,
 		"poll_message_id": req.PollMessageID,
 	})
 
@@ -165,19 +165,19 @@ func (uc *useCaseImpl) GetPollResults(ctx context.Context, req *GetPollResultsRe
 		TotalVotes:            0,
 		SelectableOptionCount: 1,
 		AllowMultipleAnswers:  false,
-		Phone:                 req.Phone,
+		JID:                   req.JID,
 	}, fmt.Errorf("poll results collection not yet implemented - requires event handling")
 }
 
 // RevokeMessage revokes a message using whatsmeow's RevokeMessage method
 func (uc *useCaseImpl) RevokeMessage(ctx context.Context, req *RevokeMessageRequest) (*RevokeMessageResponse, error) {
 	uc.logger.InfoWithFields("Revoking message", map[string]interface{}{
-		"to":         req.Phone,
+		"to":         req.JID,
 		"message_id": req.MessageID,
 	})
 
 	// Use whatsmeow's RevokeMessage method
-	result, err := uc.wameowManager.RevokeMessage(req.SessionID, req.Phone, req.MessageID)
+	result, err := uc.wameowManager.RevokeMessage(req.SessionID, req.JID, req.MessageID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to revoke message: %w", err)
 	}
@@ -192,13 +192,13 @@ func (uc *useCaseImpl) RevokeMessage(ctx context.Context, req *RevokeMessageRequ
 // EditMessage edits a message using whatsmeow's BuildEdit method
 func (uc *useCaseImpl) EditMessage(ctx context.Context, req *EditMessageRequest) (*EditMessageResponse, error) {
 	uc.logger.InfoWithFields("Editing message", map[string]interface{}{
-		"to":         req.Phone,
+		"to":         req.JID,
 		"message_id": req.MessageID,
 		"new_body":   req.NewBody,
 	})
 
 	// Use whatsmeow's BuildEdit method
-	err := uc.wameowManager.EditMessage(req.SessionID, req.Phone, req.MessageID, req.NewBody)
+	err := uc.wameowManager.EditMessage(req.SessionID, req.JID, req.MessageID, req.NewBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to edit message: %w", err)
 	}
@@ -214,18 +214,18 @@ func (uc *useCaseImpl) EditMessage(ctx context.Context, req *EditMessageRequest)
 // MarkAsRead marks messages as read using whatsmeow's MarkRead method
 func (uc *useCaseImpl) MarkAsRead(ctx context.Context, req *MarkAsReadRequest) (*MarkAsReadResponse, error) {
 	uc.logger.InfoWithFields("Marking messages as read", map[string]interface{}{
-		"to":          req.Phone,
+		"to":          req.JID,
 		"message_ids": req.MessageIDs,
 	})
 
 	// Use whatsmeow's MarkRead method (currently supports single message)
 	// For multiple messages, we'll mark each one individually
 	for _, messageID := range req.MessageIDs {
-		err := uc.wameowManager.MarkRead(req.SessionID, req.Phone, messageID)
+		err := uc.wameowManager.MarkRead(req.SessionID, req.JID, messageID)
 		if err != nil {
 			uc.logger.WarnWithFields("Failed to mark message as read", map[string]interface{}{
 				"session_id": req.SessionID,
-				"to":         req.Phone,
+				"to":         req.JID,
 				"message_id": messageID,
 				"error":      err.Error(),
 			})

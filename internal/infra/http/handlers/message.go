@@ -65,7 +65,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if mediaReq.Phone == "" {
+	if mediaReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Recipient (Phone) is required"))
 	}
 
@@ -75,7 +75,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 
 	// Convert MediaMessageRequest to SendMessageRequest
 	req := &message.SendMessageRequest{
-		Phone:    mediaReq.Phone,
+		JID:      mediaReq.JID,
 		Type:     "media", // Generic media type
 		File:     mediaReq.File,
 		Caption:  mediaReq.Caption,
@@ -97,7 +97,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send media message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         req.Phone,
+			"to":         req.JID,
 			"error":      err.Error(),
 		})
 
@@ -116,7 +116,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Media message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         req.Phone,
+		"to":         req.JID,
 		"message_id": response.ID,
 	})
 
@@ -148,7 +148,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid image message format"))
 	}
 
-	if imageReq.Phone == "" {
+	if imageReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -169,7 +169,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		Phone:       imageReq.Phone,
+		JID:         imageReq.JID,
 		Type:        "image",
 		File:        imageReq.File,
 		Caption:     imageReq.Caption,
@@ -183,7 +183,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         imageReq.Phone,
+			"to":         imageReq.JID,
 			"has_reply":  imageReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -223,7 +223,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid audio message format"))
 	}
 
-	if audioReq.Phone == "" {
+	if audioReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -244,7 +244,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		Phone:       audioReq.Phone,
+		JID:         audioReq.JID,
 		Type:        "audio",
 		File:        audioReq.File,
 		Caption:     audioReq.Caption,
@@ -257,7 +257,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send audio message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         audioReq.Phone,
+			"to":         audioReq.JID,
 			"has_reply":  audioReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -297,7 +297,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid video message format"))
 	}
 
-	if videoReq.Phone == "" {
+	if videoReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -318,7 +318,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		Phone:       videoReq.Phone,
+		JID:         videoReq.JID,
 		Type:        "video",
 		File:        videoReq.File,
 		Caption:     videoReq.Caption,
@@ -332,7 +332,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         videoReq.Phone,
+			"to":         videoReq.JID,
 			"has_reply":  videoReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -372,7 +372,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid document message format"))
 	}
 
-	if docReq.Phone == "" {
+	if docReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -397,7 +397,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		Phone:       docReq.Phone,
+		JID:         docReq.JID,
 		Type:        "document",
 		File:        docReq.File,
 		Caption:     docReq.Caption,
@@ -411,7 +411,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send document message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         docReq.Phone,
+			"to":         docReq.JID,
 			"filename":   docReq.Filename,
 			"has_reply":  docReq.ContextInfo != nil,
 			"error":      err.Error(),
@@ -504,7 +504,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid single contact format"))
 	}
 
-	if contactReq.Phone == "" {
+	if contactReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 	if contactReq.ContactName == "" {
@@ -521,7 +521,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 
 	result, err := h.wameowManager.SendMessage(
 		sess.ID.String(),
-		contactReq.Phone,
+		contactReq.JID,
 		"contact",
 		"",
 		"",
@@ -537,7 +537,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send contact message", map[string]interface{}{
 			"session_id":   sess.ID.String(),
-			"to":           contactReq.Phone,
+			"to":           contactReq.JID,
 			"contact_name": contactReq.ContactName,
 			"error":        err.Error(),
 		})
@@ -557,7 +557,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 
 	h.logger.InfoWithFields("Contact message sent successfully", map[string]interface{}{
 		"session_id":   sess.ID.String(),
-		"to":           contactReq.Phone,
+		"to":           contactReq.JID,
 		"contact_name": contactReq.ContactName,
 		"message_id":   result.MessageID,
 	})
@@ -571,7 +571,7 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid contact list format"))
 	}
 
-	if contactListReq.Phone == "" {
+	if contactListReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -615,21 +615,21 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 	if len(contactListReq.Contacts) == 1 {
 		contact := contacts[0]
 
-		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.Phone, contact)
+		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.JID, contact)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send single contact", map[string]interface{}{
 				"session_id":   sess.ID.String(),
-				"to":           contactListReq.Phone,
+				"to":           contactListReq.JID,
 				"contact_name": contact.Name,
 				"error":        err.Error(),
 			})
 		}
 	} else {
-		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.Phone, contacts)
+		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.JID, contacts)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
 				"session_id":    sess.ID.String(),
-				"to":            contactListReq.Phone,
+				"to":            contactListReq.JID,
 				"contact_count": len(contactListReq.Contacts),
 				"error":         err.Error(),
 			})
@@ -669,7 +669,7 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 
 	h.logger.InfoWithFields("Contact sent successfully", map[string]interface{}{
 		"session_id":     sess.ID.String(),
-		"to":             contactListReq.Phone,
+		"to":             contactListReq.JID,
 		"total_contacts": result.TotalContacts,
 		"success_count":  result.SuccessCount,
 		"failure_count":  result.FailureCount,
@@ -710,7 +710,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid business profile format"))
 	}
 
-	if businessReq.Phone == "" {
+	if businessReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -718,7 +718,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("'name' field is required"))
 	}
 
-	if businessReq.Phone == "" {
+	if businessReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'phone' field is required"))
 	}
 
@@ -729,7 +729,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 
 	contact := wameow.ContactInfo{
 		Name:         businessReq.Name,
-		Phone:        businessReq.Phone,
+		Phone:        businessReq.JID,
 		Email:        businessReq.Email,
 		Organization: businessReq.Organization,
 		Title:        businessReq.Title,
@@ -737,11 +737,11 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		Address:      businessReq.Address,
 	}
 
-	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.Phone, contact)
+	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.JID, contact)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send business profile", map[string]interface{}{
 			"session_id":    sess.ID.String(),
-			"to":            businessReq.Phone,
+			"to":            businessReq.JID,
 			"business_name": businessReq.Name,
 			"error":         err.Error(),
 		})
@@ -755,7 +755,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Business profile sent successfully", map[string]interface{}{
 		"session_id":    sess.ID.String(),
-		"to":            businessReq.Phone,
+		"to":            businessReq.JID,
 		"business_name": businessReq.Name,
 		"format_type":   "Business",
 	})
@@ -794,7 +794,7 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid text message format"))
 	}
 
-	if textReq.Phone == "" {
+	if textReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -813,11 +813,11 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.Phone, textReq.Body, textReq.ContextInfo)
+	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.JID, textReq.Body, textReq.ContextInfo)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send text message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         textReq.Phone,
+			"to":         textReq.JID,
 			"has_reply":  textReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -831,7 +831,7 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Text message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         textReq.Phone,
+		"to":         textReq.JID,
 		"message_id": result.MessageID,
 		"has_reply":  textReq.ContextInfo != nil,
 	})
@@ -871,7 +871,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		ButtonText string `json:"ButtonText"`
 	}
 	type buttonRequest struct {
-		Phone   string         `json:"Phone"`
+		JID     string         `json:"jid"`
 		Title   string         `json:"Title"`
 		Buttons []buttonStruct `json:"Buttons"`
 		Id      string         `json:"Id,omitempty"`
@@ -882,7 +882,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
 	}
 
-	if buttonReq.Phone == "" {
+	if buttonReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("missing Phone in Payload"))
 	}
 
@@ -911,11 +911,11 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.Phone, buttonReq.Title, buttons)
+	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.JID, buttonReq.Title, buttons)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send button message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         buttonReq.Phone,
+			"to":         buttonReq.JID,
 			"error":      err.Error(),
 		})
 
@@ -962,7 +962,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		Rows  []listItem `json:"rows"`
 	}
 	type listRequest struct {
-		Phone      string     `json:"Phone"`
+		JID        string     `json:"jid"`
 		ButtonText string     `json:"ButtonText"`
 		Desc       string     `json:"Desc"`
 		TopText    string     `json:"TopText"`
@@ -978,7 +978,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	}
 
 	// Required fields validation - FooterText is optional
-	if listReq.Phone == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
+	if listReq.JID == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("missing required fields: Phone, ButtonText, Desc, TopText"))
 	}
 
@@ -1028,11 +1028,11 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.Phone, listReq.Desc, listReq.ButtonText, sections)
+	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.JID, listReq.Desc, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         listReq.Phone,
+			"to":         listReq.JID,
 			"error":      err.Error(),
 		})
 
@@ -1074,7 +1074,7 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if reactionReq.Phone == "" || reactionReq.MessageID == "" || reactionReq.Reaction == "" {
+	if reactionReq.JID == "" || reactionReq.MessageID == "" || reactionReq.Reaction == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone', 'messageId', and 'reaction' are required"))
 	}
 
@@ -1083,11 +1083,11 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.SendReaction(sess.ID.String(), reactionReq.Phone, reactionReq.MessageID, reactionReq.Reaction)
+	err = h.wameowManager.SendReaction(sess.ID.String(), reactionReq.JID, reactionReq.MessageID, reactionReq.Reaction)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send reaction", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         reactionReq.Phone,
+			"to":         reactionReq.JID,
 			"message_id": reactionReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1135,7 +1135,7 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if presenceReq.Phone == "" || presenceReq.Presence == "" {
+	if presenceReq.JID == "" || presenceReq.Presence == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' and 'presence' are required"))
 	}
 
@@ -1157,11 +1157,11 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.SendPresence(sess.ID.String(), presenceReq.Phone, presenceReq.Presence)
+	err = h.wameowManager.SendPresence(sess.ID.String(), presenceReq.JID, presenceReq.Presence)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send presence", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         presenceReq.Phone,
+			"to":         presenceReq.JID,
 			"presence":   presenceReq.Presence,
 			"error":      err.Error(),
 		})
@@ -1208,7 +1208,7 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if editReq.Phone == "" || editReq.MessageID == "" || editReq.NewBody == "" {
+	if editReq.JID == "" || editReq.MessageID == "" || editReq.NewBody == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone', 'messageId', and 'newBody' are required"))
 	}
 
@@ -1217,11 +1217,11 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.Phone, editReq.MessageID, editReq.NewBody)
+	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.JID, editReq.MessageID, editReq.NewBody)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         editReq.Phone,
+			"to":         editReq.JID,
 			"message_id": editReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1264,7 +1264,7 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 	}
 
 	var markReadReq struct {
-		Phone     string `json:"Phone" validate:"required"`
+		JID       string `json:"jid" validate:"required"`
 		MessageID string `json:"messageId" validate:"required"`
 	}
 
@@ -1272,7 +1272,7 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if markReadReq.Phone == "" || markReadReq.MessageID == "" {
+	if markReadReq.JID == "" || markReadReq.MessageID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' and 'messageId' are required"))
 	}
 
@@ -1281,11 +1281,11 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.MarkRead(sess.ID.String(), markReadReq.Phone, markReadReq.MessageID)
+	err = h.wameowManager.MarkRead(sess.ID.String(), markReadReq.JID, markReadReq.MessageID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to mark message as read", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         markReadReq.Phone,
+			"to":         markReadReq.JID,
 			"message_id": markReadReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1323,7 +1323,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 
 	req.Type = messageType
 
-	if req.Phone == "" {
+	if req.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Recipient (Phone) is required"))
 	}
 
@@ -1363,7 +1363,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send "+messageType+" message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         req.Phone,
+			"to":         req.JID,
 			"type":       messageType,
 			"error":      err.Error(),
 		})
@@ -1386,7 +1386,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 
 	h.logger.InfoWithFields(capitalizeFirst(messageType)+" message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         req.Phone,
+		"to":         req.JID,
 		"type":       messageType,
 		"message_id": response.ID,
 	})
@@ -1420,7 +1420,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 	}
 
 	// Validate required fields
-	if pollReq.Phone == "" {
+	if pollReq.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -1452,18 +1452,18 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Sending poll", map[string]interface{}{
 		"session_id":       sess.ID.String(),
-		"to":               pollReq.Phone,
+		"to":               pollReq.JID,
 		"name":             pollReq.Name,
 		"options_count":    len(pollReq.Options),
 		"selectable_count": pollReq.SelectableOptionCount,
 	})
 
 	// Send poll using wameow manager
-	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.Phone, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
+	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.JID, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         pollReq.Phone,
+			"to":         pollReq.JID,
 			"name":       pollReq.Name,
 			"error":      err.Error(),
 		})
@@ -1481,7 +1481,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Poll sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         pollReq.Phone,
+		"to":         pollReq.JID,
 		"name":       pollReq.Name,
 		"message_id": result.MessageID,
 	})
@@ -1490,7 +1490,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 		MessageID: result.MessageID,
 		PollName:  pollReq.Name,
 		Options:   pollReq.Options,
-		Phone:     pollReq.Phone,
+		JID:       pollReq.JID,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
 	}
@@ -1528,14 +1528,14 @@ func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Message ID is required"))
 	}
 
-	if req.Phone == "" {
+	if req.JID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Phone field is required"))
 	}
 
 	h.logger.InfoWithFields("Revoking message", map[string]interface{}{
 		"session":    sessionIdentifier,
 		"message_id": req.MessageID,
-		"to":         req.Phone,
+		"to":         req.JID,
 	})
 
 	// Resolve session
@@ -1557,7 +1557,7 @@ func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
 		h.logger.ErrorWithFields("Failed to revoke message", map[string]interface{}{
 			"session_id": sess.ID.String(),
 			"message_id": req.MessageID,
-			"to":         req.Phone,
+			"to":         req.JID,
 			"error":      err.Error(),
 		})
 
@@ -1621,7 +1621,7 @@ func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
 
 	// Create request
 	req := &message.GetPollResultsRequest{
-		Phone:         chatJID,
+		JID:           chatJID,
 		PollMessageID: messageID,
 	}
 
