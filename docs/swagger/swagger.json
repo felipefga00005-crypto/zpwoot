@@ -3139,14 +3139,10 @@
         "AudioMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
-                "file"
+                "file",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "caption": {
                     "type": "string",
                     "example": "Voice message"
@@ -3158,6 +3154,10 @@
                     "type": "string",
                     "example": "https://example.com/audio.ogg"
                 },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "mimeType": {
                     "type": "string",
                     "example": "audio/ogg"
@@ -3167,15 +3167,11 @@
         "BusinessProfileRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "name",
                 "phone"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511987654321@s.whatsapp.net"
-                },
                 "address": {
                     "type": "string",
                     "example": "Rua Teste, 123 - São Paulo, SP"
@@ -3183,6 +3179,10 @@
                 "email": {
                     "type": "string",
                     "example": "contato@empresateste.com.br"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
                 },
                 "name": {
                     "type": "string",
@@ -3225,15 +3225,11 @@
         "ButtonMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
                 "body",
-                "buttons"
+                "buttons",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "body": {
                     "type": "string",
                     "example": "Please choose one of the options below:"
@@ -3245,6 +3241,10 @@
                     "items": {
                         "$ref": "#/definitions/Button"
                     }
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3311,15 +3311,11 @@
         "ContactMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
                 "contactName",
-                "contactPhone"
+                "contactPhone",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "contactName": {
                     "type": "string",
                     "example": "Maria Silva"
@@ -3327,6 +3323,10 @@
                 "contactPhone": {
                     "type": "string",
                     "example": "+5511987654321"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3424,18 +3424,18 @@
         "CreatePollRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "name",
                 "options"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "allowMultipleAnswers": {
                     "type": "boolean",
                     "example": false
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "name": {
                     "type": "string",
@@ -3466,7 +3466,7 @@
         "CreatePollResponse": {
             "type": "object",
             "properties": {
-                "Phone": {
+                "jid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -3564,15 +3564,11 @@
         "DocumentMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
                 "file",
-                "filename"
+                "filename",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "caption": {
                     "type": "string",
                     "example": "Important document"
@@ -3588,6 +3584,10 @@
                     "type": "string",
                     "example": "important_document.pdf"
                 },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "mimeType": {
                     "type": "string",
                     "example": "application/pdf"
@@ -3597,13 +3597,13 @@
         "EditMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "messageId",
                 "newBody",
                 "sessionId"
             ],
             "properties": {
-                "Phone": {
+                "jid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -3645,10 +3645,6 @@
         "GetPollResultsResponse": {
             "type": "object",
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "allowMultipleAnswers": {
                     "type": "boolean",
                     "example": false
@@ -3656,6 +3652,10 @@
                 "createdAt": {
                     "type": "string",
                     "example": "2024-01-01T12:00:00Z"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "options": {
                     "type": "array",
@@ -3705,14 +3705,10 @@
         "ImageMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
-                "file"
+                "file",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "caption": {
                     "type": "string",
                     "example": "Beautiful sunset photo"
@@ -3728,6 +3724,10 @@
                     "type": "string",
                     "example": "sunset.jpg"
                 },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "mimeType": {
                     "type": "string",
                     "example": "image/jpeg"
@@ -3737,16 +3737,12 @@
         "ListMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
                 "body",
                 "buttonText",
+                "jid",
                 "sections"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "body": {
                     "type": "string",
                     "example": "Please select one of the available options:"
@@ -3754,6 +3750,10 @@
                 "buttonText": {
                     "type": "string",
                     "example": "Select Option"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "sections": {
                     "type": "array",
@@ -3790,18 +3790,18 @@
         "LocationMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "latitude",
                 "longitude"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "address": {
                     "type": "string",
                     "example": "Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "latitude": {
                     "type": "number",
@@ -3816,17 +3816,17 @@
         "MarkReadRequest": {
             "type": "object",
             "required": [
-                "messageId",
-                "phone"
+                "jid",
+                "messageId"
             ],
             "properties": {
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C431C26A1916E07E"
-                },
-                "phone": {
-                    "type": "string",
-                    "example": "5511999999999"
                 }
             }
         },
@@ -3854,14 +3854,10 @@
         "MediaMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
-                "file"
+                "file",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "caption": {
                     "type": "string",
                     "example": "Media caption"
@@ -3873,6 +3869,10 @@
                 "filename": {
                     "type": "string",
                     "example": "media.file"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "mimeType": {
                     "type": "string",
@@ -3934,11 +3934,11 @@
         "PresenceMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "presence"
             ],
             "properties": {
-                "Phone": {
+                "jid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -4026,12 +4026,12 @@
         "ReactionMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "messageId",
                 "reaction"
             ],
             "properties": {
-                "Phone": {
+                "jid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -4069,12 +4069,12 @@
         "RevokeMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
+                "jid",
                 "messageId",
                 "sessionId"
             ],
             "properties": {
-                "Phone": {
+                "jid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -4307,34 +4307,30 @@
         "TextMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
-                "body"
+                "body",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511987654321@s.whatsapp.net"
-                },
                 "body": {
                     "type": "string",
                     "example": "Hello, this is a text message"
                 },
                 "contextInfo": {
                     "$ref": "#/definitions/ContextInfo"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
                 }
             }
         },
         "VideoMessageRequest": {
             "type": "object",
             "required": [
-                "Phone",
-                "file"
+                "file",
+                "jid"
             ],
             "properties": {
-                "Phone": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "caption": {
                     "type": "string",
                     "example": "Check out this amazing video!"
@@ -4349,6 +4345,10 @@
                 "filename": {
                     "type": "string",
                     "example": "amazing_video.mp4"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "mimeType": {
                     "type": "string",

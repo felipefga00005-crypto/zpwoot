@@ -218,7 +218,7 @@ type PresenceMessageRequest struct {
 } //@name PresenceMessageRequest
 
 type EditMessageRequest struct {
-	SessionID string `json:"sessionId" validate:"required" example:"mySession"`
+	SessionID string `json:"sessionId,omitempty" example:"mySession"`
 	JID       string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	NewBody   string `json:"newBody" validate:"required" example:"Updated message text"`

@@ -6,6 +6,7 @@ import (
 	"regexp"
 	"strings"
 
+	"zpwoot/internal/infra/wameow"
 	"zpwoot/pkg/uuid"
 )
 
@@ -252,22 +253,15 @@ func (s *Service) ProcessParticipantChanges(req *UpdateParticipantsRequest, curr
 	return nil
 }
 
-// validateJID validates WhatsApp JID format
+// validateJID validates WhatsApp JID format using our improved validator
 func (s *Service) validateJID(jid string) error {
 	if jid == "" {
 		return fmt.Errorf("JID cannot be empty")
 	}
 
-	// Basic JID validation for WhatsApp
-	// Individual: number@s.whatsapp.net
-	// Group: number@g.us
-	jidPattern := `^[0-9]+@(s\.whatsapp\.net|g\.us)$`
-	matched, err := regexp.MatchString(jidPattern, jid)
-	if err != nil {
-		return fmt.Errorf("error validating JID: %w", err)
-	}
-
-	if !matched {
+	// Use our improved JID validator that handles multiple formats
+	validator := wameow.NewJIDValidator()
+	if !validator.IsValid(jid) {
 		return fmt.Errorf("invalid JID format")
 	}
 

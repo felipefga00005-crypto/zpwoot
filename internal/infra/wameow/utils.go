@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store"
@@ -28,21 +29,33 @@ func NewJIDValidator() *JIDValidator {
 }
 
 // IsValid checks if a JID is valid
+// Supports: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net, groups@g.us
 func (v *JIDValidator) IsValid(jid string) bool {
 	if jid == "" {
 		return false
 	}
 
-	// Check for WhatsApp JID format
+	// Check for WhatsApp JID format (individual or group)
 	if strings.Contains(jid, "@s.whatsapp.net") || strings.Contains(jid, "@g.us") {
 		return true
 	}
 
+	// Remove leading + and formatting characters for validation
+	cleanJID := jid
+	if strings.HasPrefix(cleanJID, "+") {
+		cleanJID = cleanJID[1:]
+	}
+	cleanJID = strings.ReplaceAll(cleanJID, " ", "")
+	cleanJID = strings.ReplaceAll(cleanJID, "-", "")
+	cleanJID = strings.ReplaceAll(cleanJID, "(", "")
+	cleanJID = strings.ReplaceAll(cleanJID, ")", "")
+
 	// Check for phone number format (digits only)
-	return v.phoneRegex.MatchString(jid)
+	return v.phoneRegex.MatchString(cleanJID)
 }
 
 // Normalize converts a JID to standard WhatsApp format
+// Supports formats: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net
 func (v *JIDValidator) Normalize(jid string) string {
 	jid = strings.TrimSpace(jid)
 
@@ -51,7 +64,18 @@ func (v *JIDValidator) Normalize(jid string) string {
 		return jid
 	}
 
-	// If it's just a phone number, add the WhatsApp suffix
+	// Remove leading + if present
+	if strings.HasPrefix(jid, "+") {
+		jid = jid[1:]
+	}
+
+	// Remove any spaces or dashes
+	jid = strings.ReplaceAll(jid, " ", "")
+	jid = strings.ReplaceAll(jid, "-", "")
+	jid = strings.ReplaceAll(jid, "(", "")
+	jid = strings.ReplaceAll(jid, ")", "")
+
+	// If it's just a phone number (digits only), add the WhatsApp suffix
 	if v.phoneRegex.MatchString(jid) {
 		return jid + "@s.whatsapp.net"
 	}
@@ -59,17 +83,26 @@ func (v *JIDValidator) Normalize(jid string) string {
 	return jid
 }
 
-// Parse converts a string JID to types.JID
+// Parse converts a string JID to types.JID with intelligent normalization
 func (v *JIDValidator) Parse(jid string) (waTypes.JID, error) {
+	if jid == "" {
+		return waTypes.EmptyJID, fmt.Errorf("JID cannot be empty")
+	}
+
 	normalizedJID := v.Normalize(jid)
 
 	if !v.IsValid(normalizedJID) {
-		return waTypes.EmptyJID, fmt.Errorf("invalid JID format: %s", jid)
+		return waTypes.EmptyJID, fmt.Errorf("invalid JID format: %s (normalized: %s)", jid, normalizedJID)
 	}
 
 	parsedJID, err := waTypes.ParseJID(normalizedJID)
 	if err != nil {
 		return waTypes.EmptyJID, fmt.Errorf("failed to parse JID %s: %w", normalizedJID, err)
+	}
+
+	// Additional validation
+	if parsedJID.User == "" {
+		return waTypes.EmptyJID, fmt.Errorf("JID missing user part: %s", normalizedJID)
 	}
 
 	return parsedJID, nil
@@ -380,4 +413,51 @@ func GetErrorCategory(err error) string {
 	default:
 		return "unknown"
 	}
+}
+
+// TextNormalizer handles text normalization for emojis and special characters
+type TextNormalizer struct{}
+
+// NewTextNormalizer creates a new text normalizer
+func NewTextNormalizer() *TextNormalizer {
+	return &TextNormalizer{}
+}
+
+// NormalizeText ensures text is properly encoded for WhatsApp
+func (t *TextNormalizer) NormalizeText(text string) string {
+	// Ensure valid UTF-8
+	if !utf8.ValidString(text) {
+		text = strings.ToValidUTF8(text, "")
+	}
+	return text
+}
+
+// IsEmojiText checks if text contains emojis
+func (t *TextNormalizer) IsEmojiText(text string) bool {
+	for _, r := range text {
+		// Check for emoji ranges
+		if (r >= 0x1F600 && r <= 0x1F64F) || // Emoticons
+			(r >= 0x1F300 && r <= 0x1F5FF) || // Misc Symbols
+			(r >= 0x1F680 && r <= 0x1F6FF) || // Transport
+			(r >= 0x1F1E0 && r <= 0x1F1FF) || // Flags
+			(r >= 0x2600 && r <= 0x26FF) ||   // Misc symbols
+			(r >= 0x2700 && r <= 0x27BF) {    // Dingbats
+			return true
+		}
+	}
+	return false
+}
+
+// NormalizeMessageText is a global helper for message text normalization
+func NormalizeMessageText(text string) string {
+	normalizer := NewTextNormalizer()
+	return normalizer.NormalizeText(text)
+}
+
+// Global text normalizer instance
+var defaultTextNormalizer = NewTextNormalizer()
+
+// IsEmojiMessage checks if a message contains emojis (global helper)
+func IsEmojiMessage(text string) bool {
+	return defaultTextNormalizer.IsEmojiText(text)
 }

@@ -73,10 +73,13 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("File is required"))
 	}
 
+	// Detect media type from MIME type or file extension
+	mediaType := h.detectMediaType(mediaReq.MimeType, mediaReq.File)
+
 	// Convert MediaMessageRequest to SendMessageRequest
 	req := &message.SendMessageRequest{
 		JID:      mediaReq.JID,
-		Type:     "media", // Generic media type
+		Type:     mediaType,
 		File:     mediaReq.File,
 		Caption:  mediaReq.Caption,
 		MimeType: mediaReq.MimeType,
@@ -1217,7 +1220,11 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.EditMessage(sess.ID.String(), editReq.JID, editReq.MessageID, editReq.NewBody)
+	// Set session ID in request for usecase
+	editReq.SessionID = sess.ID.String()
+
+	// Use the usecase instead of calling wameowManager directly
+	response, err := h.messageUC.EditMessage(c.Context(), &editReq)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -1231,13 +1238,6 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		}
 
 		return c.Status(500).JSON(common.NewErrorResponse("Failed to edit message"))
-	}
-
-	response := map[string]interface{}{
-		"id":        editReq.MessageID,
-		"status":    "edited",
-		"newBody":   editReq.NewBody,
-		"timestamp": time.Now(),
 	}
 
 	return c.JSON(common.NewSuccessResponse(response, "Message edited successfully"))
@@ -1392,6 +1392,48 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	})
 
 	return c.JSON(common.NewSuccessResponse(response, capitalizeFirst(messageType)+" message sent successfully"))
+}
+
+// detectMediaType detects the media type from MIME type or file extension
+func (h *MessageHandler) detectMediaType(mimeType, fileURL string) string {
+	// If MIME type is provided, use it
+	if mimeType != "" {
+		switch {
+		case strings.HasPrefix(mimeType, "image/"):
+			return "image"
+		case strings.HasPrefix(mimeType, "audio/"):
+			return "audio"
+		case strings.HasPrefix(mimeType, "video/"):
+			return "video"
+		case mimeType == "application/pdf" || strings.HasPrefix(mimeType, "application/"):
+			return "document"
+		case mimeType == "image/webp" && strings.Contains(fileURL, "sticker"):
+			return "sticker"
+		}
+	}
+
+	// Fallback to file extension detection
+	if fileURL != "" {
+		lower := strings.ToLower(fileURL)
+		switch {
+		case strings.Contains(lower, ".jpg") || strings.Contains(lower, ".jpeg") ||
+			 strings.Contains(lower, ".png") || strings.Contains(lower, ".gif") ||
+			 strings.Contains(lower, ".webp"):
+			return "image"
+		case strings.Contains(lower, ".mp3") || strings.Contains(lower, ".wav") ||
+			 strings.Contains(lower, ".ogg") || strings.Contains(lower, ".m4a"):
+			return "audio"
+		case strings.Contains(lower, ".mp4") || strings.Contains(lower, ".avi") ||
+			 strings.Contains(lower, ".mov") || strings.Contains(lower, ".webm"):
+			return "video"
+		case strings.Contains(lower, ".pdf") || strings.Contains(lower, ".doc") ||
+			 strings.Contains(lower, ".txt") || strings.Contains(lower, ".zip"):
+			return "document"
+		}
+	}
+
+	// Default to image if can't detect
+	return "image"
 }
 
 // @Summary Send poll

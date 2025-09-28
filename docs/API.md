@@ -1,181 +1,282 @@
 # zpwoot API Documentation
 
-## 📖 Swagger Documentation
+## Base URL
+```
+http://localhost:8080
+```
 
-A documentação completa da API está disponível através do Swagger UI.
+## Authentication
+```
+Authorization: ZP_API_KEY
+```
 
-### 🚀 Como acessar
+## Variables
+Replace these variables in the examples:
+- `SESSION_ID` - Your session UUID (e.g., `b4f3f798-4f80-4369-b602-ce09e8b0a33c`)
+- `ZP_API_KEY` - API key from .env file (e.g., `a0b1125a0eb3364d98e2c49ec6f7d6ba`)
+- `MESSAGE_ID` - WhatsApp message ID (e.g., `3EB06398DC0CB5E35C31CE`)
 
-1. **Inicie o servidor:**
-   ```bash
-   make swagger-serve
-   ```
+## Health Check
+- **GET** `/health` - API status
 
-2. **Acesse a documentação:**
-   - **Swagger UI**: http://localhost:8080/swagger/
-   - **JSON Schema**: http://localhost:8080/swagger/doc.json
-   - **YAML Schema**: http://localhost:8080/swagger/swagger.yaml
+## Sessions
+- **POST** `/sessions/create` - Create session
+- **GET** `/sessions/list` - List sessions
+- **GET** `/sessions/{sessionId}/info` - Session info
+- **DELETE** `/sessions/{sessionId}/delete` - Delete session
+- **POST** `/sessions/{sessionId}/connect` - Connect session
+- **POST** `/sessions/{sessionId}/logout` - Logout session
+- **GET** `/sessions/{sessionId}/qr` - Get QR code
+- **POST** `/sessions/{sessionId}/pair` - Pair phone
 
-### 🛠️ Comandos disponíveis
+## Messages - Send
+- **POST** `/sessions/{sessionId}/messages/send/text` - Send text
+- **POST** `/sessions/{sessionId}/messages/send/image` - Send image
+- **POST** `/sessions/{sessionId}/messages/send/audio` - Send audio
+- **POST** `/sessions/{sessionId}/messages/send/video` - Send video
+- **POST** `/sessions/{sessionId}/messages/send/document` - Send document
+- **POST** `/sessions/{sessionId}/messages/send/sticker` - Send sticker
+- **POST** `/sessions/{sessionId}/messages/send/location` - Send location
+- **POST** `/sessions/{sessionId}/messages/send/contact` - Send contact
+- **POST** `/sessions/{sessionId}/messages/send/poll` - Send poll
+- **POST** `/sessions/{sessionId}/messages/send/reaction` - Send reaction
+- **POST** `/sessions/{sessionId}/messages/send/presence` - Send presence
+- **POST** `/sessions/{sessionId}/messages/send/media` - Send media (auto-detect)
 
+## Messages - Management
+- **POST** `/sessions/{sessionId}/messages/mark-read` - Mark as read
+- **POST** `/sessions/{sessionId}/messages/edit` - Edit message
+- **POST** `/sessions/{sessionId}/messages/revoke` - Revoke message
+
+## Contacts
+- **POST** `/sessions/{sessionId}/contacts/check` - Check WhatsApp numbers
+- **GET** `/sessions/{sessionId}/contacts/avatar?jid=...` - Get avatar
+- **POST** `/sessions/{sessionId}/contacts/info` - Get contact info
+- **GET** `/sessions/{sessionId}/contacts?limit=10` - List contacts
+- **GET** `/sessions/{sessionId}/contacts/business?jid=...` - Get business profile
+- **POST** `/sessions/{sessionId}/contacts/sync` - Sync contacts
+
+## Webhooks
+- **POST** `/sessions/{sessionId}/webhook/config` - Configure webhook
+- **GET** `/sessions/{sessionId}/webhook/config` - Get webhook config
+
+## Chatwoot
+- **POST** `/sessions/{sessionId}/chatwoot/config` - Configure Chatwoot
+- **GET** `/sessions/{sessionId}/chatwoot/config` - Get Chatwoot config
+
+## Request Examples
+
+### Send Text Message
 ```bash
-# Gerar documentação Swagger
-make swagger
-
-# Servir documentação localmente
-make swagger-serve
-
-# Testar endpoints da documentação
-make swagger-test
-```
-
-## 📋 Endpoints Principais
-
-### Health Check
-- **GET** `/health` - Verificar status da API
-
-### Sessions (Sessões Wameow)
-- **POST** `/sessions/create` - Criar nova sessão
-- **GET** `/sessions/list` - Listar sessões
-- **GET** `/sessions/{sessionId}/info` - Informações da sessão
-- **DELETE** `/sessions/{sessionId}/delete` - Deletar sessão
-- **POST** `/sessions/{sessionId}/connect` - Conectar sessão
-- **POST** `/sessions/{sessionId}/logout` - Desconectar sessão
-- **GET** `/sessions/{sessionId}/qr` - Obter QR Code
-- **POST** `/sessions/{sessionId}/pair` - Parear telefone
-
-### Webhooks
-- **POST** `/sessions/{sessionId}/webhook/config` - Configurar webhook
-- **GET** `/sessions/{sessionId}/webhook/config` - Obter configuração webhook
-
-### Chatwoot Integration
-- **POST** `/sessions/{sessionId}/chatwoot/config` - Configurar Chatwoot
-- **GET** `/sessions/{sessionId}/chatwoot/config` - Obter configuração Chatwoot
-
-## 🏗️ Estrutura de DTOs
-
-### Camada de Aplicação (`internal/app/`)
-
-```
-internal/app/
-├── dto.go              # Índice e re-exports de todos os DTOs
-├── common/
-│   └── dto.go          # DTOs comuns (SuccessResponse, ErrorResponse, etc.)
-├── session/
-│   └── dto.go          # DTOs para sessões Wameow
-├── webhook/
-│   └── dto.go          # DTOs para webhooks
-└── chatwoot/
-    └── dto.go          # DTOs para integração Chatwoot
-```
-
-### 📦 Arquivo de Índice (`internal/app/dto.go`)
-
-O arquivo `dto.go` na raiz do pacote `app` serve como um índice central que:
-- Re-exporta todos os DTOs para facilitar imports
-- Evita imports longos nos handlers
-- Centraliza as funções de conversão
-- Mantém a organização por domínio
-
-### Principais DTOs
-
-#### Respostas Comuns
-- `SuccessResponse` - Resposta de sucesso padrão
-- `ErrorResponse` - Resposta de erro padrão
-- `ValidationErrorResponse` - Erros de validação
-- `PaginationResponse` - Metadados de paginação
-
-#### Sessões
-- `CreateSessionRequest/Response` - Criar sessão
-- `SessionInfoResponse` - Informações da sessão
-- `QRCodeResponse` - QR Code para pareamento
-- `ListSessionsRequest/Response` - Listar sessões
-
-#### Webhooks
-- `SetConfigRequest/Response` - Configurar webhook
-- `WebhookEventResponse` - Eventos de webhook
-- `TestWebhookRequest/Response` - Testar webhook
-
-#### Chatwoot
-- `CreateChatwootConfigRequest/Response` - Configurar Chatwoot
-- `SyncContactRequest/Response` - Sincronizar contatos
-- `SendMessageToChatwootRequest/Response` - Enviar mensagens
-
-## 🔧 Desenvolvimento
-
-### Adicionando novos endpoints
-
-1. **Criar DTOs** em `internal/app/{domain}/dto.go`
-2. **Adicionar comentários Swagger** nos handlers:
-   ```go
-   // @Summary Descrição breve
-   // @Description Descrição detalhada
-   // @Tags NomeTag
-   // @Accept json
-   // @Produce json
-   // @Param id path string true "ID do recurso"
-   // @Success 200 {object} object "Sucesso"
-   // @Failure 400 {object} object "Erro"
-   // @Router /endpoint [method]
-   ```
-3. **Regenerar documentação**: `make swagger`
-
-### Estrutura dos comentários Swagger
-
-```go
-// @Summary         - Resumo do endpoint
-// @Description     - Descrição detalhada
-// @Tags           - Categoria/grupo do endpoint
-// @Accept         - Tipo de conteúdo aceito (json, xml, etc.)
-// @Produce        - Tipo de conteúdo retornado
-// @Param          - Parâmetros (path, query, body)
-// @Success        - Resposta de sucesso
-// @Failure        - Respostas de erro
-// @Router         - Rota e método HTTP
-```
-
-## 🧪 Testando a API
-
-### Usando curl
-
-```bash
-# Health check
-curl http://localhost:8080/health
-
-# Listar sessões
-curl http://localhost:8080/sessions/list
-
-# Criar sessão
-curl -X POST http://localhost:8080/sessions/create \
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
+  -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "Minha Sessão"}'
+  -d '{"jid": "5511999999999@s.whatsapp.net", "body": "Hello World"}'
 ```
 
-### Usando Swagger UI
+### Send Image
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/image" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "caption": "Test image"}'
+```
 
-1. Acesse http://localhost:8080/swagger/
-2. Explore os endpoints disponíveis
-3. Teste diretamente pela interface
-4. Veja exemplos de request/response
+### Send Audio
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/audio" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", "ptt": true}'
+```
 
-## 📚 Recursos Adicionais
+### Send Video
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/video" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://cdn1.hongtaocdn3.com/video/m3u8/202401/24/49b02fdd58b9/49b02fdd58b9.mp4", "caption": "Test video"}'
+```
 
-- **Swagger Specification**: https://swagger.io/specification/
-- **Fiber Swagger**: https://github.com/swaggo/fiber-swagger
-- **Swaggo**: https://github.com/swaggo/swag
+### Send Document
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/document" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "filename": "document.pdf"}'
+```
 
-## 🐛 Troubleshooting
+### Send Sticker (Base64)
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/sticker" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAAAwAQCdASoQABAAAgA0JaQAA3AA/vuqAAA="}'
+```
 
-### Erro: "cannot find type definition"
-- Verifique se os tipos estão importados corretamente
-- Use `object` como tipo genérico se necessário
-- Regenere a documentação: `make swagger`
+### Send Location
+```bash
+curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/location" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "latitude": -23.5505, "longitude": -46.6333, "address": "São Paulo"}'
+```
 
-### Swagger UI não carrega
-- Verifique se o servidor está rodando
-- Confirme que a rota `/swagger/*` está configurada
-- Verifique os logs do servidor
+### Send Contact
+```bash
+curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/contact" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "contactName": "John Doe", "contactPhone": "+5511987654321"}'
+```
 
-### Documentação desatualizada
-- Sempre execute `make swagger` após mudanças
-- Reinicie o servidor após regenerar docs
+### Send Poll
+```bash
+curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/poll" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "name": "Favorite color?", "options": ["Red", "Blue", "Green"], "selectableOptionCount": 1}'
+```
+
+### Send Reaction
+```bash
+curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/reaction" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "3EB06398DC0CB5E35C31CE", "reaction": "👍"}'
+```
+
+### Send Media (Auto-detect)
+```bash
+curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/media" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "mimeType": "image/jpeg", "caption": "Auto-detected image"}'
+```
+
+### Mark Message as Read
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/mark-read" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID"}'
+```
+
+### Edit Message
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/edit" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID", "newBody": "Edited message"}'
+```
+
+### Check WhatsApp Numbers
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/contacts/check" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"phoneNumbers": ["5511999999999", "5511888888888"]}'
+```
+
+### Get Contact Avatar
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/contacts/avatar?jid=5511999999999@s.whatsapp.net" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+### List Contacts
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/contacts?limit=10&offset=0" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+## Response Format
+
+### Success Response
+```json
+{
+  "success": true,
+  "message": "Operation completed successfully",
+  "data": {
+    "id": "MESSAGE_ID",
+    "status": "sent",
+    "timestamp": "2024-01-01T12:00:00Z"
+  }
+}
+```
+
+### Error Response
+```json
+{
+  "success": false,
+  "error": "Error description",
+  "details": "Additional error details"
+}
+```
+
+## Media Requirements
+
+### Images
+- Formats: JPG, PNG, WebP
+- Max size: 10MB (recommended)
+
+### Audio
+- Formats: MP3, WAV, OGG
+- Max size: 16MB
+- PTT: true for voice notes
+
+### Video
+- Formats: MP4, WebM
+- Max size: 100MB
+
+### Documents
+- Formats: PDF, TXT, DOC, XLS, etc.
+- Max size: 100MB
+
+### Stickers
+- Format: WebP only
+- Max size: 100KB (static), 500KB (animated)
+- Recommended: Use base64 for reliable delivery
+
+## JID Format
+The API supports multiple JID formats:
+- **Full JID**: `5511999999999@s.whatsapp.net`
+- **Phone with +**: `+5511999999999`
+- **Phone only**: `5511999999999`
+- **Formatted**: `+55 (11) 99999-9999`
+
+All formats are automatically normalized to WhatsApp JID format.
+
+## Sending Emojis
+To send emojis in messages, use one of these methods:
+
+### Method 1: JSON File (Recommended)
+```bash
+# Create file with emoji
+echo '{"jid": "+5511999999999", "body": "Hello! 👋 How are you? 😊🎉"}' > message.json
+
+# Send file
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  --data @message.json
+```
+
+### Method 2: Unicode Escape
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "+5511999999999", "body": "Party time! \\ud83c\\udf89"}'
+```
+
+### Method 3: UTF-8 with --data-raw
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json; charset=utf-8" \
+  --data-raw '{"jid": "+5511999999999", "body": "Hello 🌟"}'
+```
+
+## Swagger Documentation
+Access interactive API documentation at: http://localhost:8080/swagger/

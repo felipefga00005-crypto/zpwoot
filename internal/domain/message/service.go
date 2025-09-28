@@ -30,6 +30,57 @@ func NewMediaProcessor(logger *logger.Logger) *MediaProcessor {
 	}
 }
 
+// ProcessMediaForType processes media with type-specific validations
+func (mp *MediaProcessor) ProcessMediaForType(ctx context.Context, file string, messageType MessageType) (*ProcessedMedia, error) {
+	media, err := mp.ProcessMedia(ctx, file)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply type-specific validations
+	if err := mp.validateMediaForType(media, messageType); err != nil {
+		if media.Cleanup != nil {
+			_ = media.Cleanup()
+		}
+		return nil, err
+	}
+
+	return media, nil
+}
+
+// validateMediaForType validates media based on message type
+func (mp *MediaProcessor) validateMediaForType(media *ProcessedMedia, messageType MessageType) error {
+	switch messageType {
+	case MessageTypeSticker:
+		// Stickers must be WebP and <= 100KB
+		if !strings.Contains(media.MimeType, "webp") {
+			return fmt.Errorf("stickers must be WebP format, got: %s", media.MimeType)
+		}
+		if media.FileSize > 100*1024 { // 100KB
+			return fmt.Errorf("sticker size exceeds 100KB limit: %d bytes", media.FileSize)
+		}
+		mp.logger.InfoWithFields("Sticker validation passed", map[string]interface{}{
+			"mime_type": media.MimeType,
+			"file_size": media.FileSize,
+		})
+	case MessageTypeImage:
+		// Images should be reasonable size
+		if media.FileSize > 10*1024*1024 { // 10MB
+			mp.logger.WarnWithFields("Large image file", map[string]interface{}{
+				"file_size": media.FileSize,
+			})
+		}
+	case MessageTypeVideo:
+		// Videos can be larger but warn if very large
+		if media.FileSize > 50*1024*1024 { // 50MB
+			mp.logger.WarnWithFields("Large video file", map[string]interface{}{
+				"file_size": media.FileSize,
+			})
+		}
+	}
+	return nil
+}
+
 type ProcessedMedia struct {
 	FilePath string
 	MimeType string

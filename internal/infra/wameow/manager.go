@@ -350,7 +350,7 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 		return fmt.Errorf("session %s is not logged in", sessionID)
 	}
 
-	recipientJID, err := types.ParseJID(to)
+	recipientJID, err := ParseJID(to)
 	if err != nil {
 		return fmt.Errorf("invalid recipient JID %s: %w", to, err)
 	}
@@ -906,7 +906,7 @@ func (m *Manager) SendPoll(sessionID, to, name string, options []string, selecta
 	}
 
 	// Parse recipient JID
-	toJID, err := types.ParseJID(to)
+	toJID, err := ParseJID(to)
 	if err != nil {
 		return nil, fmt.Errorf("invalid recipient JID: %w", err)
 	}
@@ -1032,7 +1032,8 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	recipientJID, err := types.ParseJID(to)
+	// Use our improved JID parser that handles +, spaces, etc.
+	recipientJID, err := ParseJID(to)
 	if err != nil {
 		return nil, fmt.Errorf("invalid recipient JID: %w", err)
 	}
@@ -1431,17 +1432,42 @@ func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string)
 	})
 }
 
-// convertToPortsGroupInfo converts domain GroupInfo to ports GroupInfo
-func convertToPortsGroupInfo(_ interface{}) *ports.GroupInfo {
-	// This is a simplified conversion - in a real implementation,
-	// you would properly convert from the domain GroupInfo type
-	// For now, return a basic structure
+// convertToPortsGroupInfo converts whatsmeow GroupInfo to ports GroupInfo
+func convertToPortsGroupInfo(groupInfo interface{}) *ports.GroupInfo {
+	// Convert from whatsmeow types.GroupInfo to ports.GroupInfo
+	if gi, ok := groupInfo.(*types.GroupInfo); ok {
+		// Convert participants
+		participants := make([]ports.GroupParticipant, len(gi.Participants))
+		for i, p := range gi.Participants {
+			participants[i] = ports.GroupParticipant{
+				JID:          p.JID.String(),
+				IsAdmin:      p.IsAdmin,
+				IsSuperAdmin: p.IsSuperAdmin,
+			}
+		}
+
+		return &ports.GroupInfo{
+			GroupJID:     gi.JID.String(),
+			Name:         gi.GroupName.Name,        // Usar gi.GroupName.Name
+			Description:  gi.GroupTopic.Topic,     // Usar gi.GroupTopic.Topic
+			Owner:        gi.OwnerJID.String(),
+			Participants: participants,
+			Settings: ports.GroupSettings{
+				Announce: gi.GroupAnnounce.IsAnnounce, // Usar gi.GroupAnnounce.IsAnnounce
+				Locked:   gi.GroupLocked.IsLocked,     // Usar gi.GroupLocked.IsLocked
+			},
+			CreatedAt: gi.GroupCreated,
+			UpdatedAt: time.Now(),
+		}
+	}
+
+	// Fallback for unknown types
 	return &ports.GroupInfo{
-		GroupJID:     "group@g.us",               // placeholder
-		Name:         "Group Name",               // placeholder
-		Description:  "Group Description",        // placeholder
-		Owner:        "owner@s.whatsapp.net",     // placeholder
-		Participants: []ports.GroupParticipant{}, // placeholder
+		GroupJID:     "unknown@g.us",
+		Name:         "Unknown Group",
+		Description:  "",
+		Owner:        "",
+		Participants: []ports.GroupParticipant{},
 		Settings: ports.GroupSettings{
 			Announce: false,
 			Locked:   false,

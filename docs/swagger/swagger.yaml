@@ -2,9 +2,6 @@ basePath: /
 definitions:
   AudioMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       caption:
         example: Voice message
         type: string
@@ -13,23 +10,26 @@ definitions:
       file:
         example: https://example.com/audio.ogg
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       mimeType:
         example: audio/ogg
         type: string
     required:
-    - Phone
     - file
+    - jid
     type: object
   BusinessProfileRequest:
     properties:
-      Phone:
-        example: 5511987654321@s.whatsapp.net
-        type: string
       address:
         example: Rua Teste, 123 - São Paulo, SP
         type: string
       email:
         example: contato@empresateste.com.br
+        type: string
+      jid:
+        example: 5511987654321@s.whatsapp.net
         type: string
       name:
         example: Empresa Teste Ltda
@@ -47,7 +47,7 @@ definitions:
         example: https://www.empresateste.com.br
         type: string
     required:
-    - Phone
+    - jid
     - name
     - phone
     type: object
@@ -64,9 +64,6 @@ definitions:
     type: object
   ButtonMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       body:
         example: 'Please choose one of the options below:'
         type: string
@@ -76,10 +73,13 @@ definitions:
         maxItems: 3
         minItems: 1
         type: array
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - Phone
     - body
     - buttons
+    - jid
     type: object
   ChatwootConfigResponse:
     properties:
@@ -126,19 +126,19 @@ definitions:
     type: object
   ContactMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       contactName:
         example: Maria Silva
         type: string
       contactPhone:
         example: "+5511987654321"
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - Phone
     - contactName
     - contactPhone
+    - jid
     type: object
   ContactSendResult:
     properties:
@@ -207,12 +207,12 @@ definitions:
     type: object
   CreatePollRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       allowMultipleAnswers:
         example: false
         type: boolean
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       name:
         example: What's your favorite color?
         maxLength: 100
@@ -233,13 +233,13 @@ definitions:
         minimum: 1
         type: integer
     required:
-    - Phone
+    - jid
     - name
     - options
     type: object
   CreatePollResponse:
     properties:
-      Phone:
+      jid:
         example: 5511999999999@s.whatsapp.net
         type: string
       messageId:
@@ -309,9 +309,6 @@ definitions:
     type: object
   DocumentMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       caption:
         example: Important document
         type: string
@@ -323,17 +320,20 @@ definitions:
       filename:
         example: important_document.pdf
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       mimeType:
         example: application/pdf
         type: string
     required:
-    - Phone
     - file
     - filename
+    - jid
     type: object
   EditMessageRequest:
     properties:
-      Phone:
+      jid:
         example: 5511999999999@s.whatsapp.net
         type: string
       messageId:
@@ -346,7 +346,7 @@ definitions:
         example: mySession
         type: string
     required:
-    - Phone
+    - jid
     - messageId
     - newBody
     - sessionId
@@ -368,14 +368,14 @@ definitions:
     type: object
   GetPollResultsResponse:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       allowMultipleAnswers:
         example: false
         type: boolean
       createdAt:
         example: "2024-01-01T12:00:00Z"
+        type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       options:
         items:
@@ -411,9 +411,6 @@ definitions:
     type: object
   ImageMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       caption:
         example: Beautiful sunset photo
         type: string
@@ -425,23 +422,26 @@ definitions:
       filename:
         example: sunset.jpg
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       mimeType:
         example: image/jpeg
         type: string
     required:
-    - Phone
     - file
+    - jid
     type: object
   ListMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       body:
         example: 'Please select one of the available options:'
         type: string
       buttonText:
         example: Select Option
+        type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       sections:
         items:
@@ -449,9 +449,9 @@ definitions:
         minItems: 1
         type: array
     required:
-    - Phone
     - body
     - buttonText
+    - jid
     - sections
     type: object
   ListSessionsResponse:
@@ -472,11 +472,11 @@ definitions:
     type: object
   LocationMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       address:
         example: Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil
+        type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       latitude:
         example: -23.5505
@@ -485,21 +485,21 @@ definitions:
         example: -46.6333
         type: number
     required:
-    - Phone
+    - jid
     - latitude
     - longitude
     type: object
   MarkReadRequest:
     properties:
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       messageId:
         example: 3EB0C431C26A1916E07E
         type: string
-      phone:
-        example: "5511999999999"
-        type: string
     required:
+    - jid
     - messageId
-    - phone
     type: object
   MarkReadResponse:
     properties:
@@ -518,9 +518,6 @@ definitions:
     type: object
   MediaMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       caption:
         example: Media caption
         type: string
@@ -530,12 +527,15 @@ definitions:
       filename:
         example: media.file
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       mimeType:
         example: application/octet-stream
         type: string
     required:
-    - Phone
     - file
+    - jid
     type: object
   MessageResponse:
     properties:
@@ -574,7 +574,7 @@ definitions:
     type: object
   PresenceMessageRequest:
     properties:
-      Phone:
+      jid:
         example: 5511999999999@s.whatsapp.net
         type: string
       presence:
@@ -587,7 +587,7 @@ definitions:
         example: typing
         type: string
     required:
-    - Phone
+    - jid
     - presence
     type: object
   PresenceResponse:
@@ -640,7 +640,7 @@ definitions:
     type: object
   ReactionMessageRequest:
     properties:
-      Phone:
+      jid:
         example: 5511999999999@s.whatsapp.net
         type: string
       messageId:
@@ -650,7 +650,7 @@ definitions:
         example: "\U0001F44D"
         type: string
     required:
-    - Phone
+    - jid
     - messageId
     - reaction
     type: object
@@ -671,7 +671,7 @@ definitions:
     type: object
   RevokeMessageRequest:
     properties:
-      Phone:
+      jid:
         example: 5511999999999@s.whatsapp.net
         type: string
       messageId:
@@ -681,7 +681,7 @@ definitions:
         example: mySession
         type: string
     required:
-    - Phone
+    - jid
     - messageId
     - sessionId
     type: object
@@ -840,23 +840,20 @@ definitions:
     type: object
   TextMessageRequest:
     properties:
-      Phone:
-        example: 5511987654321@s.whatsapp.net
-        type: string
       body:
         example: Hello, this is a text message
         type: string
       contextInfo:
         $ref: '#/definitions/ContextInfo'
+      jid:
+        example: 5511987654321@s.whatsapp.net
+        type: string
     required:
-    - Phone
     - body
+    - jid
     type: object
   VideoMessageRequest:
     properties:
-      Phone:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       caption:
         example: Check out this amazing video!
         type: string
@@ -868,12 +865,15 @@ definitions:
       filename:
         example: amazing_video.mp4
         type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       mimeType:
         example: video/mp4
         type: string
     required:
-    - Phone
     - file
+    - jid
     type: object
   WebhookResponse:
     properties:

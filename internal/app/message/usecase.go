@@ -68,7 +68,7 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 	var cleanup func() error
 
 	if domainReq.IsMediaMessage() && domainReq.File != "" {
-		processedMedia, err := uc.mediaProcessor.ProcessMedia(ctx, domainReq.File)
+		processedMedia, err := uc.mediaProcessor.ProcessMediaForType(ctx, domainReq.File, domainReq.Type)
 		if err != nil {
 			return nil, fmt.Errorf("failed to process media: %w", err)
 		}
