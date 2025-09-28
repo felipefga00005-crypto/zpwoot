@@ -454,8 +454,8 @@ func (t *TextNormalizer) IsEmojiText(text string) bool {
 			(r >= 0x1F300 && r <= 0x1F5FF) || // Misc Symbols
 			(r >= 0x1F680 && r <= 0x1F6FF) || // Transport
 			(r >= 0x1F1E0 && r <= 0x1F1FF) || // Flags
-			(r >= 0x2600 && r <= 0x26FF) ||   // Misc symbols
-			(r >= 0x2700 && r <= 0x27BF) {    // Dingbats
+			(r >= 0x2600 && r <= 0x26FF) || // Misc symbols
+			(r >= 0x2700 && r <= 0x27BF) { // Dingbats
 			return true
 		}
 	}

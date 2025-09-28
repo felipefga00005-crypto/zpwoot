@@ -12,8 +12,8 @@ type DownloadMediaRequest struct {
 // DownloadMediaResponse represents the response containing downloaded media
 type DownloadMediaResponse struct {
 	Data     []byte `json:"-"`                                      // Binary data (not serialized in JSON)
-	MimeType string `json:"mimeType" example:"image/jpeg"`         // MIME type of the media
-	FileSize int64  `json:"fileSize" example:"1024000"`            // File size in bytes
+	MimeType string `json:"mimeType" example:"image/jpeg"`          // MIME type of the media
+	FileSize int64  `json:"fileSize" example:"1024000"`             // File size in bytes
 	Filename string `json:"filename,omitempty" example:"image.jpg"` // Original filename if available
 }
 

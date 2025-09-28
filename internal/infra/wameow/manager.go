@@ -1500,8 +1500,8 @@ func convertToPortsGroupInfo(groupInfo interface{}) *ports.GroupInfo {
 
 		return &ports.GroupInfo{
 			GroupJID:     gi.JID.String(),
-			Name:         gi.GroupName.Name,        // Usar gi.GroupName.Name
-			Description:  gi.GroupTopic.Topic,     // Usar gi.GroupTopic.Topic
+			Name:         gi.GroupName.Name,   // Usar gi.GroupName.Name
+			Description:  gi.GroupTopic.Topic, // Usar gi.GroupTopic.Topic
 			Owner:        gi.OwnerJID.String(),
 			Participants: participants,
 			Settings: ports.GroupSettings{

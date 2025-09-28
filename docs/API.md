@@ -15,9 +15,11 @@ Replace these variables in the examples:
 - `SESSION_ID` - Your session UUID (e.g., `b4f3f798-4f80-4369-b602-ce09e8b0a33c`)
 - `ZP_API_KEY` - API key from .env file (e.g., `a0b1125a0eb3364d98e2c49ec6f7d6ba`)
 - `MESSAGE_ID` - WhatsApp message ID (e.g., `3EB06398DC0CB5E35C31CE`)
+- `GROUP_JID` - WhatsApp group JID (e.g., `120363123456789012@g.us`)
 
 ## Health Check
 - **GET** `/health` - API status
+- **GET** `/health/wameow` - WhatsApp manager status
 
 ## Sessions
 - **POST** `/sessions/create` - Create session
@@ -28,6 +30,10 @@ Replace these variables in the examples:
 - **POST** `/sessions/{sessionId}/logout` - Logout session
 - **GET** `/sessions/{sessionId}/qr` - Get QR code
 - **POST** `/sessions/{sessionId}/pair` - Pair phone
+
+## Proxy
+- **POST** `/sessions/{sessionId}/proxy/set` - Configure proxy
+- **GET** `/sessions/{sessionId}/proxy/find` - Get proxy config
 
 ## Messages - Send
 - **POST** `/sessions/{sessionId}/messages/send/text` - Send text
@@ -42,11 +48,14 @@ Replace these variables in the examples:
 - **POST** `/sessions/{sessionId}/messages/send/reaction` - Send reaction
 - **POST** `/sessions/{sessionId}/messages/send/presence` - Send presence
 - **POST** `/sessions/{sessionId}/messages/send/media` - Send media (auto-detect)
+- **POST** `/sessions/{sessionId}/messages/send/button` - Send button message
+- **POST** `/sessions/{sessionId}/messages/send/list` - Send list message
 
 ## Messages - Management
 - **POST** `/sessions/{sessionId}/messages/mark-read` - Mark as read
 - **POST** `/sessions/{sessionId}/messages/edit` - Edit message
 - **POST** `/sessions/{sessionId}/messages/revoke` - Revoke message
+- **GET** `/sessions/{sessionId}/messages/poll/{messageId}/results` - Get poll results
 
 ## Contacts
 - **POST** `/sessions/{sessionId}/contacts/check` - Check WhatsApp numbers
@@ -56,13 +65,34 @@ Replace these variables in the examples:
 - **GET** `/sessions/{sessionId}/contacts/business?jid=...` - Get business profile
 - **POST** `/sessions/{sessionId}/contacts/sync` - Sync contacts
 
+## Groups
+- **POST** `/sessions/{sessionId}/groups/create` - Create group
+- **GET** `/sessions/{sessionId}/groups` - List groups
+- **GET** `/sessions/{sessionId}/groups/info?jid=...` - Get group info
+- **POST** `/sessions/{sessionId}/groups/participants` - Manage participants
+- **PUT** `/sessions/{sessionId}/groups/name` - Set group name
+- **PUT** `/sessions/{sessionId}/groups/description` - Set group description
+- **PUT** `/sessions/{sessionId}/groups/photo` - Set group photo
+- **GET** `/sessions/{sessionId}/groups/invite-link?jid=...` - Get invite link
+- **POST** `/sessions/{sessionId}/groups/join` - Join group via link
+- **POST** `/sessions/{sessionId}/groups/leave` - Leave group
+- **PUT** `/sessions/{sessionId}/groups/settings` - Update group settings
+
+## Group Requests
+- **GET** `/sessions/{sessionId}/groups/requests?jid=...` - List join requests
+- **POST** `/sessions/{sessionId}/groups/requests` - Approve/reject requests
+- **PUT** `/sessions/{sessionId}/groups/join-approval` - Set approval mode
+- **PUT** `/sessions/{sessionId}/groups/member-add-mode` - Set add member mode
+
 ## Webhooks
-- **POST** `/sessions/{sessionId}/webhook/config` - Configure webhook
-- **GET** `/sessions/{sessionId}/webhook/config` - Get webhook config
+- **POST** `/sessions/{sessionId}/webhook/set` - Configure webhook
+- **GET** `/sessions/{sessionId}/webhook/find` - Get webhook config
 
 ## Chatwoot
-- **POST** `/sessions/{sessionId}/chatwoot/config` - Configure Chatwoot
-- **GET** `/sessions/{sessionId}/chatwoot/config` - Get Chatwoot config
+- **POST** `/sessions/{sessionId}/chatwoot/set` - Configure Chatwoot
+- **GET** `/sessions/{sessionId}/chatwoot/find` - Get Chatwoot config
+- **POST** `/sessions/{sessionId}/chatwoot/contacts/sync` - Sync contacts
+- **POST** `/sessions/{sessionId}/chatwoot/conversations/sync` - Sync conversations
 
 ## Request Examples
 
@@ -190,6 +220,88 @@ curl "http://localhost:8080/sessions/SESSION_ID/contacts?limit=10&offset=0" \
   -H "Authorization: ZP_API_KEY"
 ```
 
+### Create Group
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/groups/create" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Group", "participants": ["5511999999999@s.whatsapp.net"], "description": "Group description"}'
+```
+
+### List Groups
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/groups" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+### Get Group Info
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/groups/info?jid=GROUP_JID" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+### Set Group Name
+```bash
+curl -X PUT "http://localhost:8080/sessions/SESSION_ID/groups/name" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"groupJid": "GROUP_JID", "name": "New Group Name"}'
+```
+
+### Add Group Participants
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/groups/participants" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"groupJid": "GROUP_JID", "action": "add", "participants": ["5511999999999@s.whatsapp.net"]}'
+```
+
+### Get Group Invite Link
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/groups/invite-link?jid=GROUP_JID" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+### Join Group via Link
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/groups/join" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"inviteLink": "https://chat.whatsapp.com/ABC123DEF456"}'
+```
+
+### Leave Group
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/groups/leave" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"groupJid": "GROUP_JID"}'
+```
+
+### Configure Proxy
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/proxy/set" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"host": "proxy.example.com", "port": 8080, "username": "user", "password": "pass"}'
+```
+
+### Configure Webhook
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/webhook/set" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-domain.com/webhook", "events": ["message", "status"]}'
+```
+
+### Configure Chatwoot
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/chatwoot/set" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"baseUrl": "https://chatwoot.example.com", "accountId": "1", "token": "your-token"}'
+```
+
 ## Response Format
 
 ### Success Response
@@ -240,10 +352,15 @@ curl "http://localhost:8080/sessions/SESSION_ID/contacts?limit=10&offset=0" \
 
 ## JID Format
 The API supports multiple JID formats:
+
+### Individual Contacts
 - **Full JID**: `5511999999999@s.whatsapp.net`
 - **Phone with +**: `+5511999999999`
 - **Phone only**: `5511999999999`
 - **Formatted**: `+55 (11) 99999-9999`
+
+### Groups
+- **Group JID**: `120363123456789012@g.us`
 
 All formats are automatically normalized to WhatsApp JID format.
 

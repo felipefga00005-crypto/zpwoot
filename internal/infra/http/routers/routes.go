@@ -72,23 +72,32 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 
 	// Group management routes
 	groupHandler := handlers.NewGroupHandler(appLogger, container.GetGroupUseCase(), container.GetSessionRepository())
-	sessions.Post("/:sessionId/groups/create", groupHandler.CreateGroup)                    // POST /sessions/:sessionId/groups/create
-	sessions.Get("/:sessionId/groups", groupHandler.ListGroups)                             // GET /sessions/:sessionId/groups
-	sessions.Get("/:sessionId/groups/info", groupHandler.GetGroupInfo)                      // GET /sessions/:sessionId/groups/info?jid=...
-	sessions.Post("/:sessionId/groups/participants", groupHandler.UpdateGroupParticipants)  // POST /sessions/:sessionId/groups/participants
-	sessions.Put("/:sessionId/groups/name", groupHandler.SetGroupName)                      // PUT /sessions/:sessionId/groups/name
-	sessions.Put("/:sessionId/groups/description", groupHandler.SetGroupDescription)        // PUT /sessions/:sessionId/groups/description
-	sessions.Put("/:sessionId/groups/photo", groupHandler.SetGroupPhoto)                    // PUT /sessions/:sessionId/groups/photo
-	sessions.Get("/:sessionId/groups/invite-link", groupHandler.GetGroupInviteLink)         // GET /sessions/:sessionId/groups/invite-link?jid=...
-	sessions.Post("/:sessionId/groups/join", groupHandler.JoinGroup)                        // POST /sessions/:sessionId/groups/join
-	sessions.Post("/:sessionId/groups/leave", groupHandler.LeaveGroup)                      // POST /sessions/:sessionId/groups/leave
-	sessions.Put("/:sessionId/groups/settings", groupHandler.UpdateGroupSettings)           // PUT /sessions/:sessionId/groups/settings
+	sessions.Post("/:sessionId/groups/create", groupHandler.CreateGroup)                   // POST /sessions/:sessionId/groups/create
+	sessions.Get("/:sessionId/groups", groupHandler.ListGroups)                            // GET /sessions/:sessionId/groups
+	sessions.Get("/:sessionId/groups/info", groupHandler.GetGroupInfo)                     // GET /sessions/:sessionId/groups/info?jid=...
+	sessions.Post("/:sessionId/groups/participants", groupHandler.UpdateGroupParticipants) // POST /sessions/:sessionId/groups/participants
+	sessions.Put("/:sessionId/groups/name", groupHandler.SetGroupName)                     // PUT /sessions/:sessionId/groups/name
+	sessions.Put("/:sessionId/groups/description", groupHandler.SetGroupDescription)       // PUT /sessions/:sessionId/groups/description
+	sessions.Put("/:sessionId/groups/photo", groupHandler.SetGroupPhoto)                   // PUT /sessions/:sessionId/groups/photo
+	sessions.Get("/:sessionId/groups/invite-link", groupHandler.GetGroupInviteLink)        // GET /sessions/:sessionId/groups/invite-link?jid=...
+	sessions.Post("/:sessionId/groups/join", groupHandler.JoinGroup)                       // POST /sessions/:sessionId/groups/join
+	sessions.Post("/:sessionId/groups/leave", groupHandler.LeaveGroup)                     // POST /sessions/:sessionId/groups/leave
+	sessions.Put("/:sessionId/groups/settings", groupHandler.UpdateGroupSettings)          // PUT /sessions/:sessionId/groups/settings
 
 	// Group request management routes
-	sessions.Get("/:sessionId/groups/requests", groupHandler.GetGroupRequestParticipants)       // GET /sessions/:sessionId/groups/requests?jid=...
-	sessions.Post("/:sessionId/groups/requests", groupHandler.UpdateGroupRequestParticipants)   // POST /sessions/:sessionId/groups/requests
-	sessions.Put("/:sessionId/groups/join-approval", groupHandler.SetGroupJoinApprovalMode)     // PUT /sessions/:sessionId/groups/join-approval
-	sessions.Put("/:sessionId/groups/member-add-mode", groupHandler.SetGroupMemberAddMode)      // PUT /sessions/:sessionId/groups/member-add-mode
+	sessions.Get("/:sessionId/groups/requests", groupHandler.GetGroupRequestParticipants)     // GET /sessions/:sessionId/groups/requests?jid=...
+	sessions.Post("/:sessionId/groups/requests", groupHandler.UpdateGroupRequestParticipants) // POST /sessions/:sessionId/groups/requests
+	sessions.Put("/:sessionId/groups/join-approval", groupHandler.SetGroupJoinApprovalMode)   // PUT /sessions/:sessionId/groups/join-approval
+	sessions.Put("/:sessionId/groups/member-add-mode", groupHandler.SetGroupMemberAddMode)    // PUT /sessions/:sessionId/groups/member-add-mode
+
+	// Contact management routes
+	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
+	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)        // POST /sessions/:sessionId/contacts/check
+	sessions.Get("/:sessionId/contacts/avatar", contactHandler.GetProfilePicture)    // GET /sessions/:sessionId/contacts/avatar?jid=...
+	sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)           // POST /sessions/:sessionId/contacts/info
+	sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)                // GET /sessions/:sessionId/contacts
+	sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)          // POST /sessions/:sessionId/contacts/sync
+	sessions.Get("/:sessionId/contacts/business", contactHandler.GetBusinessProfile) // GET /sessions/:sessionId/contacts/business?jid=...
 
 	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
 
@@ -107,11 +116,11 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 
 	// Contact management routes
 	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
-	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)       // POST /sessions/:sessionId/contacts/check
-	sessions.Get("/:sessionId/contacts/avatar", contactHandler.GetProfilePicture)   // GET /sessions/:sessionId/contacts/avatar?jid=...
-	sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)          // POST /sessions/:sessionId/contacts/info
-	sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)               // GET /sessions/:sessionId/contacts
-	sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)         // POST /sessions/:sessionId/contacts/sync
+	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)        // POST /sessions/:sessionId/contacts/check
+	sessions.Get("/:sessionId/contacts/avatar", contactHandler.GetProfilePicture)    // GET /sessions/:sessionId/contacts/avatar?jid=...
+	sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)           // POST /sessions/:sessionId/contacts/info
+	sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)                // GET /sessions/:sessionId/contacts
+	sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)          // POST /sessions/:sessionId/contacts/sync
 	sessions.Get("/:sessionId/contacts/business", contactHandler.GetBusinessProfile) // GET /sessions/:sessionId/contacts/business?jid=...
 }
 

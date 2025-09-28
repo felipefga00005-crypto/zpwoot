@@ -1417,17 +1417,17 @@ func (h *MessageHandler) detectMediaType(mimeType, fileURL string) string {
 		lower := strings.ToLower(fileURL)
 		switch {
 		case strings.Contains(lower, ".jpg") || strings.Contains(lower, ".jpeg") ||
-			 strings.Contains(lower, ".png") || strings.Contains(lower, ".gif") ||
-			 strings.Contains(lower, ".webp"):
+			strings.Contains(lower, ".png") || strings.Contains(lower, ".gif") ||
+			strings.Contains(lower, ".webp"):
 			return "image"
 		case strings.Contains(lower, ".mp3") || strings.Contains(lower, ".wav") ||
-			 strings.Contains(lower, ".ogg") || strings.Contains(lower, ".m4a"):
+			strings.Contains(lower, ".ogg") || strings.Contains(lower, ".m4a"):
 			return "audio"
 		case strings.Contains(lower, ".mp4") || strings.Contains(lower, ".avi") ||
-			 strings.Contains(lower, ".mov") || strings.Contains(lower, ".webm"):
+			strings.Contains(lower, ".mov") || strings.Contains(lower, ".webm"):
 			return "video"
 		case strings.Contains(lower, ".pdf") || strings.Contains(lower, ".doc") ||
-			 strings.Contains(lower, ".txt") || strings.Contains(lower, ".zip"):
+			strings.Contains(lower, ".txt") || strings.Contains(lower, ".zip"):
 			return "document"
 		}
 	}
