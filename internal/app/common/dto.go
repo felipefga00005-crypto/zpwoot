@@ -26,8 +26,8 @@ type PaginationResponse struct {
 	Offset  int  `json:"offset" example:"0"`
 	Page    int  `json:"page" example:"1"`
 	Pages   int  `json:"pages" example:"5"`
-	HasNext bool `json:"has_next" example:"true"`
-	HasPrev bool `json:"has_prev" example:"false"`
+	HasNext bool `json:"hasNext" example:"true"`
+	HasPrev bool `json:"hasPrev" example:"false"`
 }
 
 type ValidationError struct {

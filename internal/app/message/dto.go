@@ -7,7 +7,7 @@ import (
 )
 
 type SendMessageRequest struct {
-	Phone    string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Type     string `json:"type" validate:"required,oneof=text image audio video document sticker location contact" example:"text"`
 	Body     string `json:"body,omitempty" example:"Hello World!"`
 	Caption  string `json:"caption,omitempty" example:"Image caption"`
@@ -32,7 +32,7 @@ type SendMessageResponse struct {
 
 func FromDomainRequest(req *message.SendMessageRequest) *SendMessageRequest {
 	return &SendMessageRequest{
-		Phone:        req.To,
+		JID:          req.To,
 		Type:         string(req.Type),
 		Body:         req.Body,
 		Caption:      req.Caption,
@@ -57,7 +57,7 @@ func (r *SendMessageRequest) ToDomainRequest() *message.SendMessageRequest {
 	}
 
 	return &message.SendMessageRequest{
-		To:           r.Phone,
+		To:           r.JID,
 		Type:         message.MessageType(r.Type),
 		Body:         r.Body,
 		Caption:      r.Caption,
@@ -90,7 +90,7 @@ func (r *SendMessageResponse) ToDomainResponse() *message.SendMessageResponse {
 }
 
 type ButtonMessageRequest struct {
-	Phone   string   `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID     string   `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body    string   `json:"body" validate:"required" example:"Please choose one of the options below:"`
 	Buttons []Button `json:"buttons" validate:"required,min=1,max=3"`
 } //@name ButtonMessageRequest
@@ -101,7 +101,7 @@ type Button struct {
 } //@name Button
 
 type ListMessageRequest struct {
-	Phone      string    `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID        string    `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Body       string    `json:"body" validate:"required" example:"Please select one of the available options:"`
 	ButtonText string    `json:"buttonText" validate:"required" example:"Select Option"`
 	Sections   []Section `json:"sections" validate:"required,min=1"`
@@ -119,7 +119,7 @@ type Row struct {
 } //@name Row
 
 type MediaMessageRequest struct {
-	Phone    string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File     string `json:"file" validate:"required" example:"https://example.com/media.file"`
 	Caption  string `json:"caption" example:"Media caption"`
 	MimeType string `json:"mimeType" example:"application/octet-stream"`
@@ -127,7 +127,7 @@ type MediaMessageRequest struct {
 } //@name MediaMessageRequest
 
 type ImageMessageRequest struct {
-	Phone       string       `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID         string       `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File        string       `json:"file" validate:"required" example:"https://example.com/image.jpg"`
 	Caption     string       `json:"caption" example:"Beautiful sunset photo"`
 	MimeType    string       `json:"mimeType" example:"image/jpeg"`
@@ -136,7 +136,7 @@ type ImageMessageRequest struct {
 } //@name ImageMessageRequest
 
 type VideoMessageRequest struct {
-	Phone       string       `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File        string       `json:"file" validate:"required" example:"https://example.com/video.mp4"`
 	Caption     string       `json:"caption" example:"Check out this amazing video!"`
 	MimeType    string       `json:"mimeType" example:"video/mp4"`
@@ -145,7 +145,7 @@ type VideoMessageRequest struct {
 } //@name VideoMessageRequest
 
 type AudioMessageRequest struct {
-	Phone       string       `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File        string       `json:"file" validate:"required" example:"https://example.com/audio.ogg"`
 	Caption     string       `json:"caption" example:"Voice message"`
 	MimeType    string       `json:"mimeType" example:"audio/ogg"`
@@ -155,7 +155,7 @@ type AudioMessageRequest struct {
 } //@name AudioMessageRequest
 
 type DocumentMessageRequest struct {
-	Phone       string       `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	File        string       `json:"file" validate:"required" example:"https://example.com/document.pdf"`
 	Caption     string       `json:"caption" example:"Important document"`
 	MimeType    string       `json:"mimeType" example:"application/pdf"`
@@ -164,14 +164,14 @@ type DocumentMessageRequest struct {
 } //@name DocumentMessageRequest
 
 type LocationMessageRequest struct {
-	Phone     string  `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID       string  `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Latitude  float64 `json:"latitude" validate:"required" example:"-23.5505"`
 	Longitude float64 `json:"longitude" validate:"required" example:"-46.6333"`
 	Address   string  `json:"address" example:"Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"`
 } //@name LocationMessageRequest
 
 type ContactMessageRequest struct {
-	Phone        string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID          string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	ContactName  string `json:"contactName" validate:"required" example:"Maria Silva"`
 	ContactPhone string `json:"contactPhone" validate:"required" example:"+5511987654321"`
 } //@name ContactMessageRequest
@@ -187,7 +187,7 @@ type ContactInfo struct {
 } //@name ContactInfo
 
 type ContactListMessageRequest struct {
-	Phone    string        `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Contacts []ContactInfo `json:"contacts" validate:"required,min=1,max=10"`
 } //@name ContactListMessageRequest
 
@@ -207,19 +207,19 @@ type ContactSendResult struct {
 } //@name ContactSendResult
 
 type ReactionMessageRequest struct {
-	Phone     string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	Reaction  string `json:"reaction" validate:"required" example:"👍"`
 } //@name ReactionMessageRequest
 
 type PresenceMessageRequest struct {
-	Phone    string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Presence string `json:"presence" validate:"required,oneof=typing recording online offline paused" example:"typing"`
 } //@name PresenceMessageRequest
 
 type EditMessageRequest struct {
 	SessionID string `json:"sessionId" validate:"required" example:"mySession"`
-	Phone     string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID       string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 	NewBody   string `json:"newBody" validate:"required" example:"Updated message text"`
 } //@name EditMessageRequest
@@ -233,7 +233,7 @@ type EditMessageResponse struct {
 
 type RevokeMessageRequest struct {
 	SessionID string `json:"sessionId" validate:"required" example:"mySession"`
-	Phone     string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageID string `json:"messageId" validate:"required" example:"3EB0C767D71D"`
 } //@name RevokeMessageRequest
 
@@ -245,7 +245,7 @@ type RevokeMessageResponse struct {
 
 type MarkAsReadRequest struct {
 	SessionID  string   `json:"sessionId" validate:"required" example:"mySession"`
-	Phone      string   `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	MessageIDs []string `json:"messageIds" validate:"required,min=1" example:"3EB0C767D71D,3EB0C767D71E"`
 } //@name MarkAsReadRequest
 
@@ -282,7 +282,7 @@ type EditResponse struct {
 } //@name EditResponse
 
 type BusinessProfileRequest struct {
-	Phone        string `json:"Phone" validate:"required" example:"5511987654321@s.whatsapp.net"`
+	JID          string `json:"jid" validate:"required" example:"5511987654321@s.whatsapp.net"`
 	Name         string `json:"name" validate:"required" example:"Empresa Teste Ltda"`
 	PhoneNumber  string `json:"phone" validate:"required" example:"+5511987654321"`
 	Email        string `json:"email,omitempty" example:"contato@empresateste.com.br"`
@@ -293,7 +293,7 @@ type BusinessProfileRequest struct {
 } //@name BusinessProfileRequest
 
 type TextMessageRequest struct {
-	Phone       string       `json:"Phone" validate:"required" example:"5511987654321@s.whatsapp.net"`
+	JID         string       `json:"jid" validate:"required" example:"5511987654321@s.whatsapp.net"`
 	Body        string       `json:"body" validate:"required" example:"Hello, this is a text message"`
 	ContextInfo *ContextInfo `json:"contextInfo,omitempty"`
 } //@name TextMessageRequest
@@ -307,7 +307,7 @@ type ContextInfo struct {
 
 // CreatePollRequest represents a request to create a poll
 type CreatePollRequest struct {
-	Phone                 string   `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID                   string   `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	Name                  string   `json:"name" validate:"required,min=1,max=100" example:"What's your favorite color?"`
 	Options               []string `json:"options" validate:"required,min=2,max=12,dive,required,min=1,max=100" example:"Red,Blue,Green"`
 	SelectableOptionCount int      `json:"selectableOptionCount" validate:"min=1" example:"1"`
@@ -319,14 +319,14 @@ type CreatePollResponse struct {
 	MessageID string    `json:"messageId" example:"3EB0C767D71D"`
 	PollName  string    `json:"pollName" example:"What's your favorite color?"`
 	Options   []string  `json:"options" example:"Red,Blue,Green"`
-	Phone     string    `json:"Phone" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" example:"5511999999999@s.whatsapp.net"`
 	Status    string    `json:"status" example:"sent"`
 	Timestamp time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name CreatePollResponse
 
 // VotePollRequest represents a request to vote in a poll
 type VotePollRequest struct {
-	Phone           string   `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	PollMessageID   string   `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
 	SelectedOptions []string `json:"selectedOptions" validate:"required,min=1,dive,required" example:"Red"`
 } //@name VotePollRequest
@@ -335,14 +335,14 @@ type VotePollRequest struct {
 type VotePollResponse struct {
 	PollMessageID   string    `json:"pollMessageId" example:"3EB0C767D71D"`
 	SelectedOptions []string  `json:"selectedOptions" example:"Red"`
-	Phone           string    `json:"Phone" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" example:"5511999999999@s.whatsapp.net"`
 	Status          string    `json:"status" example:"sent"`
 	Timestamp       time.Time `json:"timestamp" example:"2024-01-01T12:00:00Z"`
 } //@name VotePollResponse
 
 // GetPollResultsRequest represents a request to get poll results
 type GetPollResultsRequest struct {
-	Phone         string `json:"Phone" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
 	PollMessageID string `json:"pollMessageId" validate:"required" example:"3EB0C767D71D"`
 } //@name GetPollResultsRequest
 
@@ -362,5 +362,19 @@ type GetPollResultsResponse struct {
 	SelectableOptionCount int          `json:"selectableOptionCount" example:"1"`
 	AllowMultipleAnswers  bool         `json:"allowMultipleAnswers" example:"false"`
 	CreatedAt             time.Time    `json:"createdAt" example:"2024-01-01T12:00:00Z"`
-	Phone                 string       `json:"Phone" example:"5511999999999@s.whatsapp.net"`
+	JID      string `json:"jid" example:"5511999999999@s.whatsapp.net"`
 } //@name GetPollResultsResponse
+
+// MarkReadRequest represents a request to mark a message as read
+type MarkReadRequest struct {
+	JID       string `json:"jid" validate:"required" example:"5511999999999@s.whatsapp.net"`
+	MessageID string `json:"messageId" validate:"required" example:"3EB0C431C26A1916E07E"`
+} //@name MarkReadRequest
+
+// MarkReadResponse represents the response for marking a message as read
+type MarkReadResponse struct {
+	MessageID string    `json:"messageId" example:"3EB0C431C26A1916E07E"`
+	Success   bool      `json:"success" example:"true"`
+	MarkedAt  time.Time `json:"markedAt" example:"2024-01-01T12:00:00Z"`
+	Message   string    `json:"message" example:"Message marked as read successfully"`
+} //@name MarkReadResponse

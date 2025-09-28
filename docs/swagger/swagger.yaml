@@ -2,6 +2,9 @@ basePath: /
 definitions:
   AudioMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       caption:
         example: Voice message
         type: string
@@ -13,15 +16,15 @@ definitions:
       mimeType:
         example: audio/ogg
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - file
-    - to
     type: object
   BusinessProfileRequest:
     properties:
+      Phone:
+        example: 5511987654321@s.whatsapp.net
+        type: string
       address:
         example: Rua Teste, 123 - São Paulo, SP
         type: string
@@ -40,16 +43,13 @@ definitions:
       title:
         example: Atendimento ao Cliente
         type: string
-      to:
-        example: 5511987654321@s.whatsapp.net
-        type: string
       website:
         example: https://www.empresateste.com.br
         type: string
     required:
+    - Phone
     - name
     - phone
-    - to
     type: object
   Button:
     properties:
@@ -64,6 +64,9 @@ definitions:
     type: object
   ButtonMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       body:
         example: 'Please choose one of the options below:'
         type: string
@@ -73,32 +76,29 @@ definitions:
         maxItems: 3
         minItems: 1
         type: array
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - body
     - buttons
-    - to
     type: object
   ChatwootConfigResponse:
     properties:
-      account_id:
+      accountId:
         example: "1"
         type: string
       active:
         example: true
         type: boolean
-      created_at:
+      createdAt:
         example: "2024-01-01T00:00:00Z"
         type: string
       id:
         example: chatwoot-config-123
         type: string
-      inbox_id:
+      inboxId:
         example: "1"
         type: string
-      updated_at:
+      updatedAt:
         example: "2024-01-01T00:00:00Z"
         type: string
       url:
@@ -126,19 +126,19 @@ definitions:
     type: object
   ContactMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       contactName:
         example: Maria Silva
         type: string
       contactPhone:
         example: "+5511987654321"
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - contactName
     - contactPhone
-    - to
     type: object
   ContactSendResult:
     properties:
@@ -205,6 +205,64 @@ definitions:
         example: https://chatwoot.example.com
         type: string
     type: object
+  CreatePollRequest:
+    properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      allowMultipleAnswers:
+        example: false
+        type: boolean
+      name:
+        example: What's your favorite color?
+        maxLength: 100
+        minLength: 1
+        type: string
+      options:
+        example:
+        - Red
+        - Blue
+        - Green
+        items:
+          type: string
+        maxItems: 12
+        minItems: 2
+        type: array
+      selectableOptionCount:
+        example: 1
+        minimum: 1
+        type: integer
+    required:
+    - Phone
+    - name
+    - options
+    type: object
+  CreatePollResponse:
+    properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      messageId:
+        example: 3EB0C767D71D
+        type: string
+      options:
+        example:
+        - Red
+        - Blue
+        - Green
+        items:
+          type: string
+        type: array
+      pollName:
+        example: What's your favorite color?
+        type: string
+      status:
+        example: sent
+        type: string
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
   CreateSessionRequest:
     properties:
       name:
@@ -234,36 +292,6 @@ definitions:
       proxyConfig:
         $ref: '#/definitions/ProxyConfig'
     type: object
-  DeleteMessageRequest:
-    properties:
-      forAll:
-        example: true
-        type: boolean
-      messageId:
-        example: 3EB0C767D71D
-        type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
-    required:
-    - messageId
-    - to
-    type: object
-  DeleteResponse:
-    properties:
-      forAll:
-        example: true
-        type: boolean
-      id:
-        example: 3EB0C767D71D
-        type: string
-      status:
-        example: deleted
-        type: string
-      timestamp:
-        example: "2024-01-01T12:00:00Z"
-        type: string
-    type: object
   DeviceInfoResponse:
     properties:
       appVersion:
@@ -281,6 +309,9 @@ definitions:
     type: object
   DocumentMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       caption:
         example: Important document
         type: string
@@ -295,29 +326,30 @@ definitions:
       mimeType:
         example: application/pdf
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - file
     - filename
-    - to
     type: object
   EditMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       messageId:
         example: 3EB0C767D71D
         type: string
       newBody:
         example: Updated message text
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
+      sessionId:
+        example: mySession
         type: string
     required:
+    - Phone
     - messageId
     - newBody
-    - to
+    - sessionId
     type: object
   EditResponse:
     properties:
@@ -333,6 +365,34 @@ definitions:
       timestamp:
         example: "2024-01-01T12:00:00Z"
         type: string
+    type: object
+  GetPollResultsResponse:
+    properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      allowMultipleAnswers:
+        example: false
+        type: boolean
+      createdAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      options:
+        items:
+          $ref: '#/definitions/PollOption'
+        type: array
+      pollMessageId:
+        example: 3EB0C767D71D
+        type: string
+      pollName:
+        example: What's your favorite color?
+        type: string
+      selectableOptionCount:
+        example: 1
+        type: integer
+      totalVotes:
+        example: 10
+        type: integer
     type: object
   HealthResponse:
     properties:
@@ -351,6 +411,9 @@ definitions:
     type: object
   ImageMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       caption:
         example: Beautiful sunset photo
         type: string
@@ -365,15 +428,15 @@ definitions:
       mimeType:
         example: image/jpeg
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - file
-    - to
     type: object
   ListMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       body:
         example: 'Please select one of the available options:'
         type: string
@@ -385,14 +448,11 @@ definitions:
           $ref: '#/definitions/Section'
         minItems: 1
         type: array
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - body
     - buttonText
     - sections
-    - to
     type: object
   ListSessionsResponse:
     properties:
@@ -412,6 +472,9 @@ definitions:
     type: object
   LocationMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       address:
         example: Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil
         type: string
@@ -421,16 +484,43 @@ definitions:
       longitude:
         example: -46.6333
         type: number
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - latitude
     - longitude
-    - to
+    type: object
+  MarkReadRequest:
+    properties:
+      messageId:
+        example: 3EB0C431C26A1916E07E
+        type: string
+      phone:
+        example: "5511999999999"
+        type: string
+    required:
+    - messageId
+    - phone
+    type: object
+  MarkReadResponse:
+    properties:
+      markedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      message:
+        example: Message marked as read successfully
+        type: string
+      messageId:
+        example: 3EB0C431C26A1916E07E
+        type: string
+      success:
+        example: true
+        type: boolean
     type: object
   MediaMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       caption:
         example: Media caption
         type: string
@@ -443,12 +533,9 @@ definitions:
       mimeType:
         example: application/octet-stream
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - file
-    - to
     type: object
   MessageResponse:
     properties:
@@ -470,8 +557,26 @@ definitions:
     required:
     - phoneNumber
     type: object
+  PollOption:
+    properties:
+      name:
+        example: Red
+        type: string
+      voteCount:
+        example: 5
+        type: integer
+      voters:
+        example:
+        - 5511999999999@s.whatsapp.net
+        items:
+          type: string
+        type: array
+    type: object
   PresenceMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       presence:
         enum:
         - typing
@@ -481,12 +586,9 @@ definitions:
         - paused
         example: typing
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - presence
-    - to
     type: object
   PresenceResponse:
     properties:
@@ -538,19 +640,19 @@ definitions:
     type: object
   ReactionMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       messageId:
         example: 3EB0C767D71D
         type: string
       reaction:
         example: "\U0001F44D"
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - messageId
     - reaction
-    - to
     type: object
   ReactionResponse:
     properties:
@@ -562,6 +664,34 @@ definitions:
         type: string
       status:
         example: sent
+        type: string
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
+  RevokeMessageRequest:
+    properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      messageId:
+        example: 3EB0C767D71D
+        type: string
+      sessionId:
+        example: mySession
+        type: string
+    required:
+    - Phone
+    - messageId
+    - sessionId
+    type: object
+  RevokeMessageResponse:
+    properties:
+      id:
+        example: 3EB0C767D71D
+        type: string
+      status:
+        example: revoked
         type: string
       timestamp:
         example: "2024-01-01T12:00:00Z"
@@ -710,20 +840,23 @@ definitions:
     type: object
   TextMessageRequest:
     properties:
+      Phone:
+        example: 5511987654321@s.whatsapp.net
+        type: string
       body:
         example: Hello, this is a text message
         type: string
       contextInfo:
         $ref: '#/definitions/ContextInfo'
-      to:
-        example: 5511987654321@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - body
-    - to
     type: object
   VideoMessageRequest:
     properties:
+      Phone:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       caption:
         example: Check out this amazing video!
         type: string
@@ -738,12 +871,9 @@ definitions:
       mimeType:
         example: video/mp4
         type: string
-      to:
-        example: 5511999999999@s.whatsapp.net
-        type: string
     required:
+    - Phone
     - file
-    - to
     type: object
   WebhookResponse:
     properties:
@@ -771,6 +901,351 @@ definitions:
         type: string
       url:
         example: https://example.com/webhook
+        type: string
+    type: object
+  zpwoot_internal_app_contact.BusinessProfile:
+    properties:
+      address:
+        example: 123 Main St, City
+        type: string
+      category:
+        example: Retail
+        type: string
+      description:
+        example: We sell amazing products
+        type: string
+      email:
+        example: contact@mybusiness.com
+        type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      name:
+        example: My Business
+        type: string
+      verified:
+        example: true
+        type: boolean
+      website:
+        example: https://mybusiness.com
+        type: string
+    type: object
+  zpwoot_internal_app_contact.BusinessProfileResponse:
+    properties:
+      found:
+        example: true
+        type: boolean
+      profile:
+        $ref: '#/definitions/zpwoot_internal_app_contact.BusinessProfile'
+      updatedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
+  zpwoot_internal_app_contact.CheckWhatsAppRequest:
+    properties:
+      phoneNumbers:
+        example:
+        - '["+5511999999999"'
+        - ' "+5511888888888"]'
+        items:
+          type: string
+        maxItems: 50
+        minItems: 1
+        type: array
+      sessionId:
+        type: string
+    required:
+    - phoneNumbers
+    type: object
+  zpwoot_internal_app_contact.CheckWhatsAppResponse:
+    properties:
+      checked:
+        example: 2
+        type: integer
+      results:
+        items:
+          $ref: '#/definitions/zpwoot_internal_app_contact.WhatsAppStatus'
+        type: array
+      total:
+        example: 2
+        type: integer
+    type: object
+  zpwoot_internal_app_contact.Contact:
+    properties:
+      addedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      isBlocked:
+        example: false
+        type: boolean
+      isBusiness:
+        example: false
+        type: boolean
+      isContact:
+        example: true
+        type: boolean
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      name:
+        example: John Doe
+        type: string
+      phoneNumber:
+        example: "+5511999999999"
+        type: string
+      pushName:
+        example: John
+        type: string
+      shortName:
+        example: John
+        type: string
+      updatedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+    type: object
+  zpwoot_internal_app_contact.GetUserInfoRequest:
+    properties:
+      jids:
+        example:
+        - '["5511999999999@s.whatsapp.net"'
+        - ' "5511888888888@s.whatsapp.net"]'
+        items:
+          type: string
+        maxItems: 20
+        minItems: 1
+        type: array
+      sessionId:
+        type: string
+    required:
+    - jids
+    type: object
+  zpwoot_internal_app_contact.GetUserInfoResponse:
+    properties:
+      found:
+        example: 2
+        type: integer
+      total:
+        example: 2
+        type: integer
+      users:
+        items:
+          $ref: '#/definitions/zpwoot_internal_app_contact.UserInfo'
+        type: array
+    type: object
+  zpwoot_internal_app_contact.ListContactsResponse:
+    properties:
+      contacts:
+        items:
+          $ref: '#/definitions/zpwoot_internal_app_contact.Contact'
+        type: array
+      hasMore:
+        example: true
+        type: boolean
+      limit:
+        example: 50
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 150
+        type: integer
+    type: object
+  zpwoot_internal_app_contact.ProfilePictureResponse:
+    properties:
+      directPath:
+        type: string
+      hasPicture:
+        example: true
+        type: boolean
+      id:
+        example: "1234567890"
+        type: string
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      type:
+        example: image
+        type: string
+      updatedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      url:
+        example: https://pps.whatsapp.net/v/...
+        type: string
+    type: object
+  zpwoot_internal_app_contact.SyncContactsResponse:
+    properties:
+      added:
+        example: 5
+        type: integer
+      message:
+        example: Contacts synchronized successfully
+        type: string
+      removed:
+        example: 1
+        type: integer
+      synced:
+        example: 25
+        type: integer
+      syncedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      total:
+        example: 150
+        type: integer
+      updated:
+        example: 3
+        type: integer
+    type: object
+  zpwoot_internal_app_contact.UserInfo:
+    properties:
+      isBusiness:
+        example: false
+        type: boolean
+      isContact:
+        example: true
+        type: boolean
+      isOnline:
+        example: false
+        type: boolean
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      lastSeen:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      name:
+        example: John Doe
+        type: string
+      phoneNumber:
+        example: "+5511999999999"
+        type: string
+      pictureId:
+        example: "1234567890"
+        type: string
+      status:
+        example: Hey there! I am using WhatsApp.
+        type: string
+      verifiedName:
+        example: Company Name
+        type: string
+    type: object
+  zpwoot_internal_app_contact.WhatsAppStatus:
+    properties:
+      isBusiness:
+        example: false
+        type: boolean
+      isOnWhatsapp:
+        example: true
+        type: boolean
+      jid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      phoneNumber:
+        example: "+5511999999999"
+        type: string
+      verifiedName:
+        example: Company Name
+        type: string
+    type: object
+  zpwoot_internal_app_media.CachedMediaItem:
+    properties:
+      cachedAt:
+        example: "2024-01-01T12:00:00Z"
+        type: string
+      expiresAt:
+        example: "2024-01-02T12:00:00Z"
+        type: string
+      filePath:
+        example: /tmp/media/abc123.jpg
+        type: string
+      fileSize:
+        example: 1024000
+        type: integer
+      filename:
+        example: image.jpg
+        type: string
+      lastAccess:
+        example: "2024-01-01T12:30:00Z"
+        type: string
+      mediaType:
+        example: image
+        type: string
+      messageId:
+        example: 3EB0C431C26A1916E07E
+        type: string
+      mimeType:
+        example: image/jpeg
+        type: string
+    type: object
+  zpwoot_internal_app_media.ClearCacheResponse:
+    properties:
+      filesDeleted:
+        example: 25
+        type: integer
+      message:
+        example: Cache cleared successfully
+        type: string
+      spaceFreed:
+        description: Bytes freed
+        example: 10485760
+        type: integer
+    type: object
+  zpwoot_internal_app_media.ListCachedMediaResponse:
+    properties:
+      hasMore:
+        example: true
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/zpwoot_internal_app_media.CachedMediaItem'
+        type: array
+      limit:
+        example: 50
+        type: integer
+      offset:
+        example: 0
+        type: integer
+      total:
+        example: 150
+        type: integer
+      totalSize:
+        description: Total size in bytes
+        example: 52428800
+        type: integer
+    type: object
+  zpwoot_internal_app_media.MediaInfoResponse:
+    properties:
+      cacheExpiry:
+        example: "2024-01-02T12:00:00Z"
+        type: string
+      caption:
+        example: Beautiful sunset
+        type: string
+      fileSize:
+        example: 1024000
+        type: integer
+      filename:
+        example: image.jpg
+        type: string
+      fromJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
+      isDownloaded:
+        example: true
+        type: boolean
+      mediaType:
+        example: image
+        type: string
+      messageId:
+        example: 3EB0C431C26A1916E07E
+        type: string
+      mimeType:
+        example: image/jpeg
+        type: string
+      timestamp:
+        example: "2024-01-01T12:00:00Z"
         type: string
     type: object
 host: localhost:8080
@@ -929,6 +1404,287 @@ paths:
       summary: Connect session
       tags:
       - Sessions
+  /sessions/{sessionId}/contacts:
+    get:
+      description: List all contacts from the WhatsApp account
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - default: 50
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
+      - description: Search contacts by name or phone
+        in: query
+        name: search
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contacts retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.ListContactsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: List contacts
+      tags:
+      - Contacts
+  /sessions/{sessionId}/contacts/avatar:
+    get:
+      description: Get profile picture URL and metadata for a WhatsApp user
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: WhatsApp JID
+        example: '"5511999999999@s.whatsapp.net"'
+        in: query
+        name: jid
+        required: true
+        type: string
+      - default: false
+        description: Get preview (low resolution) image
+        in: query
+        name: preview
+        type: boolean
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Profile picture retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.ProfilePictureResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or user not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get profile picture
+      tags:
+      - Contacts
+  /sessions/{sessionId}/contacts/business:
+    get:
+      description: Get business profile information for a WhatsApp Business account
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: WhatsApp JID
+        example: '"5511999999999@s.whatsapp.net"'
+        in: query
+        name: jid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Business profile retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.BusinessProfileResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or business not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get business profile
+      tags:
+      - Contacts
+  /sessions/{sessionId}/contacts/check:
+    post:
+      consumes:
+      - application/json
+      description: Check if one or more phone numbers are registered on WhatsApp
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Phone numbers to check
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/zpwoot_internal_app_contact.CheckWhatsAppRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Phone numbers checked successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.CheckWhatsAppResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Check if phone numbers are on WhatsApp
+      tags:
+      - Contacts
+  /sessions/{sessionId}/contacts/info:
+    post:
+      consumes:
+      - application/json
+      description: Get detailed information about WhatsApp users
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: User JIDs to get info for
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/zpwoot_internal_app_contact.GetUserInfoRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: User information retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.GetUserInfoResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get user information
+      tags:
+      - Contacts
+  /sessions/{sessionId}/contacts/sync:
+    post:
+      description: Synchronize contacts from the device with WhatsApp
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Contacts synchronized successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_contact.SyncContactsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Sync contacts
+      tags:
+      - Contacts
   /sessions/{sessionId}/delete:
     delete:
       description: Delete a WhatsApp session and all associated data
@@ -1016,11 +1772,9 @@ paths:
       summary: Logout session
       tags:
       - Sessions
-  /sessions/{sessionId}/messages/delete:
-    post:
-      consumes:
-      - application/json
-      description: Delete an existing message
+  /sessions/{sessionId}/media/cache:
+    get:
+      description: List all cached media files for a session
       parameters:
       - description: Session ID or Name
         example: '"mySession"'
@@ -1028,26 +1782,30 @@ paths:
         name: sessionId
         required: true
         type: string
-      - description: Delete message request
-        in: body
-        name: request
-        required: true
-        schema:
-          $ref: '#/definitions/DeleteMessageRequest'
+      - default: 50
+        description: Limit number of results
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Offset for pagination
+        in: query
+        name: offset
+        type: integer
       produces:
       - application/json
       responses:
         "200":
-          description: Message deleted successfully
+          description: Cached media list
           schema:
             allOf:
             - $ref: '#/definitions/SuccessResponse'
             - properties:
                 data:
-                  $ref: '#/definitions/DeleteResponse'
+                  $ref: '#/definitions/zpwoot_internal_app_media.ListCachedMediaResponse'
               type: object
         "400":
-          description: Invalid request
+          description: Bad Request
           schema:
             type: object
         "404":
@@ -1055,15 +1813,195 @@ paths:
           schema:
             type: object
         "500":
-          description: Internal server error
+          description: Internal Server Error
           schema:
             type: object
       security:
       - ApiKeyAuth: []
-      - ApiKeyAuth: []
-      summary: Delete message
+      summary: List cached media
       tags:
-      - Messages
+      - Media
+  /sessions/{sessionId}/media/cache/clear:
+    delete:
+      description: Clear cached media files for a session
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - default: 24
+        description: Clear files older than X hours
+        in: query
+        name: olderThan
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Cache cleared successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_media.ClearCacheResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Clear media cache
+      tags:
+      - Media
+  /sessions/{sessionId}/media/download/{messageId}:
+    get:
+      description: Download media (image, video, audio, document) from a WhatsApp
+        message
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Message ID
+        example: '"3EB0C431C26A1916E07E"'
+        in: path
+        name: messageId
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Media file content
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or message not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Download media from message
+      tags:
+      - Media
+  /sessions/{sessionId}/media/download/{messageId}/{mediaType}:
+    get:
+      description: Download media from a message filtered by media type
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Message ID
+        example: '"3EB0C431C26A1916E07E"'
+        in: path
+        name: messageId
+        required: true
+        type: string
+      - description: Media Type
+        enum:
+        - image
+        - video
+        - audio
+        - document
+        - sticker
+        in: path
+        name: mediaType
+        required: true
+        type: string
+      produces:
+      - application/octet-stream
+      responses:
+        "200":
+          description: Media file content
+          schema:
+            type: file
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or message not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Download media by type
+      tags:
+      - Media
+  /sessions/{sessionId}/media/info/{messageId}:
+    get:
+      description: Get information about media in a message without downloading it
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Message ID
+        example: '"3EB0C431C26A1916E07E"'
+        in: path
+        name: messageId
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Media information
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/zpwoot_internal_app_media.MediaInfoResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or message not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get media info
+      tags:
+      - Media
   /sessions/{sessionId}/messages/edit:
     post:
       consumes:
@@ -1110,6 +2048,151 @@ paths:
       - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Edit message
+      tags:
+      - Messages
+  /sessions/{sessionId}/messages/mark-read:
+    post:
+      consumes:
+      - application/json
+      description: Mark a specific message as read
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Mark as read request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/MarkReadRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message marked as read successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/MarkReadResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
+      summary: Mark message as read
+      tags:
+      - Messages
+  /sessions/{sessionId}/messages/poll/{messageId}/results:
+    get:
+      description: Get voting results for a poll message
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Poll Message ID
+        example: '"3EB0C431C26A1916E07E"'
+        in: path
+        name: messageId
+        required: true
+        type: string
+      - description: Chat JID where the poll was sent
+        in: query
+        name: chatJid
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Poll results retrieved successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/GetPollResultsResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session or poll not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Get poll results
+      tags:
+      - Messages
+  /sessions/{sessionId}/messages/revoke:
+    post:
+      consumes:
+      - application/json
+      description: Revoke (delete for everyone) a previously sent message
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Revoke message request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/RevokeMessageRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Message revoked successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/RevokeMessageResponse'
+              type: object
+        "400":
+          description: Bad Request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Revoke message
       tags:
       - Messages
   /sessions/{sessionId}/messages/send/audio:
@@ -1492,6 +2575,54 @@ paths:
       - ApiKeyAuth: []
       - ApiKeyAuth: []
       summary: Send media message
+      tags:
+      - Messages
+  /sessions/{sessionId}/messages/send/poll:
+    post:
+      consumes:
+      - application/json
+      description: Send a poll message through WhatsApp
+      parameters:
+      - description: Session ID or Name
+        example: '"mySession"'
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Poll request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/CreatePollRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Poll sent successfully
+          schema:
+            allOf:
+            - $ref: '#/definitions/SuccessResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/CreatePollResponse'
+              type: object
+        "400":
+          description: Invalid request
+          schema:
+            type: object
+        "404":
+          description: Session not found
+          schema:
+            type: object
+        "500":
+          description: Internal server error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      - ApiKeyAuth: []
+      summary: Send poll
       tags:
       - Messages
   /sessions/{sessionId}/messages/send/presence:

@@ -1850,6 +1850,57 @@ func getCategoriesString(categories []types.Category) string {
 	return categories[0].Name // Return first category name
 }
 
+// GetAllContacts gets all contacts from the WhatsApp store
+func (c *WameowClient) GetAllContacts(ctx context.Context) (map[string]interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Getting all contacts from store", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	// Use whatsmeow's Store.Contacts.GetAllContacts method
+	contacts, err := c.client.Store.Contacts.GetAllContacts(ctx)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get all contacts", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, err
+	}
+
+	c.logger.InfoWithFields("Retrieved contacts from store", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"contact_count": len(contacts),
+	})
+
+	// Convert map[types.JID]types.ContactInfo to map[string]interface{}
+	result := make(map[string]interface{})
+	contactList := make([]map[string]interface{}, 0, len(contacts))
+
+	for jid, contactInfo := range contacts {
+		contact := map[string]interface{}{
+			"jid":         jid.String(),
+			"phoneNumber": jid.User,
+			"name":        contactInfo.FullName,
+			"shortName":   contactInfo.FirstName,
+			"pushName":    contactInfo.PushName,
+			"isBusiness":  contactInfo.BusinessName != "",
+			"isContact":   true,
+			"isBlocked":   false, // Not available in ContactInfo
+			"addedAt":     nil,   // Not available in ContactInfo
+			"updatedAt":   nil,   // Not available in ContactInfo
+		}
+		contactList = append(contactList, contact)
+	}
+
+	result["contacts"] = contactList
+	result["total"] = len(contactList)
+
+	return result, nil
+}
+
 func (c *WameowClient) MarkRead(ctx context.Context, to, messageID string) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")

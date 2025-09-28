@@ -73,20 +73,20 @@ func (h *ContactHandler) CheckWhatsApp(c *fiber.Ctx) error {
 // @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param jid path string true "WhatsApp JID" example("5511999999999@s.whatsapp.net")
+// @Param jid query string true "WhatsApp JID" example("5511999999999@s.whatsapp.net")
 // @Param preview query bool false "Get preview (low resolution) image" default(false)
 // @Success 200 {object} common.SuccessResponse{data=contact.ProfilePictureResponse} "Profile picture retrieved successfully"
 // @Failure 400 {object} object "Bad Request"
 // @Failure 404 {object} object "Session or user not found"
 // @Failure 500 {object} object "Internal Server Error"
-// @Router /sessions/{sessionId}/contacts/{jid}/avatar [get]
+// @Router /sessions/{sessionId}/contacts/avatar [get]
 func (h *ContactHandler) GetProfilePicture(c *fiber.Ctx) error {
 	sess, fiberErr := h.resolveSession(c)
 	if fiberErr != nil {
 		return c.Status(fiberErr.Code).JSON(common.NewErrorResponse(fiberErr.Message))
 	}
 
-	jid := c.Params("jid")
+	jid := c.Query("jid")
 	if jid == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("JID is required"))
 	}
@@ -261,19 +261,19 @@ func (h *ContactHandler) SyncContacts(c *fiber.Ctx) error {
 // @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID or Name" example("mySession")
-// @Param jid path string true "WhatsApp JID" example("5511999999999@s.whatsapp.net")
+// @Param jid query string true "WhatsApp JID" example("5511999999999@s.whatsapp.net")
 // @Success 200 {object} common.SuccessResponse{data=contact.BusinessProfileResponse} "Business profile retrieved successfully"
 // @Failure 400 {object} object "Bad Request"
 // @Failure 404 {object} object "Session or business not found"
 // @Failure 500 {object} object "Internal Server Error"
-// @Router /sessions/{sessionId}/contacts/{jid}/business [get]
+// @Router /sessions/{sessionId}/contacts/business [get]
 func (h *ContactHandler) GetBusinessProfile(c *fiber.Ctx) error {
 	sess, fiberErr := h.resolveSession(c)
 	if fiberErr != nil {
 		return c.Status(fiberErr.Code).JSON(common.NewErrorResponse(fiberErr.Message))
 	}
 
-	jid := c.Params("jid")
+	jid := c.Query("jid")
 	if jid == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("JID is required"))
 	}

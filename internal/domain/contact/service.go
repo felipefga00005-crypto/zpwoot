@@ -3,6 +3,7 @@ package contact
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"zpwoot/platform/logger"
@@ -25,6 +26,7 @@ type WameowManager interface {
 	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
 	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
 	GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error)
+	GetAllContacts(ctx context.Context, sessionID string) (map[string]interface{}, error)
 }
 
 type service struct {
@@ -175,26 +177,113 @@ func (s *service) GetUserInfo(ctx context.Context, req *GetUserInfoRequest) (*Ge
 }
 
 // ListContacts lists contacts from the WhatsApp account
-// Note: whatsmeow doesn't have a native ListContacts method
-// This would need to be implemented via app state or events
 func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*ListContactsResponse, error) {
 	if err := s.validateListContactsRequest(req); err != nil {
 		return nil, err
 	}
 
-	s.logger.WarnWithFields("ListContacts not supported by whatsmeow", map[string]interface{}{
+	s.logger.InfoWithFields("Listing contacts", map[string]interface{}{
 		"session_id": req.SessionID,
-		"method":     "ListContacts",
+		"limit":      req.Limit,
+		"offset":     req.Offset,
+		"search":     req.Search,
 	})
 
-	// Return empty response since whatsmeow doesn't support this natively
+	// Get all contacts from whatsmeow store
+	contactsData, err := s.wameowManager.GetAllContacts(ctx, req.SessionID)
+	if err != nil {
+		s.logger.ErrorWithFields("Failed to get contacts", map[string]interface{}{
+			"session_id": req.SessionID,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get contacts: %w", err)
+	}
+
+	// Extract contacts from response
+	contactsInterface, exists := contactsData["contacts"]
+	if !exists {
+		return &ListContactsResponse{
+			Contacts: []Contact{},
+			Total:    0,
+			Limit:    req.Limit,
+			Offset:   req.Offset,
+			HasMore:  false,
+		}, nil
+	}
+
+	contactsList, ok := contactsInterface.([]map[string]interface{})
+	if !ok {
+		return nil, fmt.Errorf("invalid contacts data format")
+	}
+
+	// Convert to domain objects and apply filtering
+	allContacts := make([]Contact, 0, len(contactsList))
+	for _, contactData := range contactsList {
+		// Handle time fields that might be nil
+		var addedAt, updatedAt time.Time
+		if addedAtPtr := getTimeFromMap(contactData, "addedAt"); addedAtPtr != nil {
+			addedAt = *addedAtPtr
+		}
+		if updatedAtPtr := getTimeFromMap(contactData, "updatedAt"); updatedAtPtr != nil {
+			updatedAt = *updatedAtPtr
+		}
+
+		contact := Contact{
+			JID:         getStringFromMap(contactData, "jid"),
+			PhoneNumber: getStringFromMap(contactData, "phoneNumber"),
+			Name:        getStringFromMap(contactData, "name"),
+			ShortName:   getStringFromMap(contactData, "shortName"),
+			PushName:    getStringFromMap(contactData, "pushName"),
+			IsBusiness:  getBoolFromMap(contactData, "isBusiness"),
+			IsContact:   getBoolFromMap(contactData, "isContact"),
+			IsBlocked:   getBoolFromMap(contactData, "isBlocked"),
+			AddedAt:     addedAt,
+			UpdatedAt:   updatedAt,
+		}
+
+		// Apply search filter if provided
+		if req.Search != "" {
+			searchLower := strings.ToLower(req.Search)
+			if !strings.Contains(strings.ToLower(contact.Name), searchLower) &&
+				!strings.Contains(strings.ToLower(contact.ShortName), searchLower) &&
+				!strings.Contains(strings.ToLower(contact.PushName), searchLower) &&
+				!strings.Contains(contact.PhoneNumber, req.Search) {
+				continue
+			}
+		}
+
+		allContacts = append(allContacts, contact)
+	}
+
+	// Apply pagination
+	total := len(allContacts)
+	start := req.Offset
+	end := start + req.Limit
+
+	if start >= total {
+		return &ListContactsResponse{
+			Contacts: []Contact{},
+			Total:    total,
+			Limit:    req.Limit,
+			Offset:   req.Offset,
+			HasMore:  false,
+		}, nil
+	}
+
+	if end > total {
+		end = total
+	}
+
+	paginatedContacts := allContacts[start:end]
+	hasMore := end < total
+
 	return &ListContactsResponse{
-		Contacts: []Contact{},
-		Total:    0,
+		Contacts: paginatedContacts,
+		Total:    total,
 		Limit:    req.Limit,
 		Offset:   req.Offset,
-		HasMore:  false,
-	}, fmt.Errorf("ListContacts not supported by whatsmeow - contacts are managed via app state")
+		HasMore:  hasMore,
+	}, nil
 }
 
 // SyncContacts synchronizes contacts from the device with WhatsApp

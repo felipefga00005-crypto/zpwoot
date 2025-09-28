@@ -108,6 +108,7 @@ type WameowManager interface {
 	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
 	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
 	GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error)
+	GetAllContacts(ctx context.Context, sessionID string) (map[string]interface{}, error)
 }
 
 type GroupInfo struct {

@@ -364,6 +364,463 @@ const docTemplate = `{
                 }
             }
         },
+        "/sessions/{sessionId}/contacts": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "List all contacts from the WhatsApp account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "List contacts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Search contacts by name or phone",
+                        "name": "search",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contacts retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.ListContactsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/contacts/avatar": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get profile picture URL and metadata for a WhatsApp user",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Get profile picture",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"5511999999999@s.whatsapp.net\"",
+                        "description": "WhatsApp JID",
+                        "name": "jid",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "boolean",
+                        "default": false,
+                        "description": "Get preview (low resolution) image",
+                        "name": "preview",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Profile picture retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.ProfilePictureResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or user not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/contacts/business": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get business profile information for a WhatsApp Business account",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Get business profile",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"5511999999999@s.whatsapp.net\"",
+                        "description": "WhatsApp JID",
+                        "name": "jid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Business profile retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.BusinessProfileResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or business not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/contacts/check": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Check if one or more phone numbers are registered on WhatsApp",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Check if phone numbers are on WhatsApp",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Phone numbers to check",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zpwoot_internal_app_contact.CheckWhatsAppRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Phone numbers checked successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.CheckWhatsAppResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/contacts/info": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get detailed information about WhatsApp users",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Get user information",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "User JIDs to get info for",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/zpwoot_internal_app_contact.GetUserInfoRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User information retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.GetUserInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/contacts/sync": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Synchronize contacts from the device with WhatsApp",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Contacts"
+                ],
+                "summary": "Sync contacts",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Contacts synchronized successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_contact.SyncContactsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
         "/sessions/{sessionId}/delete": {
             "delete": {
                 "security": [
@@ -502,27 +959,21 @@ const docTemplate = `{
                 }
             }
         },
-        "/sessions/{sessionId}/messages/delete": {
-            "post": {
+        "/sessions/{sessionId}/media/cache": {
+            "get": {
                 "security": [
-                    {
-                        "ApiKeyAuth": []
-                    },
                     {
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Delete an existing message",
-                "consumes": [
-                    "application/json"
-                ],
+                "description": "List all cached media files for a session",
                 "produces": [
                     "application/json"
                 ],
                 "tags": [
-                    "Messages"
+                    "Media"
                 ],
-                "summary": "Delete message",
+                "summary": "List cached media",
                 "parameters": [
                     {
                         "type": "string",
@@ -533,18 +984,23 @@ const docTemplate = `{
                         "required": true
                     },
                     {
-                        "description": "Delete message request",
-                        "name": "request",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/DeleteMessageRequest"
-                        }
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Limit number of results",
+                        "name": "limit",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Offset for pagination",
+                        "name": "offset",
+                        "in": "query"
                     }
                 ],
                 "responses": {
                     "200": {
-                        "description": "Message deleted successfully",
+                        "description": "Cached media list",
                         "schema": {
                             "allOf": [
                                 {
@@ -554,7 +1010,7 @@ const docTemplate = `{
                                     "type": "object",
                                     "properties": {
                                         "data": {
-                                            "$ref": "#/definitions/DeleteResponse"
+                                            "$ref": "#/definitions/zpwoot_internal_app_media.ListCachedMediaResponse"
                                         }
                                     }
                                 }
@@ -562,7 +1018,7 @@ const docTemplate = `{
                         }
                     },
                     "400": {
-                        "description": "Invalid request",
+                        "description": "Bad Request",
                         "schema": {
                             "type": "object"
                         }
@@ -574,7 +1030,288 @@ const docTemplate = `{
                         }
                     },
                     "500": {
-                        "description": "Internal server error",
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/media/cache/clear": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Clear cached media files for a session",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Clear media cache",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 24,
+                        "description": "Clear files older than X hours",
+                        "name": "olderThan",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Cache cleared successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_media.ClearCacheResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/media/download/{messageId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Download media (image, video, audio, document) from a WhatsApp message",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Download media from message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"3EB0C431C26A1916E07E\"",
+                        "description": "Message ID",
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Media file content",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or message not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/media/download/{messageId}/{mediaType}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Download media from a message filtered by media type",
+                "produces": [
+                    "application/octet-stream"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Download media by type",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"3EB0C431C26A1916E07E\"",
+                        "description": "Message ID",
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "enum": [
+                            "image",
+                            "video",
+                            "audio",
+                            "document",
+                            "sticker"
+                        ],
+                        "type": "string",
+                        "description": "Media Type",
+                        "name": "mediaType",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Media file content",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or message not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/media/info/{messageId}": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get information about media in a message without downloading it",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Media"
+                ],
+                "summary": "Get media info",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"3EB0C431C26A1916E07E\"",
+                        "description": "Message ID",
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Media information",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/zpwoot_internal_app_media.MediaInfoResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or message not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -655,6 +1392,243 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal server error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/messages/mark-read": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Mark a specific message as read",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Mark message as read",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Mark as read request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/MarkReadRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Message marked as read successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/MarkReadResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/messages/poll/{messageId}/results": {
+            "get": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Get voting results for a poll message",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Get poll results",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "example": "\"3EB0C431C26A1916E07E\"",
+                        "description": "Poll Message ID",
+                        "name": "messageId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Chat JID where the poll was sent",
+                        "name": "chatJid",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Poll results retrieved successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/GetPollResultsResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session or poll not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/messages/revoke": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Revoke (delete for everyone) a previously sent message",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Revoke message",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Revoke message request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/RevokeMessageRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Message revoked successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/RevokeMessageResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
                         "schema": {
                             "type": "object"
                         }
@@ -1282,6 +2256,86 @@ const docTemplate = `{
                     },
                     "500": {
                         "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/sessions/{sessionId}/messages/send/poll": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    },
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Send a poll message through WhatsApp",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Messages"
+                ],
+                "summary": "Send poll",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "example": "\"mySession\"",
+                        "description": "Session ID or Name",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Poll request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/CreatePollRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Poll sent successfully",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/SuccessResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/CreatePollResponse"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Session not found",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
                         "schema": {
                             "type": "object"
                         }
@@ -2091,10 +3145,14 @@ const docTemplate = `{
         "AudioMessageRequest": {
             "type": "object",
             "required": [
-                "file",
-                "to"
+                "Phone",
+                "file"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "caption": {
                     "type": "string",
                     "example": "Voice message"
@@ -2109,21 +3167,21 @@ const docTemplate = `{
                 "mimeType": {
                     "type": "string",
                     "example": "audio/ogg"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "BusinessProfileRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "name",
-                "phone",
-                "to"
+                "phone"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
+                },
                 "address": {
                     "type": "string",
                     "example": "Rua Teste, 123 - São Paulo, SP"
@@ -2147,10 +3205,6 @@ const docTemplate = `{
                 "title": {
                     "type": "string",
                     "example": "Atendimento ao Cliente"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511987654321@s.whatsapp.net"
                 },
                 "website": {
                     "type": "string",
@@ -2177,11 +3231,15 @@ const docTemplate = `{
         "ButtonMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "body",
-                "buttons",
-                "to"
+                "buttons"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "body": {
                     "type": "string",
                     "example": "Please choose one of the options below:"
@@ -2193,17 +3251,13 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/Button"
                     }
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "ChatwootConfigResponse": {
             "type": "object",
             "properties": {
-                "account_id": {
+                "accountId": {
                     "type": "string",
                     "example": "1"
                 },
@@ -2211,7 +3265,7 @@ const docTemplate = `{
                     "type": "boolean",
                     "example": true
                 },
-                "created_at": {
+                "createdAt": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
                 },
@@ -2219,11 +3273,11 @@ const docTemplate = `{
                     "type": "string",
                     "example": "chatwoot-config-123"
                 },
-                "inbox_id": {
+                "inboxId": {
                     "type": "string",
                     "example": "1"
                 },
-                "updated_at": {
+                "updatedAt": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
                 },
@@ -2263,11 +3317,15 @@ const docTemplate = `{
         "ContactMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "contactName",
-                "contactPhone",
-                "to"
+                "contactPhone"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "contactName": {
                     "type": "string",
                     "example": "Maria Silva"
@@ -2275,10 +3333,6 @@ const docTemplate = `{
                 "contactPhone": {
                     "type": "string",
                     "example": "+5511987654321"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -2373,6 +3427,84 @@ const docTemplate = `{
                 }
             }
         },
+        "CreatePollRequest": {
+            "type": "object",
+            "required": [
+                "Phone",
+                "name",
+                "options"
+            ],
+            "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "allowMultipleAnswers": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "name": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "minLength": 1,
+                    "example": "What's your favorite color?"
+                },
+                "options": {
+                    "type": "array",
+                    "maxItems": 12,
+                    "minItems": 2,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Red",
+                        "Blue",
+                        "Green"
+                    ]
+                },
+                "selectableOptionCount": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "example": 1
+                }
+            }
+        },
+        "CreatePollResponse": {
+            "type": "object",
+            "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB0C767D71D"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "Red",
+                        "Blue",
+                        "Green"
+                    ]
+                },
+                "pollName": {
+                    "type": "string",
+                    "example": "What's your favorite color?"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "sent"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
         "CreateSessionRequest": {
             "type": "object",
             "required": [
@@ -2414,48 +3546,6 @@ const docTemplate = `{
                 }
             }
         },
-        "DeleteMessageRequest": {
-            "type": "object",
-            "required": [
-                "messageId",
-                "to"
-            ],
-            "properties": {
-                "forAll": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "messageId": {
-                    "type": "string",
-                    "example": "3EB0C767D71D"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                }
-            }
-        },
-        "DeleteResponse": {
-            "type": "object",
-            "properties": {
-                "forAll": {
-                    "type": "boolean",
-                    "example": true
-                },
-                "id": {
-                    "type": "string",
-                    "example": "3EB0C767D71D"
-                },
-                "status": {
-                    "type": "string",
-                    "example": "deleted"
-                },
-                "timestamp": {
-                    "type": "string",
-                    "example": "2024-01-01T12:00:00Z"
-                }
-            }
-        },
         "DeviceInfoResponse": {
             "type": "object",
             "properties": {
@@ -2480,11 +3570,15 @@ const docTemplate = `{
         "DocumentMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "file",
-                "filename",
-                "to"
+                "filename"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "caption": {
                     "type": "string",
                     "example": "Important document"
@@ -2503,21 +3597,22 @@ const docTemplate = `{
                 "mimeType": {
                     "type": "string",
                     "example": "application/pdf"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "EditMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "messageId",
                 "newBody",
-                "to"
+                "sessionId"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
@@ -2526,9 +3621,9 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Updated message text"
                 },
-                "to": {
+                "sessionId": {
                     "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
+                    "example": "mySession"
                 }
             }
         },
@@ -2550,6 +3645,45 @@ const docTemplate = `{
                 "timestamp": {
                     "type": "string",
                     "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "GetPollResultsResponse": {
+            "type": "object",
+            "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "allowMultipleAnswers": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "createdAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "options": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/PollOption"
+                    }
+                },
+                "pollMessageId": {
+                    "type": "string",
+                    "example": "3EB0C767D71D"
+                },
+                "pollName": {
+                    "type": "string",
+                    "example": "What's your favorite color?"
+                },
+                "selectableOptionCount": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "totalVotes": {
+                    "type": "integer",
+                    "example": 10
                 }
             }
         },
@@ -2577,10 +3711,14 @@ const docTemplate = `{
         "ImageMessageRequest": {
             "type": "object",
             "required": [
-                "file",
-                "to"
+                "Phone",
+                "file"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "caption": {
                     "type": "string",
                     "example": "Beautiful sunset photo"
@@ -2599,22 +3737,22 @@ const docTemplate = `{
                 "mimeType": {
                     "type": "string",
                     "example": "image/jpeg"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "ListMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "body",
                 "buttonText",
-                "sections",
-                "to"
+                "sections"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "body": {
                     "type": "string",
                     "example": "Please select one of the available options:"
@@ -2629,10 +3767,6 @@ const docTemplate = `{
                     "items": {
                         "$ref": "#/definitions/Section"
                     }
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -2662,11 +3796,15 @@ const docTemplate = `{
         "LocationMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "latitude",
-                "longitude",
-                "to"
+                "longitude"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "address": {
                     "type": "string",
                     "example": "Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"
@@ -2678,20 +3816,58 @@ const docTemplate = `{
                 "longitude": {
                     "type": "number",
                     "example": -46.6333
-                },
-                "to": {
+                }
+            }
+        },
+        "MarkReadRequest": {
+            "type": "object",
+            "required": [
+                "messageId",
+                "phone"
+            ],
+            "properties": {
+                "messageId": {
                     "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
+                    "example": "3EB0C431C26A1916E07E"
+                },
+                "phone": {
+                    "type": "string",
+                    "example": "5511999999999"
+                }
+            }
+        },
+        "MarkReadResponse": {
+            "type": "object",
+            "properties": {
+                "markedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Message marked as read successfully"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB0C431C26A1916E07E"
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
                 }
             }
         },
         "MediaMessageRequest": {
             "type": "object",
             "required": [
-                "file",
-                "to"
+                "Phone",
+                "file"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "caption": {
                     "type": "string",
                     "example": "Media caption"
@@ -2707,10 +3883,6 @@ const docTemplate = `{
                 "mimeType": {
                     "type": "string",
                     "example": "application/octet-stream"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -2743,13 +3915,39 @@ const docTemplate = `{
                 }
             }
         },
+        "PollOption": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string",
+                    "example": "Red"
+                },
+                "voteCount": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "voters": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "5511999999999@s.whatsapp.net"
+                    ]
+                }
+            }
+        },
         "PresenceMessageRequest": {
             "type": "object",
             "required": [
-                "presence",
-                "to"
+                "Phone",
+                "presence"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "presence": {
                     "type": "string",
                     "enum": [
@@ -2760,10 +3958,6 @@ const docTemplate = `{
                         "paused"
                     ],
                     "example": "typing"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -2838,11 +4032,15 @@ const docTemplate = `{
         "ReactionMessageRequest": {
             "type": "object",
             "required": [
+                "Phone",
                 "messageId",
-                "reaction",
-                "to"
+                "reaction"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
@@ -2850,10 +4048,6 @@ const docTemplate = `{
                 "reaction": {
                     "type": "string",
                     "example": "👍"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -2871,6 +4065,45 @@ const docTemplate = `{
                 "status": {
                     "type": "string",
                     "example": "sent"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "RevokeMessageRequest": {
+            "type": "object",
+            "required": [
+                "Phone",
+                "messageId",
+                "sessionId"
+            ],
+            "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB0C767D71D"
+                },
+                "sessionId": {
+                    "type": "string",
+                    "example": "mySession"
+                }
+            }
+        },
+        "RevokeMessageResponse": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string",
+                    "example": "3EB0C767D71D"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "revoked"
                 },
                 "timestamp": {
                     "type": "string",
@@ -3080,30 +4313,34 @@ const docTemplate = `{
         "TextMessageRequest": {
             "type": "object",
             "required": [
-                "body",
-                "to"
+                "Phone",
+                "body"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
+                },
                 "body": {
                     "type": "string",
                     "example": "Hello, this is a text message"
                 },
                 "contextInfo": {
                     "$ref": "#/definitions/ContextInfo"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511987654321@s.whatsapp.net"
                 }
             }
         },
         "VideoMessageRequest": {
             "type": "object",
             "required": [
-                "file",
-                "to"
+                "Phone",
+                "file"
             ],
             "properties": {
+                "Phone": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "caption": {
                     "type": "string",
                     "example": "Check out this amazing video!"
@@ -3122,10 +4359,6 @@ const docTemplate = `{
                 "mimeType": {
                     "type": "string",
                     "example": "video/mp4"
-                },
-                "to": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3165,6 +4398,486 @@ const docTemplate = `{
                 "url": {
                     "type": "string",
                     "example": "https://example.com/webhook"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.BusinessProfile": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "type": "string",
+                    "example": "123 Main St, City"
+                },
+                "category": {
+                    "type": "string",
+                    "example": "Retail"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "We sell amazing products"
+                },
+                "email": {
+                    "type": "string",
+                    "example": "contact@mybusiness.com"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "My Business"
+                },
+                "verified": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "website": {
+                    "type": "string",
+                    "example": "https://mybusiness.com"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.BusinessProfileResponse": {
+            "type": "object",
+            "properties": {
+                "found": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "profile": {
+                    "$ref": "#/definitions/zpwoot_internal_app_contact.BusinessProfile"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.CheckWhatsAppRequest": {
+            "type": "object",
+            "required": [
+                "phoneNumbers"
+            ],
+            "properties": {
+                "phoneNumbers": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"+5511999999999\"",
+                        " \"+5511888888888\"]"
+                    ]
+                },
+                "sessionId": {
+                    "type": "string"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.CheckWhatsAppResponse": {
+            "type": "object",
+            "properties": {
+                "checked": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "results": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zpwoot_internal_app_contact.WhatsAppStatus"
+                    }
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 2
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.Contact": {
+            "type": "object",
+            "properties": {
+                "addedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "isBlocked": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "isBusiness": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "isContact": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "+5511999999999"
+                },
+                "pushName": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "shortName": {
+                    "type": "string",
+                    "example": "John"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.GetUserInfoRequest": {
+            "type": "object",
+            "required": [
+                "jids"
+            ],
+            "properties": {
+                "jids": {
+                    "type": "array",
+                    "maxItems": 20,
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"5511999999999@s.whatsapp.net\"",
+                        " \"5511888888888@s.whatsapp.net\"]"
+                    ]
+                },
+                "sessionId": {
+                    "type": "string"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.GetUserInfoResponse": {
+            "type": "object",
+            "properties": {
+                "found": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 2
+                },
+                "users": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zpwoot_internal_app_contact.UserInfo"
+                    }
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.ListContactsResponse": {
+            "type": "object",
+            "properties": {
+                "contacts": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zpwoot_internal_app_contact.Contact"
+                    }
+                },
+                "hasMore": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 150
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.ProfilePictureResponse": {
+            "type": "object",
+            "properties": {
+                "directPath": {
+                    "type": "string"
+                },
+                "hasPicture": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "id": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "image"
+                },
+                "updatedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "url": {
+                    "type": "string",
+                    "example": "https://pps.whatsapp.net/v/..."
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.SyncContactsResponse": {
+            "type": "object",
+            "properties": {
+                "added": {
+                    "type": "integer",
+                    "example": 5
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Contacts synchronized successfully"
+                },
+                "removed": {
+                    "type": "integer",
+                    "example": 1
+                },
+                "synced": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "syncedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 150
+                },
+                "updated": {
+                    "type": "integer",
+                    "example": 3
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.UserInfo": {
+            "type": "object",
+            "properties": {
+                "isBusiness": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "isContact": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "isOnline": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "lastSeen": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "name": {
+                    "type": "string",
+                    "example": "John Doe"
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "+5511999999999"
+                },
+                "pictureId": {
+                    "type": "string",
+                    "example": "1234567890"
+                },
+                "status": {
+                    "type": "string",
+                    "example": "Hey there! I am using WhatsApp."
+                },
+                "verifiedName": {
+                    "type": "string",
+                    "example": "Company Name"
+                }
+            }
+        },
+        "zpwoot_internal_app_contact.WhatsAppStatus": {
+            "type": "object",
+            "properties": {
+                "isBusiness": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "isOnWhatsapp": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "jid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "phoneNumber": {
+                    "type": "string",
+                    "example": "+5511999999999"
+                },
+                "verifiedName": {
+                    "type": "string",
+                    "example": "Company Name"
+                }
+            }
+        },
+        "zpwoot_internal_app_media.CachedMediaItem": {
+            "type": "object",
+            "properties": {
+                "cachedAt": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
+                },
+                "expiresAt": {
+                    "type": "string",
+                    "example": "2024-01-02T12:00:00Z"
+                },
+                "filePath": {
+                    "type": "string",
+                    "example": "/tmp/media/abc123.jpg"
+                },
+                "fileSize": {
+                    "type": "integer",
+                    "example": 1024000
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "image.jpg"
+                },
+                "lastAccess": {
+                    "type": "string",
+                    "example": "2024-01-01T12:30:00Z"
+                },
+                "mediaType": {
+                    "type": "string",
+                    "example": "image"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB0C431C26A1916E07E"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                }
+            }
+        },
+        "zpwoot_internal_app_media.ClearCacheResponse": {
+            "type": "object",
+            "properties": {
+                "filesDeleted": {
+                    "type": "integer",
+                    "example": 25
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Cache cleared successfully"
+                },
+                "spaceFreed": {
+                    "description": "Bytes freed",
+                    "type": "integer",
+                    "example": 10485760
+                }
+            }
+        },
+        "zpwoot_internal_app_media.ListCachedMediaResponse": {
+            "type": "object",
+            "properties": {
+                "hasMore": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zpwoot_internal_app_media.CachedMediaItem"
+                    }
+                },
+                "limit": {
+                    "type": "integer",
+                    "example": 50
+                },
+                "offset": {
+                    "type": "integer",
+                    "example": 0
+                },
+                "total": {
+                    "type": "integer",
+                    "example": 150
+                },
+                "totalSize": {
+                    "description": "Total size in bytes",
+                    "type": "integer",
+                    "example": 52428800
+                }
+            }
+        },
+        "zpwoot_internal_app_media.MediaInfoResponse": {
+            "type": "object",
+            "properties": {
+                "cacheExpiry": {
+                    "type": "string",
+                    "example": "2024-01-02T12:00:00Z"
+                },
+                "caption": {
+                    "type": "string",
+                    "example": "Beautiful sunset"
+                },
+                "fileSize": {
+                    "type": "integer",
+                    "example": 1024000
+                },
+                "filename": {
+                    "type": "string",
+                    "example": "image.jpg"
+                },
+                "fromJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
+                "isDownloaded": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "mediaType": {
+                    "type": "string",
+                    "example": "image"
+                },
+                "messageId": {
+                    "type": "string",
+                    "example": "3EB0C431C26A1916E07E"
+                },
+                "mimeType": {
+                    "type": "string",
+                    "example": "image/jpeg"
+                },
+                "timestamp": {
+                    "type": "string",
+                    "example": "2024-01-01T12:00:00Z"
                 }
             }
         }

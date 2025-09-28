@@ -1383,6 +1383,16 @@ func (m *Manager) IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbe
 	return client.IsOnWhatsApp(ctx, phoneNumbers)
 }
 
+// GetAllContacts gets all contacts from the WhatsApp store
+func (m *Manager) GetAllContacts(ctx context.Context, sessionID string) (map[string]interface{}, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetAllContacts(ctx)
+}
+
 // GetProfilePictureInfo gets profile picture information for a contact
 func (m *Manager) GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error) {
 	client := m.getClient(sessionID)

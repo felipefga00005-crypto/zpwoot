@@ -62,14 +62,14 @@ type WebhookEventResponse struct {
 } //@name WebhookEventResponse
 
 type TestWebhookRequest struct {
-	EventType string                 `json:"event_type" validate:"required" example:"message"`
-	TestData  map[string]interface{} `json:"test_data,omitempty"`
+	EventType string                 `json:"eventType" validate:"required" example:"message"`
+	TestData  map[string]interface{} `json:"testData,omitempty"`
 } //@name TestWebhookRequest
 
 type TestWebhookResponse struct {
 	Success      bool   `json:"success" example:"true"`
-	StatusCode   int    `json:"status_code" example:"200"`
-	ResponseTime int64  `json:"response_time_ms" example:"150"`
+	StatusCode   int    `json:"statusCode" example:"200"`
+	ResponseTime int64  `json:"responseTimeMs" example:"150"`
 	Error        string `json:"error,omitempty"`
 }
 

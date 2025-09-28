@@ -32,15 +32,15 @@ type UpdateChatwootConfigRequest struct {
 type ChatwootConfigResponse struct {
 	ID        string    `json:"id" example:"chatwoot-config-123"`
 	URL       string    `json:"url" example:"https://chatwoot.example.com"`
-	AccountID string    `json:"account_id" example:"1"`
-	InboxID   *string   `json:"inbox_id,omitempty" example:"1"`
+	AccountID string    `json:"accountId" example:"1"`
+	InboxID   *string   `json:"inboxId,omitempty" example:"1"`
 	Active    bool      `json:"active" example:"true"`
-	CreatedAt time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	CreatedAt time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt time.Time `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 } //@name ChatwootConfigResponse
 
 type SyncContactRequest struct {
-	PhoneNumber string                 `json:"phone_number" validate:"required" example:"+5511999999999"`
+	PhoneNumber string                 `json:"phoneNumber" validate:"required" example:"+5511999999999"`
 	Name        string                 `json:"name" validate:"required" example:"John Doe"`
 	Email       string                 `json:"email,omitempty" validate:"omitempty,email" example:"john@example.com"`
 	Attributes  map[string]interface{} `json:"attributes,omitempty"`
@@ -48,53 +48,53 @@ type SyncContactRequest struct {
 
 type SyncContactResponse struct {
 	ID          int                    `json:"id" example:"123"`
-	PhoneNumber string                 `json:"phone_number" example:"+5511999999999"`
+	PhoneNumber string                 `json:"phoneNumber" example:"+5511999999999"`
 	Name        string                 `json:"name" example:"John Doe"`
 	Email       string                 `json:"email,omitempty" example:"john@example.com"`
 	Attributes  map[string]interface{} `json:"attributes,omitempty"`
-	CreatedAt   time.Time              `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt   time.Time              `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	CreatedAt   time.Time              `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   time.Time              `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 }
 
 type SyncConversationRequest struct {
-	ContactID   int    `json:"contact_id" validate:"required" example:"123"`
-	SessionID   string `json:"session_id" validate:"required" example:"session-123"`
-	PhoneNumber string `json:"phone_number" validate:"required" example:"+5511999999999"`
+	ContactID   int    `json:"contactId" validate:"required" example:"123"`
+	SessionID   string `json:"sessionId" validate:"required" example:"session-123"`
+	PhoneNumber string `json:"phoneNumber" validate:"required" example:"+5511999999999"`
 }
 
 type SyncConversationResponse struct {
 	ID          int       `json:"id" example:"456"`
-	ContactID   int       `json:"contact_id" example:"123"`
-	SessionID   string    `json:"session_id" example:"session-123"`
-	PhoneNumber string    `json:"phone_number" example:"+5511999999999"`
+	ContactID   int       `json:"contactId" example:"123"`
+	SessionID   string    `json:"sessionId" example:"session-123"`
+	PhoneNumber string    `json:"phoneNumber" example:"+5511999999999"`
 	Status      string    `json:"status" example:"open"`
-	CreatedAt   time.Time `json:"created_at" example:"2024-01-01T00:00:00Z"`
-	UpdatedAt   time.Time `json:"updated_at" example:"2024-01-01T00:00:00Z"`
+	CreatedAt   time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	UpdatedAt   time.Time `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 }
 
 type SendMessageToChatwootRequest struct {
-	ConversationID int                    `json:"conversation_id" validate:"required" example:"456"`
+	ConversationID int                    `json:"conversationId" validate:"required" example:"456"`
 	Content        string                 `json:"content" validate:"required" example:"Hello from Wameow!"`
-	MessageType    string                 `json:"message_type" validate:"required,oneof=incoming outgoing" example:"incoming"`
-	ContentType    string                 `json:"content_type,omitempty" example:"text"`
+	MessageType    string                 `json:"messageType" validate:"required,oneof=incoming outgoing" example:"incoming"`
+	ContentType    string                 `json:"contentType,omitempty" example:"text"`
 	Attachments    []ChatwootAttachment   `json:"attachments,omitempty"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ChatwootAttachment struct {
 	URL      string `json:"url" example:"https://example.com/image.jpg"`
-	FileType string `json:"file_type" example:"image"`
-	FileName string `json:"file_name" example:"image.jpg"`
+	FileType string `json:"fileType" example:"image"`
+	FileName string `json:"fileName" example:"image.jpg"`
 }
 
 type SendMessageToChatwootResponse struct {
 	ID             int                    `json:"id" example:"789"`
-	ConversationID int                    `json:"conversation_id" example:"456"`
+	ConversationID int                    `json:"conversationId" example:"456"`
 	Content        string                 `json:"content" example:"Hello from Wameow!"`
-	MessageType    string                 `json:"message_type" example:"incoming"`
-	ContentType    string                 `json:"content_type" example:"text"`
+	MessageType    string                 `json:"messageType" example:"incoming"`
+	ContentType    string                 `json:"contentType" example:"text"`
 	Metadata       map[string]interface{} `json:"metadata,omitempty"`
-	CreatedAt      time.Time              `json:"created_at" example:"2024-01-01T00:00:00Z"`
+	CreatedAt      time.Time              `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 }
 
 type ChatwootWebhookPayload struct {
@@ -118,23 +118,23 @@ type ChatwootConversation struct {
 type ChatwootMessage struct {
 	ID          int    `json:"id" example:"789"`
 	Content     string `json:"content" example:"Hello!"`
-	MessageType string `json:"message_type" example:"incoming"`
-	ContentType string `json:"content_type" example:"text"`
+	MessageType string `json:"messageType" example:"incoming"`
+	ContentType string `json:"contentType" example:"text"`
 }
 
 type TestChatwootConnectionResponse struct {
 	Success     bool   `json:"success" example:"true"`
-	AccountName string `json:"account_name,omitempty" example:"My Company"`
-	InboxName   string `json:"inbox_name,omitempty" example:"Wameow Inbox"`
+	AccountName string `json:"accountName,omitempty" example:"My Company"`
+	InboxName   string `json:"inboxName,omitempty" example:"Wameow Inbox"`
 	Error       string `json:"error,omitempty"`
 } // @name TestChatwootConnectionResponse
 
 type ChatwootStatsResponse struct {
-	TotalContacts       int `json:"total_contacts" example:"150"`
-	TotalConversations  int `json:"total_conversations" example:"89"`
-	ActiveConversations int `json:"active_conversations" example:"12"`
-	MessagesSent        int `json:"messages_sent" example:"1250"`
-	MessagesReceived    int `json:"messages_received" example:"890"`
+	TotalContacts       int `json:"totalContacts" example:"150"`
+	TotalConversations  int `json:"totalConversations" example:"89"`
+	ActiveConversations int `json:"activeConversations" example:"12"`
+	MessagesSent        int `json:"messagesSent" example:"1250"`
+	MessagesReceived    int `json:"messagesReceived" example:"890"`
 } // @name ChatwootStatsResponse
 
 func (r *CreateChatwootConfigRequest) ToCreateChatwootConfigRequest() *chatwoot.CreateChatwootConfigRequest {

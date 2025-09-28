@@ -1582,7 +1582,7 @@ func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
 // @Param sessionId path string true "Session ID or Name" example("mySession")
 // @Param messageId path string true "Poll Message ID" example("3EB0C431C26A1916E07E")
 // @Param chatJid query string true "Chat JID where the poll was sent" example("5511999999999@s.whatsapp.net"
-// @Success 200 {object} common.SuccessResponse{data=message.PollResultsResponse} "Poll results retrieved successfully"
+// @Success 200 {object} common.SuccessResponse{data=message.GetPollResultsResponse} "Poll results retrieved successfully"
 // @Failure 400 {object} object "Bad Request"
 // @Failure 404 {object} object "Session or poll not found"
 // @Failure 500 {object} object "Internal Server Error"
