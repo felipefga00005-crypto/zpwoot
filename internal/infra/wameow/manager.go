@@ -872,6 +872,58 @@ func (m *Manager) UpdateGroupSettings(sessionID, groupJID string, announce, lock
 	return client.UpdateGroupSettings(ctx, groupJID, announce, locked)
 }
 
+func (m *Manager) GetGroupRequestParticipants(sessionID, groupJID string) ([]types.GroupParticipantRequest, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.GetGroupRequestParticipants(ctx, groupJID)
+}
+
+func (m *Manager) UpdateGroupRequestParticipants(sessionID, groupJID string, participants []string, action string) ([]string, []string, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, nil, fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return nil, nil, fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.UpdateGroupRequestParticipants(ctx, groupJID, participants, action)
+}
+
+func (m *Manager) SetGroupJoinApprovalMode(sessionID, groupJID string, requireApproval bool) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.SetGroupJoinApprovalMode(ctx, groupJID, requireApproval)
+}
+
+func (m *Manager) SetGroupMemberAddMode(sessionID, groupJID string, mode string) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+	if !client.IsLoggedIn() {
+		return fmt.Errorf("session %s is not logged in", sessionID)
+	}
+
+	ctx := context.Background()
+	return client.SetGroupMemberAddMode(ctx, groupJID, mode)
+}
+
 // Poll management methods
 func (m *Manager) CreatePoll(sessionID, to, name string, options []string, selectableCount int) (*ports.MessageInfo, error) {
 	client := m.getClient(sessionID)

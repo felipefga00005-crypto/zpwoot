@@ -85,9 +85,9 @@ func (h *GroupHandler) GetGroupInfo(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
+	groupJID := c.Query("jid")
 	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
+		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
 	}
 
 	req := &group.GetGroupInfoRequest{
@@ -142,22 +142,20 @@ func (h *GroupHandler) UpdateGroupParticipants(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
-	}
-
 	var req group.UpdateGroupParticipantsRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
 			"error":      err.Error(),
 		})
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req.GroupJID = groupJID
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Updating group participants", map[string]interface{}{
 		"session_id":   sess.ID.String(),
@@ -186,22 +184,20 @@ func (h *GroupHandler) SetGroupName(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
-	}
-
 	var req group.SetGroupNameRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
 			"error":      err.Error(),
 		})
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req.GroupJID = groupJID
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Setting group name", map[string]interface{}{
 		"session_id": sess.ID.String(),
@@ -229,22 +225,20 @@ func (h *GroupHandler) SetGroupDescription(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
-	}
-
 	var req group.SetGroupDescriptionRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
 			"error":      err.Error(),
 		})
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req.GroupJID = groupJID
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Setting group description", map[string]interface{}{
 		"session_id":  sess.ID.String(),
@@ -272,22 +266,20 @@ func (h *GroupHandler) SetGroupPhoto(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
-	}
-
 	var req group.SetGroupPhotoRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
 			"error":      err.Error(),
 		})
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req.GroupJID = groupJID
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Setting group photo", map[string]interface{}{
 		"session_id": sess.ID.String(),
@@ -314,9 +306,9 @@ func (h *GroupHandler) GetGroupInviteLink(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
+	groupJID := c.Query("jid")
 	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
+		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
 	}
 
 	reset := c.QueryBool("reset", false)
@@ -384,21 +376,27 @@ func (h *GroupHandler) LeaveGroup(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
+	var req group.LeaveGroupRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req := &group.LeaveGroupRequest{
-		GroupJID: groupJID,
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
 	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Leaving group", map[string]interface{}{
 		"session_id": sess.ID.String(),
 		"group_jid":  groupJID,
 	})
 
-	response, err := h.groupUC.LeaveGroup(c.Context(), sess.ID.String(), req)
+	response, err := h.groupUC.LeaveGroup(c.Context(), sess.ID.String(), &req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to leave group", map[string]interface{}{
 			"session_id": sess.ID.String(),
@@ -418,22 +416,20 @@ func (h *GroupHandler) UpdateGroupSettings(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Params("groupJid")
-	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required")
-	}
-
 	var req group.UpdateGroupSettingsRequest
 	if err := c.BodyParser(&req); err != nil {
 		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
 			"error":      err.Error(),
 		})
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	req.GroupJID = groupJID
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJID := req.GroupJID
 
 	h.logger.InfoWithFields("Updating group settings", map[string]interface{}{
 		"session_id": sess.ID.String(),
@@ -450,6 +446,200 @@ func (h *GroupHandler) UpdateGroupSettings(c *fiber.Ctx) error {
 			"error":      err.Error(),
 		})
 		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(response)
+}
+
+// GetGroupRequestParticipants gets the list of participants that have requested to join the group
+func (h *GroupHandler) GetGroupRequestParticipants(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	groupJid := c.Query("jid")
+	if groupJid == "" {
+		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
+	}
+
+	h.logger.InfoWithFields("Getting group request participants", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"group_jid":  groupJid,
+	})
+
+	participants, err := h.groupUC.GetGroupRequestParticipants(c.Context(), sess.ID.String(), groupJid)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to get group request participants", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  groupJid,
+			"error":      err.Error(),
+		})
+		return fiber.NewError(500, err.Error())
+	}
+
+	response := map[string]interface{}{
+		"groupJid":     groupJid,
+		"participants": participants,
+		"total":        len(participants),
+	}
+
+	return c.JSON(response)
+}
+
+// UpdateGroupRequestParticipants approves or rejects requests to join the group
+func (h *GroupHandler) UpdateGroupRequestParticipants(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	var req struct {
+		GroupJID     string   `json:"groupJid"`     // Group JID
+		Action       string   `json:"action"`       // "approve" or "reject"
+		Participants []string `json:"participants"` // List of participant JIDs
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	if req.Action == "" {
+		return fiber.NewError(400, "Action is required")
+	}
+
+	if len(req.Participants) == 0 {
+		return fiber.NewError(400, "At least one participant is required")
+	}
+
+	groupJid := req.GroupJID
+
+	h.logger.InfoWithFields("Updating group request participants", map[string]interface{}{
+		"session_id":   sess.ID.String(),
+		"group_jid":    groupJid,
+		"action":       req.Action,
+		"participants": len(req.Participants),
+	})
+
+	success, failed, err := h.groupUC.UpdateGroupRequestParticipants(c.Context(), sess.ID.String(), groupJid, req.Participants, req.Action)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to update group request participants", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  groupJid,
+			"action":     req.Action,
+			"error":      err.Error(),
+		})
+		return fiber.NewError(500, err.Error())
+	}
+
+	response := map[string]interface{}{
+		"groupJid":     groupJid,
+		"action":       req.Action,
+		"participants": req.Participants,
+		"success":      success,
+		"failed":       failed,
+	}
+
+	return c.JSON(response)
+}
+
+// SetGroupJoinApprovalMode sets the group join approval mode
+func (h *GroupHandler) SetGroupJoinApprovalMode(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	var req struct {
+		GroupJID        string `json:"groupJid"`
+		RequireApproval bool   `json:"requireApproval"`
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	groupJid := req.GroupJID
+
+	h.logger.InfoWithFields("Setting group join approval mode", map[string]interface{}{
+		"session_id":       sess.ID.String(),
+		"group_jid":        groupJid,
+		"require_approval": req.RequireApproval,
+	})
+
+	err := h.groupUC.SetGroupJoinApprovalMode(c.Context(), sess.ID.String(), groupJid, req.RequireApproval)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to set group join approval mode", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  groupJid,
+			"error":      err.Error(),
+		})
+		return fiber.NewError(500, err.Error())
+	}
+
+	response := map[string]interface{}{
+		"groupJid":        groupJid,
+		"requireApproval": req.RequireApproval,
+		"status":          "updated",
+	}
+
+	return c.JSON(response)
+}
+
+// SetGroupMemberAddMode sets the group member add mode
+func (h *GroupHandler) SetGroupMemberAddMode(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	var req struct {
+		GroupJID string `json:"groupJid"`
+		Mode     string `json:"mode"` // "admin_add" or "all_member_add"
+	}
+
+	if err := c.BodyParser(&req); err != nil {
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	if req.GroupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
+	}
+
+	if req.Mode == "" {
+		return fiber.NewError(400, "Mode is required")
+	}
+
+	groupJid := req.GroupJID
+
+	h.logger.InfoWithFields("Setting group member add mode", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"group_jid":  groupJid,
+		"mode":       req.Mode,
+	})
+
+	err := h.groupUC.SetGroupMemberAddMode(c.Context(), sess.ID.String(), groupJid, req.Mode)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to set group member add mode", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  groupJid,
+			"error":      err.Error(),
+		})
+		return fiber.NewError(500, err.Error())
+	}
+
+	response := map[string]interface{}{
+		"groupJid": groupJid,
+		"mode":     req.Mode,
+		"status":   "updated",
 	}
 
 	return c.JSON(response)

@@ -28,30 +28,22 @@ func NewJIDValidator() *JIDValidator {
 	}
 }
 
-// IsValid checks if a JID is valid
+// IsValid checks if a JID is valid after normalization
 // Supports: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net, groups@g.us
 func (v *JIDValidator) IsValid(jid string) bool {
 	if jid == "" {
 		return false
 	}
 
+	// Normalize first, then validate
+	normalizedJID := v.Normalize(jid)
+
 	// Check for WhatsApp JID format (individual or group)
-	if strings.Contains(jid, "@s.whatsapp.net") || strings.Contains(jid, "@g.us") {
+	if strings.Contains(normalizedJID, "@s.whatsapp.net") || strings.Contains(normalizedJID, "@g.us") {
 		return true
 	}
 
-	// Remove leading + and formatting characters for validation
-	cleanJID := jid
-	if strings.HasPrefix(cleanJID, "+") {
-		cleanJID = cleanJID[1:]
-	}
-	cleanJID = strings.ReplaceAll(cleanJID, " ", "")
-	cleanJID = strings.ReplaceAll(cleanJID, "-", "")
-	cleanJID = strings.ReplaceAll(cleanJID, "(", "")
-	cleanJID = strings.ReplaceAll(cleanJID, ")", "")
-
-	// Check for phone number format (digits only)
-	return v.phoneRegex.MatchString(cleanJID)
+	return false
 }
 
 // Normalize converts a JID to standard WhatsApp format
@@ -110,6 +102,28 @@ func (v *JIDValidator) Parse(jid string) (waTypes.JID, error) {
 
 // Global validator instance for backward compatibility
 var defaultValidator = NewJIDValidator()
+
+// JIDValidatorAdapter adapts our JIDValidator to the domain interface
+type JIDValidatorAdapter struct {
+	validator *JIDValidator
+}
+
+// NewJIDValidatorAdapter creates a new adapter
+func NewJIDValidatorAdapter() *JIDValidatorAdapter {
+	return &JIDValidatorAdapter{
+		validator: NewJIDValidator(),
+	}
+}
+
+// IsValid implements the domain interface
+func (a *JIDValidatorAdapter) IsValid(jid string) bool {
+	return a.validator.IsValid(jid)
+}
+
+// Normalize implements the domain interface
+func (a *JIDValidatorAdapter) Normalize(jid string) string {
+	return a.validator.Normalize(jid)
+}
 
 // ConnectionError represents connection-related errors
 type ConnectionError struct {

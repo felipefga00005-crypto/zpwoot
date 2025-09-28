@@ -6,12 +6,18 @@ import (
 	"regexp"
 	"strings"
 
-	"zpwoot/internal/infra/wameow"
 	"zpwoot/pkg/uuid"
 )
 
+// JIDValidator interface for validating WhatsApp JIDs
+type JIDValidator interface {
+	IsValid(jid string) bool
+	Normalize(jid string) string
+}
+
 type Service struct {
-	generator *uuid.Generator
+	generator    *uuid.Generator
+	jidValidator JIDValidator
 }
 
 type Repository interface {
@@ -28,9 +34,10 @@ type Repository interface {
 	UpdateGroupSettings(ctx context.Context, sessionID string, req *UpdateGroupSettingsRequest) error
 }
 
-func NewService(repo Repository, wameow interface{}) *Service {
+func NewService(repo Repository, wameow interface{}, jidValidator JIDValidator) *Service {
 	return &Service{
-		generator: uuid.New(),
+		generator:    uuid.New(),
+		jidValidator: jidValidator,
 	}
 }
 
@@ -259,10 +266,21 @@ func (s *Service) validateJID(jid string) error {
 		return fmt.Errorf("JID cannot be empty")
 	}
 
-	// Use our improved JID validator that handles multiple formats
-	validator := wameow.NewJIDValidator()
-	if !validator.IsValid(jid) {
+	// Use the injected JID validator that handles multiple formats
+	if s.jidValidator != nil && !s.jidValidator.IsValid(jid) {
 		return fmt.Errorf("invalid JID format")
+	}
+
+	// Fallback to basic validation if no validator is provided
+	if s.jidValidator == nil {
+		jidPattern := `^[0-9]+@(s\.whatsapp\.net|g\.us)$`
+		matched, err := regexp.MatchString(jidPattern, jid)
+		if err != nil {
+			return fmt.Errorf("error validating JID: %w", err)
+		}
+		if !matched {
+			return fmt.Errorf("invalid JID format")
+		}
 	}
 
 	return nil

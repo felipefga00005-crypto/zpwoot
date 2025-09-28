@@ -20,6 +20,10 @@ type UseCase interface {
 	JoinGroup(ctx context.Context, sessionID string, req *JoinGroupRequest) (*JoinGroupResponse, error)
 	LeaveGroup(ctx context.Context, sessionID string, req *LeaveGroupRequest) (*LeaveGroupResponse, error)
 	UpdateGroupSettings(ctx context.Context, sessionID string, req *UpdateGroupSettingsRequest) (*GroupActionResponse, error)
+	GetGroupRequestParticipants(ctx context.Context, sessionID string, groupJID string) ([]interface{}, error)
+	UpdateGroupRequestParticipants(ctx context.Context, sessionID string, groupJID string, participants []string, action string) ([]string, []string, error)
+	SetGroupJoinApprovalMode(ctx context.Context, sessionID string, groupJID string, requireApproval bool) error
+	SetGroupMemberAddMode(ctx context.Context, sessionID string, groupJID string, mode string) error
 }
 
 type useCaseImpl struct {
@@ -291,4 +295,34 @@ func (uc *useCaseImpl) isUserAdmin(group *ports.GroupInfo, sessionID string) boo
 	}
 
 	return false
+}
+
+func (uc *useCaseImpl) GetGroupRequestParticipants(ctx context.Context, sessionID string, groupJID string) ([]interface{}, error) {
+	participants, err := uc.wameowMgr.GetGroupRequestParticipants(sessionID, groupJID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert to interface{} slice for JSON response
+	result := make([]interface{}, len(participants))
+	for i, p := range participants {
+		result[i] = map[string]interface{}{
+			"jid":          p.JID.String(),
+			"requested_at": p.RequestedAt.Format(time.RFC3339),
+		}
+	}
+
+	return result, nil
+}
+
+func (uc *useCaseImpl) UpdateGroupRequestParticipants(ctx context.Context, sessionID string, groupJID string, participants []string, action string) ([]string, []string, error) {
+	return uc.wameowMgr.UpdateGroupRequestParticipants(sessionID, groupJID, participants, action)
+}
+
+func (uc *useCaseImpl) SetGroupJoinApprovalMode(ctx context.Context, sessionID string, groupJID string, requireApproval bool) error {
+	return uc.wameowMgr.SetGroupJoinApprovalMode(sessionID, groupJID, requireApproval)
+}
+
+func (uc *useCaseImpl) SetGroupMemberAddMode(ctx context.Context, sessionID string, groupJID string, mode string) error {
+	return uc.wameowMgr.SetGroupMemberAddMode(sessionID, groupJID, mode)
 }

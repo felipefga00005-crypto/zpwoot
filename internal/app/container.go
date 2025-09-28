@@ -16,6 +16,7 @@ import (
 	domainGroup "zpwoot/internal/domain/group"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
+	"zpwoot/internal/infra/wameow"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -63,9 +64,13 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
+	// Create JID validator for group service
+	jidValidator := wameow.NewJIDValidatorAdapter()
+
 	groupService := domainGroup.NewService(
 		nil, // No repository needed for groups
 		config.WameowManager,
+		jidValidator,
 	)
 
 	contactService := domainContact.NewService(

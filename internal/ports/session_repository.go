@@ -6,6 +6,7 @@ import (
 
 	"zpwoot/internal/domain/message"
 	"zpwoot/internal/domain/session"
+	"go.mau.fi/whatsmeow/types"
 )
 
 type SessionRepository interface {
@@ -96,6 +97,14 @@ type WameowManager interface {
 	LeaveGroup(sessionID, groupJID string) error
 
 	UpdateGroupSettings(sessionID, groupJID string, announce, locked *bool) error
+
+	GetGroupRequestParticipants(sessionID, groupJID string) ([]types.GroupParticipantRequest, error)
+
+	UpdateGroupRequestParticipants(sessionID, groupJID string, participants []string, action string) ([]string, []string, error)
+
+	SetGroupJoinApprovalMode(sessionID, groupJID string, requireApproval bool) error
+
+	SetGroupMemberAddMode(sessionID, groupJID string, mode string) error
 
 	GetSessionStats(sessionID string) (*SessionStats, error)
 

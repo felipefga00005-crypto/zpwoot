@@ -2635,3 +2635,180 @@ func IsDeviceRegistered(client *whatsmeow.Client) bool {
 	}
 	return client.Store.ID != nil
 }
+
+// GetGroupRequestParticipants gets the list of participants that have requested to join the group
+func (c *WameowClient) GetGroupRequestParticipants(ctx context.Context, groupJID string) ([]types.GroupParticipantRequest, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting group request participants", map[string]interface{}{
+		"group_jid": jid.String(),
+	})
+
+	participants, err := c.client.GetGroupRequestParticipants(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get group request participants", map[string]interface{}{
+			"group_jid": jid.String(),
+			"error":     err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get group request participants: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group request participants retrieved successfully", map[string]interface{}{
+		"group_jid": jid.String(),
+		"count":     len(participants),
+	})
+
+	return participants, nil
+}
+
+// UpdateGroupRequestParticipants can be used to approve or reject requests to join the group
+func (c *WameowClient) UpdateGroupRequestParticipants(ctx context.Context, groupJID string, participants []string, action string) ([]string, []string, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, nil, fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return nil, nil, fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	// Validate action
+	var participantAction whatsmeow.ParticipantRequestChange
+	switch action {
+	case "approve":
+		participantAction = whatsmeow.ParticipantChangeApprove
+	case "reject":
+		participantAction = whatsmeow.ParticipantChangeReject
+	default:
+		return nil, nil, fmt.Errorf("invalid action: %s (must be 'approve' or 'reject')", action)
+	}
+
+	// Parse participant JIDs
+	participantJIDs := make([]types.JID, len(participants))
+	for i, participant := range participants {
+		participantJID, err := c.parseJID(participant)
+		if err != nil {
+			return nil, nil, fmt.Errorf("invalid participant JID %s: %w", participant, err)
+		}
+		participantJIDs[i] = participantJID
+	}
+
+	c.logger.InfoWithFields("Updating group request participants", map[string]interface{}{
+		"group_jid":    jid.String(),
+		"action":       action,
+		"participants": len(participantJIDs),
+	})
+
+	result, err := c.client.UpdateGroupRequestParticipants(jid, participantJIDs, participantAction)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to update group request participants", map[string]interface{}{
+			"group_jid": jid.String(),
+			"action":    action,
+			"error":     err.Error(),
+		})
+		return nil, nil, fmt.Errorf("failed to update group request participants: %w", err)
+	}
+
+	// Process results
+	var success, failed []string
+	for _, participant := range result {
+		if participant.Error == 0 {
+			success = append(success, participant.JID.String())
+		} else {
+			failed = append(failed, participant.JID.String())
+		}
+	}
+
+	c.logger.InfoWithFields("Group request participants updated", map[string]interface{}{
+		"group_jid": jid.String(),
+		"action":    action,
+		"success":   len(success),
+		"failed":    len(failed),
+	})
+
+	return success, failed, nil
+}
+
+// SetGroupJoinApprovalMode sets the group join approval mode to 'on' or 'off'
+func (c *WameowClient) SetGroupJoinApprovalMode(ctx context.Context, groupJID string, requireApproval bool) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Setting group join approval mode", map[string]interface{}{
+		"group_jid":        jid.String(),
+		"require_approval": requireApproval,
+	})
+
+	err = c.client.SetGroupJoinApprovalMode(jid, requireApproval)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group join approval mode", map[string]interface{}{
+			"group_jid": jid.String(),
+			"error":     err.Error(),
+		})
+		return fmt.Errorf("failed to set group join approval mode: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group join approval mode set successfully", map[string]interface{}{
+		"group_jid":        jid.String(),
+		"require_approval": requireApproval,
+	})
+
+	return nil
+}
+
+// SetGroupMemberAddMode sets the group member add mode to 'admin_add' or 'all_member_add'
+func (c *WameowClient) SetGroupMemberAddMode(ctx context.Context, groupJID string, mode string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	jid, err := c.parseJID(groupJID)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	// Validate and convert mode
+	var memberAddMode types.GroupMemberAddMode
+	switch mode {
+	case "admin_add":
+		memberAddMode = types.GroupMemberAddModeAdmin
+	case "all_member_add":
+		memberAddMode = types.GroupMemberAddModeAllMember
+	default:
+		return fmt.Errorf("invalid mode: %s (must be 'admin_add' or 'all_member_add')", mode)
+	}
+
+	c.logger.InfoWithFields("Setting group member add mode", map[string]interface{}{
+		"group_jid": jid.String(),
+		"mode":      mode,
+	})
+
+	err = c.client.SetGroupMemberAddMode(jid, memberAddMode)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to set group member add mode", map[string]interface{}{
+			"group_jid": jid.String(),
+			"error":     err.Error(),
+		})
+		return fmt.Errorf("failed to set group member add mode: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group member add mode set successfully", map[string]interface{}{
+		"group_jid": jid.String(),
+		"mode":      mode,
+	})
+
+	return nil
+}
