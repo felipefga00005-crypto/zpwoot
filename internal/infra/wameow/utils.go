@@ -29,7 +29,7 @@ func NewJIDValidator() *JIDValidator {
 }
 
 // IsValid checks if a JID is valid after normalization
-// Supports: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net, groups@g.us
+// Supports: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net, groups@g.us, newsletters@newsletter
 func (v *JIDValidator) IsValid(jid string) bool {
 	if jid == "" {
 		return false
@@ -38,8 +38,10 @@ func (v *JIDValidator) IsValid(jid string) bool {
 	// Normalize first, then validate
 	normalizedJID := v.Normalize(jid)
 
-	// Check for WhatsApp JID format (individual or group)
-	if strings.Contains(normalizedJID, "@s.whatsapp.net") || strings.Contains(normalizedJID, "@g.us") {
+	// Check for WhatsApp JID format (individual, group, or newsletter)
+	if strings.Contains(normalizedJID, "@s.whatsapp.net") ||
+	   strings.Contains(normalizedJID, "@g.us") ||
+	   strings.Contains(normalizedJID, "@newsletter") {
 		return true
 	}
 
@@ -47,11 +49,11 @@ func (v *JIDValidator) IsValid(jid string) bool {
 }
 
 // Normalize converts a JID to standard WhatsApp format
-// Supports formats: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net
+// Supports formats: +5511999999999, 5511999999999, 5511999999999@s.whatsapp.net, newsletters@newsletter
 func (v *JIDValidator) Normalize(jid string) string {
 	jid = strings.TrimSpace(jid)
 
-	// If it's already a full JID, return as is
+	// If it's already a full JID (contains @), return as is
 	if strings.Contains(jid, "@") {
 		return jid
 	}
@@ -123,6 +125,30 @@ func (a *JIDValidatorAdapter) IsValid(jid string) bool {
 // Normalize implements the domain interface
 func (a *JIDValidatorAdapter) Normalize(jid string) string {
 	return a.validator.Normalize(jid)
+}
+
+// IsNewsletterJID checks if a JID is a newsletter JID
+func (a *JIDValidatorAdapter) IsNewsletterJID(jid string) bool {
+	return strings.Contains(jid, "@newsletter")
+}
+
+// IsValidJID checks if a JID is valid (alias for IsValid)
+func (a *JIDValidatorAdapter) IsValidJID(jid string) bool {
+	return a.validator.IsValid(jid)
+}
+
+// ParseJID parses a JID string to extract components
+func (a *JIDValidatorAdapter) ParseJID(jid string) (string, error) {
+	if jid == "" {
+		return "", fmt.Errorf("JID cannot be empty")
+	}
+
+	normalizedJID := a.validator.Normalize(jid)
+	if !a.validator.IsValid(normalizedJID) {
+		return "", fmt.Errorf("invalid JID format: %s (normalized: %s)", jid, normalizedJID)
+	}
+
+	return normalizedJID, nil
 }
 
 // ConnectionError represents connection-related errors

@@ -25,9 +25,7 @@ type WameowManager interface {
 	GetProxy(sessionID string) (*session.ProxyConfig, error)
 	GetUserJID(sessionID string) (string, error)
 
-	// TEMPORARY: Message operations (TODO: Move to MessageManager interface)
-	// These methods are kept temporarily for backward compatibility
-	// They should be moved to a dedicated MessageManager interface in the future
+	// Message operations
 	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
 	SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error
 	SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error)
@@ -38,9 +36,7 @@ type WameowManager interface {
 	MarkRead(sessionID, to, messageID string) error
 	RevokeMessage(sessionID, to, messageID string) (*message.SendResult, error)
 
-	// TEMPORARY: Contact operations (TODO: Move to ContactManager interface)
-	// These methods are kept temporarily for backward compatibility
-	// They should be moved to a dedicated ContactManager interface in the future
+	// Contact operations
 	IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbers []string) (map[string]interface{}, error)
 	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
 	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
@@ -107,9 +103,28 @@ type SessionStats struct {
 
 // EventHandler defines the interface for handling WhatsApp events
 type EventHandler interface {
-	HandleMessage(sessionID string, messageID string) error
+	HandleMessage(sessionID string, message *WameowMessage) error
 	HandleConnection(sessionID string, connected bool) error
 	HandleQRCode(sessionID string, qrCode string) error
 	HandlePairSuccess(sessionID string) error
 	HandleError(sessionID string, err error) error
+}
+
+// WameowMessage represents a message in the Wameow system
+type WameowMessage struct {
+	ID        string `json:"id"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Body      string `json:"body"`
+	Timestamp int64  `json:"timestamp"`
+	Type      string `json:"type"`
+	MediaURL  string `json:"media_url,omitempty"`
+	Caption   string `json:"caption,omitempty"`
+}
+
+// MessageInfo represents basic information about a message
+type MessageInfo struct {
+	ID        string    `json:"id"`
+	Timestamp time.Time `json:"timestamp"`
+	Chat      string    `json:"chat"`
 }

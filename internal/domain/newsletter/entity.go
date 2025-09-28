@@ -10,8 +10,8 @@ import (
 var (
 	ErrInvalidNewsletterJID  = errors.New("invalid newsletter JID")
 	ErrInvalidNewsletterName = errors.New("invalid newsletter name")
-	ErrNewsletterNameTooLong = errors.New("newsletter name too long (max 25 characters)")
-	ErrDescriptionTooLong    = errors.New("description too long (max 512 characters)")
+	ErrNewsletterNameTooLong = errors.New("newsletter name too long (max 64 characters)")
+	ErrDescriptionTooLong    = errors.New("description too long (max 256 characters)")
 	ErrInvalidInviteKey      = errors.New("invalid invite key")
 	ErrNewsletterNotFound    = errors.New("newsletter not found")
 	ErrNotNewsletterAdmin    = errors.New("user is not a newsletter admin")
@@ -119,10 +119,10 @@ func (n *NewsletterInfo) Validate() error {
 	if n.Name == "" {
 		return ErrEmptyNewsletterName
 	}
-	if len(n.Name) > 25 {
+	if len(n.Name) > 64 {
 		return ErrNewsletterNameTooLong
 	}
-	if len(n.Description) > 512 {
+	if len(n.Description) > 256 {
 		return ErrDescriptionTooLong
 	}
 	return nil
@@ -176,10 +176,10 @@ func (req *CreateNewsletterRequest) Validate() error {
 	if req.Name == "" {
 		return ErrEmptyNewsletterName
 	}
-	if len(req.Name) > 25 {
+	if len(req.Name) > 64 {
 		return ErrNewsletterNameTooLong
 	}
-	if len(req.Description) > 512 {
+	if len(req.Description) > 256 {
 		return ErrDescriptionTooLong
 	}
 	return nil
@@ -275,4 +275,106 @@ func ParseNewsletterState(state string) (NewsletterState, error) {
 		return "", ErrInvalidNewsletterState
 	}
 	return NewsletterState(state), nil
+}
+
+// NewsletterMessage represents a message in a newsletter
+type NewsletterMessage struct {
+	ID          string    `json:"id"`
+	ServerID    string    `json:"serverId"`
+	FromJID     string    `json:"fromJid"`
+	Timestamp   time.Time `json:"timestamp"`
+	Type        string    `json:"type"`
+	Body        string    `json:"body,omitempty"`
+	ViewsCount  int       `json:"viewsCount"`
+	SharesCount int       `json:"sharesCount"`
+	Reactions   []string  `json:"reactions,omitempty"`
+}
+
+// GetNewsletterMessagesRequest represents the request for getting newsletter messages
+type GetNewsletterMessagesRequest struct {
+	JID    string `json:"jid" validate:"required"`
+	Count  int    `json:"count,omitempty"`
+	Before string `json:"before,omitempty"` // MessageServerID
+}
+
+// GetNewsletterMessagesResponse represents the response for getting newsletter messages
+type GetNewsletterMessagesResponse struct {
+	Messages []*NewsletterMessage `json:"messages"`
+	Total    int                  `json:"total"`
+	HasMore  bool                 `json:"hasMore"`
+}
+
+// GetNewsletterMessageUpdatesRequest represents the request for getting newsletter message updates
+type GetNewsletterMessageUpdatesRequest struct {
+	JID   string `json:"jid" validate:"required"`
+	Count int    `json:"count,omitempty"`
+	Since string `json:"since,omitempty"` // ISO timestamp
+	After string `json:"after,omitempty"` // MessageServerID
+}
+
+// GetNewsletterMessageUpdatesResponse represents the response for getting newsletter message updates
+type GetNewsletterMessageUpdatesResponse struct {
+	Updates []*NewsletterMessage `json:"updates"`
+	Total   int                  `json:"total"`
+	HasMore bool                 `json:"hasMore"`
+}
+
+// NewsletterMarkViewedRequest represents the request for marking newsletter messages as viewed
+type NewsletterMarkViewedRequest struct {
+	JID       string   `json:"jid" validate:"required"`
+	ServerIDs []string `json:"serverIds" validate:"required,min=1"`
+}
+
+// NewsletterSendReactionRequest represents the request for sending a reaction to a newsletter message
+type NewsletterSendReactionRequest struct {
+	JID       string `json:"jid" validate:"required"`
+	ServerID  string `json:"serverId" validate:"required"`
+	Reaction  string `json:"reaction"`          // Empty string to remove reaction
+	MessageID string `json:"messageId,omitempty"` // Optional, will be generated if empty
+}
+
+// NewsletterToggleMuteRequest represents the request for toggling newsletter mute status
+type NewsletterToggleMuteRequest struct {
+	JID  string `json:"jid" validate:"required"`
+	Mute bool   `json:"mute"`
+}
+
+// NewsletterSubscribeLiveUpdatesRequest represents the request for subscribing to live updates
+type NewsletterSubscribeLiveUpdatesRequest struct {
+	JID string `json:"jid" validate:"required"`
+}
+
+// NewsletterSubscribeLiveUpdatesResponse represents the response for subscribing to live updates
+type NewsletterSubscribeLiveUpdatesResponse struct {
+	Duration int64 `json:"duration"` // Duration in seconds
+}
+
+// AcceptTOSNoticeRequest represents the request for accepting terms of service notice
+type AcceptTOSNoticeRequest struct {
+	NoticeID string `json:"noticeId" validate:"required"`
+	Stage    string `json:"stage" validate:"required"`
+}
+
+// NewsletterActionResponse represents a generic response for newsletter actions
+type NewsletterActionResponse struct {
+	JID     string `json:"jid"`
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// UploadNewsletterRequest represents the request for uploading newsletter media
+type UploadNewsletterRequest struct {
+	Data     []byte `json:"data" validate:"required"`
+	MimeType string `json:"mimeType" validate:"required"`
+	MediaType string `json:"mediaType" validate:"required"` // image, video, audio, document
+}
+
+// UploadNewsletterResponse represents the response for uploading newsletter media
+type UploadNewsletterResponse struct {
+	URL        string `json:"url"`
+	DirectPath string `json:"directPath"`
+	Handle     string `json:"handle"`
+	ObjectID   string `json:"objectId"`
+	FileSHA256 string `json:"fileSha256"`
+	FileLength uint64 `json:"fileLength"`
 }

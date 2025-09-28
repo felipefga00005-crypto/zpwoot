@@ -118,7 +118,9 @@ func NewContainer(config *ContainerConfig) *Container {
 	)
 
 	// Create media service and use case
-	mediaService := domainMedia.NewService(config.Logger)
+	// Note: MediaService requires WhatsAppClient and CacheManager which are not available in this context
+	// For now, we'll pass nil values and handle this in the actual implementation
+	mediaService := domainMedia.NewService(nil, nil, config.Logger, "/tmp/media_cache")
 	mediaUseCase := media.NewUseCase(
 		mediaService,
 		config.MediaRepo,

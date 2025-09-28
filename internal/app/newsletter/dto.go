@@ -1,6 +1,7 @@
 package newsletter
 
 import (
+	"fmt"
 	"time"
 	"zpwoot/internal/domain/newsletter"
 )
@@ -255,4 +256,241 @@ func NewSuccessUnfollowResponse(jid string) *NewsletterActionResponse {
 // NewErrorResponse creates an error response
 func NewErrorResponse(jid, message string) *NewsletterActionResponse {
 	return NewNewsletterActionResponse(jid, "error", message)
+}
+
+// GetNewsletterMessagesRequest represents the request for getting newsletter messages
+type GetNewsletterMessagesRequest struct {
+	JID    string `json:"jid" validate:"required"`
+	Count  int    `json:"count,omitempty"`
+	Before string `json:"before,omitempty"` // MessageServerID
+}
+
+// Validate validates the GetNewsletterMessagesRequest
+func (req *GetNewsletterMessagesRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	if req.Count < 0 {
+		return fmt.Errorf("count cannot be negative")
+	}
+	return nil
+}
+
+// NewsletterMessageDTO represents a newsletter message in the API
+type NewsletterMessageDTO struct {
+	ID          string    `json:"id"`
+	ServerID    string    `json:"serverId"`
+	FromJID     string    `json:"fromJid"`
+	Timestamp   time.Time `json:"timestamp"`
+	Type        string    `json:"type"`
+	Body        string    `json:"body,omitempty"`
+	ViewsCount  int       `json:"viewsCount"`
+	SharesCount int       `json:"sharesCount"`
+	Reactions   []string  `json:"reactions,omitempty"`
+}
+
+// FromDomain converts domain NewsletterMessage to DTO
+func (dto *NewsletterMessageDTO) FromDomain(msg *newsletter.NewsletterMessage) {
+	dto.ID = msg.ID
+	dto.ServerID = msg.ServerID
+	dto.FromJID = msg.FromJID
+	dto.Timestamp = msg.Timestamp
+	dto.Type = msg.Type
+	dto.Body = msg.Body
+	dto.ViewsCount = msg.ViewsCount
+	dto.SharesCount = msg.SharesCount
+	dto.Reactions = msg.Reactions
+}
+
+// GetNewsletterMessagesResponse represents the response for getting newsletter messages
+type GetNewsletterMessagesResponse struct {
+	Messages []*NewsletterMessageDTO `json:"messages"`
+	Total    int                     `json:"total"`
+	HasMore  bool                    `json:"hasMore"`
+}
+
+// NewGetNewsletterMessagesResponse creates a new GetNewsletterMessagesResponse from domain data
+func NewGetNewsletterMessagesResponse(messages []*newsletter.NewsletterMessage) *GetNewsletterMessagesResponse {
+	dtoMessages := make([]*NewsletterMessageDTO, len(messages))
+	for i, msg := range messages {
+		dto := &NewsletterMessageDTO{}
+		dto.FromDomain(msg)
+		dtoMessages[i] = dto
+	}
+
+	return &GetNewsletterMessagesResponse{
+		Messages: dtoMessages,
+		Total:    len(messages),
+		HasMore:  len(messages) > 0, // Simple logic, can be improved
+	}
+}
+
+// GetNewsletterMessageUpdatesRequest represents the request for getting newsletter message updates
+type GetNewsletterMessageUpdatesRequest struct {
+	JID   string `json:"jid" validate:"required"`
+	Count int    `json:"count,omitempty"`
+	Since string `json:"since,omitempty"` // ISO timestamp
+	After string `json:"after,omitempty"` // MessageServerID
+}
+
+// Validate validates the GetNewsletterMessageUpdatesRequest
+func (req *GetNewsletterMessageUpdatesRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	if req.Count < 0 {
+		return fmt.Errorf("count cannot be negative")
+	}
+	return nil
+}
+
+// GetNewsletterMessageUpdatesResponse represents the response for getting newsletter message updates
+type GetNewsletterMessageUpdatesResponse struct {
+	Updates []*NewsletterMessageDTO `json:"updates"`
+	Total   int                     `json:"total"`
+	HasMore bool                    `json:"hasMore"`
+}
+
+// NewGetNewsletterMessageUpdatesResponse creates a new GetNewsletterMessageUpdatesResponse from domain data
+func NewGetNewsletterMessageUpdatesResponse(updates []*newsletter.NewsletterMessage) *GetNewsletterMessageUpdatesResponse {
+	dtoUpdates := make([]*NewsletterMessageDTO, len(updates))
+	for i, update := range updates {
+		dto := &NewsletterMessageDTO{}
+		dto.FromDomain(update)
+		dtoUpdates[i] = dto
+	}
+
+	return &GetNewsletterMessageUpdatesResponse{
+		Updates: dtoUpdates,
+		Total:   len(updates),
+		HasMore: len(updates) > 0, // Simple logic, can be improved
+	}
+}
+
+// NewsletterMarkViewedRequest represents the request for marking newsletter messages as viewed
+type NewsletterMarkViewedRequest struct {
+	JID       string   `json:"jid" validate:"required"`
+	ServerIDs []string `json:"serverIds" validate:"required,min=1"`
+}
+
+// Validate validates the NewsletterMarkViewedRequest
+func (req *NewsletterMarkViewedRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	if len(req.ServerIDs) == 0 {
+		return fmt.Errorf("serverIds is required and cannot be empty")
+	}
+	return nil
+}
+
+// NewsletterSendReactionRequest represents the request for sending a reaction to a newsletter message
+type NewsletterSendReactionRequest struct {
+	JID       string `json:"jid" validate:"required"`
+	ServerID  string `json:"serverId" validate:"required"`
+	Reaction  string `json:"reaction"`          // Empty string to remove reaction
+	MessageID string `json:"messageId,omitempty"` // Optional, will be generated if empty
+}
+
+// Validate validates the NewsletterSendReactionRequest
+func (req *NewsletterSendReactionRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	if req.ServerID == "" {
+		return fmt.Errorf("serverId is required")
+	}
+	return nil
+}
+
+// NewsletterToggleMuteRequest represents the request for toggling newsletter mute status
+type NewsletterToggleMuteRequest struct {
+	JID  string `json:"jid" validate:"required"`
+	Mute bool   `json:"mute"`
+}
+
+// Validate validates the NewsletterToggleMuteRequest
+func (req *NewsletterToggleMuteRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	return nil
+}
+
+// NewsletterSubscribeLiveUpdatesRequest represents the request for subscribing to live updates
+type NewsletterSubscribeLiveUpdatesRequest struct {
+	JID string `json:"jid" validate:"required"`
+}
+
+// Validate validates the NewsletterSubscribeLiveUpdatesRequest
+func (req *NewsletterSubscribeLiveUpdatesRequest) Validate() error {
+	if req.JID == "" {
+		return fmt.Errorf("jid is required")
+	}
+	return nil
+}
+
+// NewsletterSubscribeLiveUpdatesResponse represents the response for subscribing to live updates
+type NewsletterSubscribeLiveUpdatesResponse struct {
+	Duration int64 `json:"duration"` // Duration in seconds
+}
+
+// AcceptTOSNoticeRequest represents the request for accepting terms of service notice
+type AcceptTOSNoticeRequest struct {
+	NoticeID string `json:"noticeId" validate:"required"`
+	Stage    string `json:"stage" validate:"required"`
+}
+
+// Validate validates the AcceptTOSNoticeRequest
+func (req *AcceptTOSNoticeRequest) Validate() error {
+	if req.NoticeID == "" {
+		return fmt.Errorf("noticeId is required")
+	}
+	if req.Stage == "" {
+		return fmt.Errorf("stage is required")
+	}
+	return nil
+}
+
+// UploadNewsletterRequest represents the request for uploading newsletter media
+type UploadNewsletterRequest struct {
+	Data     []byte `json:"data" validate:"required"`
+	MimeType string `json:"mimeType" validate:"required"`
+	MediaType string `json:"mediaType" validate:"required"` // image, video, audio, document
+}
+
+// Validate validates the UploadNewsletterRequest
+func (req *UploadNewsletterRequest) Validate() error {
+	if len(req.Data) == 0 {
+		return fmt.Errorf("data is required and cannot be empty")
+	}
+	if req.MimeType == "" {
+		return fmt.Errorf("mimeType is required")
+	}
+	if req.MediaType == "" {
+		return fmt.Errorf("mediaType is required")
+	}
+	// Validate media type
+	validMediaTypes := []string{"image", "video", "audio", "document"}
+	isValid := false
+	for _, validType := range validMediaTypes {
+		if req.MediaType == validType {
+			isValid = true
+			break
+		}
+	}
+	if !isValid {
+		return fmt.Errorf("mediaType must be one of: %v", validMediaTypes)
+	}
+	return nil
+}
+
+// UploadNewsletterResponse represents the response for uploading newsletter media
+type UploadNewsletterResponse struct {
+	URL        string `json:"url"`
+	DirectPath string `json:"directPath"`
+	Handle     string `json:"handle"`
+	ObjectID   string `json:"objectId"`
+	FileSHA256 string `json:"fileSha256"`
+	FileLength uint64 `json:"fileLength"`
 }

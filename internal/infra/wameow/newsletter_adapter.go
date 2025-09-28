@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/types"
 
 	"zpwoot/internal/domain/newsletter"
@@ -140,6 +141,225 @@ func (na *NewsletterAdapter) GetSubscribedNewsletters(ctx context.Context, sessi
 	}
 
 	return newsletters, nil
+}
+
+// GetNewsletterMessages gets messages from a newsletter
+func (na *NewsletterAdapter) GetNewsletterMessages(ctx context.Context, sessionID string, jid string, count int, before string) ([]*newsletter.NewsletterMessage, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	messages, err := client.GetNewsletterMessages(ctx, jid, count, before)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert whatsmeow messages to domain messages
+	domainMessages := make([]*newsletter.NewsletterMessage, len(messages))
+	for i, msg := range messages {
+		domainMessages[i] = convertNewsletterMessage(msg)
+	}
+
+	return domainMessages, nil
+}
+
+// GetNewsletterMessageUpdates gets message updates from a newsletter (view counts, reactions)
+func (na *NewsletterAdapter) GetNewsletterMessageUpdates(ctx context.Context, sessionID string, jid string, count int, since string, after string) ([]*newsletter.NewsletterMessage, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	updates, err := client.GetNewsletterMessageUpdates(ctx, jid, count, since, after)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert whatsmeow messages to domain messages
+	domainUpdates := make([]*newsletter.NewsletterMessage, len(updates))
+	for i, update := range updates {
+		domainUpdates[i] = convertNewsletterMessage(update)
+	}
+
+	return domainUpdates, nil
+}
+
+// NewsletterMarkViewed marks newsletter messages as viewed
+func (na *NewsletterAdapter) NewsletterMarkViewed(ctx context.Context, sessionID string, jid string, serverIDs []string) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.NewsletterMarkViewed(ctx, jid, serverIDs)
+}
+
+// NewsletterSendReaction sends a reaction to a newsletter message
+func (na *NewsletterAdapter) NewsletterSendReaction(ctx context.Context, sessionID string, jid string, serverID string, reaction string, messageID string) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.NewsletterSendReaction(ctx, jid, serverID, reaction, messageID)
+}
+
+// NewsletterSubscribeLiveUpdates subscribes to live updates from a newsletter
+func (na *NewsletterAdapter) NewsletterSubscribeLiveUpdates(ctx context.Context, sessionID string, jid string) (int64, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return 0, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return 0, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.NewsletterSubscribeLiveUpdates(ctx, jid)
+}
+
+// NewsletterToggleMute toggles mute status of a newsletter
+func (na *NewsletterAdapter) NewsletterToggleMute(ctx context.Context, sessionID string, jid string, mute bool) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.NewsletterToggleMute(ctx, jid, mute)
+}
+
+// AcceptTOSNotice accepts a terms of service notice
+func (na *NewsletterAdapter) AcceptTOSNotice(ctx context.Context, sessionID string, noticeID string, stage string) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.AcceptTOSNotice(ctx, noticeID, stage)
+}
+
+// UploadNewsletter uploads media for newsletters
+func (na *NewsletterAdapter) UploadNewsletter(ctx context.Context, sessionID string, data []byte, mimeType string, mediaType string) (*newsletter.UploadNewsletterResponse, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	uploaded, err := client.UploadNewsletter(ctx, data, mimeType, mediaType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert whatsmeow UploadResponse to domain UploadNewsletterResponse
+	return convertUploadResponse(uploaded), nil
+}
+
+// UploadNewsletterReader uploads media for newsletters from a reader
+func (na *NewsletterAdapter) UploadNewsletterReader(ctx context.Context, sessionID string, data []byte, mimeType string, mediaType string) (*newsletter.UploadNewsletterResponse, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	uploaded, err := client.UploadNewsletterReader(ctx, data, mimeType, mediaType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert whatsmeow UploadResponse to domain UploadNewsletterResponse
+	return convertUploadResponse(uploaded), nil
+}
+
+// convertUploadResponse converts whatsmeow UploadResponse to domain UploadNewsletterResponse
+func convertUploadResponse(uploaded *whatsmeow.UploadResponse) *newsletter.UploadNewsletterResponse {
+	if uploaded == nil {
+		return nil
+	}
+
+	return &newsletter.UploadNewsletterResponse{
+		URL:        uploaded.URL,
+		DirectPath: uploaded.DirectPath,
+		Handle:     uploaded.Handle,
+		ObjectID:   uploaded.ObjectID,
+		FileSHA256: fmt.Sprintf("%x", uploaded.FileSHA256),
+		FileLength: uploaded.FileLength,
+	}
+}
+
+// convertNewsletterMessage converts whatsmeow NewsletterMessage to domain NewsletterMessage
+func convertNewsletterMessage(msg *types.NewsletterMessage) *newsletter.NewsletterMessage {
+	if msg == nil {
+		return nil
+	}
+
+	domainMsg := &newsletter.NewsletterMessage{
+		ID:        string(msg.MessageID),
+		ServerID:  string(msg.MessageServerID),
+		FromJID:   "", // Newsletter messages don't have a specific sender JID
+		Timestamp: msg.Timestamp,
+		Type:      msg.Type,
+	}
+
+	// Extract message body if available
+	if msg.Message != nil && msg.Message.GetConversation() != "" {
+		domainMsg.Body = msg.Message.GetConversation()
+	}
+
+	// Set view count
+	domainMsg.ViewsCount = msg.ViewsCount
+
+	// Convert reaction counts to simple reactions list
+	if len(msg.ReactionCounts) > 0 {
+		reactions := make([]string, 0, len(msg.ReactionCounts))
+		for reaction := range msg.ReactionCounts {
+			reactions = append(reactions, reaction)
+		}
+		domainMsg.Reactions = reactions
+	}
+
+	return domainMsg
 }
 
 // convertNewsletterMetadata converts whatsmeow types to domain types

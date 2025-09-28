@@ -26,7 +26,7 @@ func NewMediaProcessor(logger *logger.Logger) *MediaProcessor {
 		logger:  logger,
 		tempDir: os.TempDir(),
 		maxSize: 100 * 1024 * 1024, // 100MB default
-		timeout: 30 * time.Second,
+		timeout: 60 * time.Second,   // Increased timeout to 60 seconds
 	}
 }
 

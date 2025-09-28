@@ -19,21 +19,48 @@ type NewsletterRepository interface {
 type NewsletterManager interface {
 	// CreateNewsletter creates a new WhatsApp newsletter/channel
 	CreateNewsletter(ctx context.Context, sessionID string, name, description string) (*newsletter.NewsletterInfo, error)
-	
+
 	// GetNewsletterInfo gets information about a newsletter by JID
 	GetNewsletterInfo(ctx context.Context, sessionID string, jid string) (*newsletter.NewsletterInfo, error)
-	
+
 	// GetNewsletterInfoWithInvite gets newsletter information using an invite key
 	GetNewsletterInfoWithInvite(ctx context.Context, sessionID string, inviteKey string) (*newsletter.NewsletterInfo, error)
-	
+
 	// FollowNewsletter makes the user follow (subscribe to) a newsletter
 	FollowNewsletter(ctx context.Context, sessionID string, jid string) error
-	
+
 	// UnfollowNewsletter makes the user unfollow (unsubscribe from) a newsletter
 	UnfollowNewsletter(ctx context.Context, sessionID string, jid string) error
-	
+
 	// GetSubscribedNewsletters gets all newsletters the user is subscribed to
 	GetSubscribedNewsletters(ctx context.Context, sessionID string) ([]*newsletter.NewsletterInfo, error)
+
+	// GetNewsletterMessages gets messages from a newsletter
+	GetNewsletterMessages(ctx context.Context, sessionID string, jid string, count int, before string) ([]*newsletter.NewsletterMessage, error)
+
+	// GetNewsletterMessageUpdates gets message updates from a newsletter (view counts, reactions)
+	GetNewsletterMessageUpdates(ctx context.Context, sessionID string, jid string, count int, since string, after string) ([]*newsletter.NewsletterMessage, error)
+
+	// NewsletterMarkViewed marks newsletter messages as viewed
+	NewsletterMarkViewed(ctx context.Context, sessionID string, jid string, serverIDs []string) error
+
+	// NewsletterSendReaction sends a reaction to a newsletter message
+	NewsletterSendReaction(ctx context.Context, sessionID string, jid string, serverID string, reaction string, messageID string) error
+
+	// NewsletterSubscribeLiveUpdates subscribes to live updates from a newsletter
+	NewsletterSubscribeLiveUpdates(ctx context.Context, sessionID string, jid string) (int64, error)
+
+	// NewsletterToggleMute toggles mute status of a newsletter
+	NewsletterToggleMute(ctx context.Context, sessionID string, jid string, mute bool) error
+
+	// AcceptTOSNotice accepts a terms of service notice
+	AcceptTOSNotice(ctx context.Context, sessionID string, noticeID string, stage string) error
+
+	// UploadNewsletter uploads media for newsletters
+	UploadNewsletter(ctx context.Context, sessionID string, data []byte, mimeType string, mediaType string) (*newsletter.UploadNewsletterResponse, error)
+
+	// UploadNewsletterReader uploads media for newsletters from a reader
+	UploadNewsletterReader(ctx context.Context, sessionID string, data []byte, mimeType string, mediaType string) (*newsletter.UploadNewsletterResponse, error)
 }
 
 // NewsletterService defines the interface for newsletter domain services

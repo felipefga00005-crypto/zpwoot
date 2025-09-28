@@ -180,14 +180,7 @@ type MessageStats struct {
 	UnreadMessages   int64 `json:"unread_messages"`
 }
 
-// MessageInfo represents basic information about a message
-type MessageInfo struct {
-	ID        string    `json:"id"`
-	Type      string    `json:"type"`
-	Timestamp time.Time `json:"timestamp"`
-	Chat      string    `json:"chat"`
-	IsRead    bool      `json:"is_read"`
-}
+
 
 // GetMessageStatsRequest represents a request to get message statistics
 type GetMessageStatsRequest struct {

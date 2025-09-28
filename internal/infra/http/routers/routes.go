@@ -97,6 +97,15 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/newsletters/info-from-invite", newsletterHandler.GetNewsletterInfoWithInvite) // POST /sessions/:sessionId/newsletters/info-from-invite
 	sessions.Post("/:sessionId/newsletters/follow", newsletterHandler.FollowNewsletter)                    // POST /sessions/:sessionId/newsletters/follow
 	sessions.Post("/:sessionId/newsletters/unfollow", newsletterHandler.UnfollowNewsletter)                // POST /sessions/:sessionId/newsletters/unfollow
+	sessions.Get("/:sessionId/newsletters/messages", newsletterHandler.GetNewsletterMessages)              // GET /sessions/:sessionId/newsletters/messages?jid=...&count=20&before=...
+	sessions.Get("/:sessionId/newsletters/updates", newsletterHandler.GetNewsletterMessageUpdates)         // GET /sessions/:sessionId/newsletters/updates?jid=...&count=20&since=...&after=...
+	sessions.Post("/:sessionId/newsletters/mark-viewed", newsletterHandler.NewsletterMarkViewed)           // POST /sessions/:sessionId/newsletters/mark-viewed
+	sessions.Post("/:sessionId/newsletters/send-reaction", newsletterHandler.NewsletterSendReaction)       // POST /sessions/:sessionId/newsletters/send-reaction
+	sessions.Post("/:sessionId/newsletters/subscribe-live", newsletterHandler.NewsletterSubscribeLiveUpdates) // POST /sessions/:sessionId/newsletters/subscribe-live
+	sessions.Post("/:sessionId/newsletters/toggle-mute", newsletterHandler.NewsletterToggleMute)           // POST /sessions/:sessionId/newsletters/toggle-mute
+	sessions.Post("/:sessionId/newsletters/accept-tos", newsletterHandler.AcceptTOSNotice)                 // POST /sessions/:sessionId/newsletters/accept-tos
+	sessions.Post("/:sessionId/newsletters/upload", newsletterHandler.UploadNewsletter)                    // POST /sessions/:sessionId/newsletters/upload
+	sessions.Post("/:sessionId/newsletters/upload-reader", newsletterHandler.UploadNewsletterReader)       // POST /sessions/:sessionId/newsletters/upload-reader
 	sessions.Get("/:sessionId/newsletters", newsletterHandler.GetSubscribedNewsletters)                    // GET /sessions/:sessionId/newsletters
 
 	// Contact management routes
@@ -122,15 +131,6 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	// TODO: Media download routes - implement media use case
 	// mediaHandler := handlers.NewMediaHandler(appLogger, container.GetMediaUseCase(), container.GetSessionRepository())
 	// sessions.Get("/:sessionId/media/download/:messageId", mediaHandler.DownloadMedia)                    // GET /sessions/:sessionId/media/download/:messageId
-
-	// Contact management routes
-	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
-	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)        // POST /sessions/:sessionId/contacts/check
-	sessions.Get("/:sessionId/contacts/avatar", contactHandler.GetProfilePicture)    // GET /sessions/:sessionId/contacts/avatar?jid=...
-	sessions.Post("/:sessionId/contacts/info", contactHandler.GetUserInfo)           // POST /sessions/:sessionId/contacts/info
-	sessions.Get("/:sessionId/contacts", contactHandler.ListContacts)                // GET /sessions/:sessionId/contacts
-	sessions.Post("/:sessionId/contacts/sync", contactHandler.SyncContacts)          // POST /sessions/:sessionId/contacts/sync
-	sessions.Get("/:sessionId/contacts/business", contactHandler.GetBusinessProfile) // GET /sessions/:sessionId/contacts/business?jid=...
 }
 
 func setupSessionSpecificRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger, WameowManager *wameow.Manager, container *app.Container) {

@@ -2,9 +2,11 @@
 package wameow
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -3023,6 +3025,16 @@ func (c *WameowClient) UnfollowNewsletter(ctx context.Context, jid string) error
 
 	err = c.client.UnfollowNewsletter(parsedJID)
 	if err != nil {
+		// Check if it's a 405 Not Allowed error (common for owner newsletters)
+		if strings.Contains(err.Error(), "405 Not Allowed") {
+			c.logger.WarnWithFields("Cannot unfollow newsletter - not allowed (possibly owner)", map[string]interface{}{
+				"session_id": c.sessionID,
+				"jid":        jid,
+				"error":      err.Error(),
+			})
+			return fmt.Errorf("cannot unfollow newsletter: you may be the owner or unfollow is not allowed for this newsletter")
+		}
+
 		c.logger.ErrorWithFields("Failed to unfollow newsletter", map[string]interface{}{
 			"session_id": c.sessionID,
 			"jid":        jid,
@@ -3064,4 +3076,553 @@ func (c *WameowClient) GetSubscribedNewsletters(ctx context.Context) ([]*types.N
 	})
 
 	return newsletters, nil
+}
+
+// GetNewsletterMessages gets messages from a newsletter
+func (c *WameowClient) GetNewsletterMessages(ctx context.Context, jid string, count int, before string) ([]*types.NewsletterMessage, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return nil, fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	newsletterJID := parsedJID
+
+	c.logger.InfoWithFields("Getting newsletter messages", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      count,
+		"before":     before,
+	})
+
+	// Prepare parameters
+	params := &whatsmeow.GetNewsletterMessagesParams{}
+	if count > 0 {
+		params.Count = count
+	}
+	if before != "" {
+		// Convert string to MessageServerID
+		if serverID, err := strconv.ParseUint(before, 10, 64); err == nil {
+			params.Before = types.MessageServerID(serverID)
+		}
+	}
+
+	messages, err := c.client.GetNewsletterMessages(newsletterJID, params)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get newsletter messages", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get newsletter messages: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter messages retrieved successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      len(messages),
+	})
+
+	return messages, nil
+}
+
+// GetNewsletterMessageUpdates gets message updates from a newsletter (view counts, reactions)
+func (c *WameowClient) GetNewsletterMessageUpdates(ctx context.Context, jid string, count int, since string, after string) ([]*types.NewsletterMessage, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return nil, fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	newsletterJID := parsedJID
+
+	c.logger.InfoWithFields("Getting newsletter message updates", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      count,
+		"since":      since,
+		"after":      after,
+	})
+
+	// Prepare parameters
+	params := &whatsmeow.GetNewsletterUpdatesParams{}
+	if count > 0 {
+		params.Count = count
+	}
+	if since != "" {
+		// Parse ISO timestamp
+		if sinceTime, err := time.Parse(time.RFC3339, since); err == nil {
+			params.Since = sinceTime
+		}
+	}
+	if after != "" {
+		// Convert string to MessageServerID
+		if serverID, err := strconv.ParseUint(after, 10, 64); err == nil {
+			params.After = types.MessageServerID(serverID)
+		}
+	}
+
+	// Add timeout context for the operation
+	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	c.logger.InfoWithFields("Calling whatsmeow GetNewsletterMessageUpdates", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"params":     params,
+	})
+
+	updates, err := c.client.GetNewsletterMessageUpdates(newsletterJID, params)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get newsletter message updates", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get newsletter message updates: %w", err)
+	}
+
+	// Check if context was cancelled
+	select {
+	case <-ctxWithTimeout.Done():
+		c.logger.WarnWithFields("Newsletter message updates operation timed out", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+		})
+		return nil, fmt.Errorf("operation timed out")
+	default:
+		// Continue normally
+	}
+
+	c.logger.InfoWithFields("Newsletter message updates retrieved successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      len(updates),
+	})
+
+	return updates, nil
+}
+
+// NewsletterMarkViewed marks newsletter messages as viewed
+func (c *WameowClient) NewsletterMarkViewed(ctx context.Context, jid string, serverIDs []string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	if len(serverIDs) == 0 {
+		return fmt.Errorf("server IDs cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Marking newsletter messages as viewed", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      len(serverIDs),
+	})
+
+	// Convert string server IDs to MessageServerID
+	messageServerIDs := make([]types.MessageServerID, 0, len(serverIDs))
+	for _, serverID := range serverIDs {
+		if id, err := strconv.ParseUint(serverID, 10, 64); err == nil {
+			messageServerIDs = append(messageServerIDs, types.MessageServerID(id))
+		} else {
+			c.logger.WarnWithFields("Invalid server ID, skipping", map[string]interface{}{
+				"session_id": c.sessionID,
+				"server_id":  serverID,
+				"error":      err.Error(),
+			})
+			// Skip invalid server IDs instead of failing
+			continue
+		}
+	}
+
+	err = c.client.NewsletterMarkViewed(parsedJID, messageServerIDs)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to mark newsletter messages as viewed", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to mark newsletter messages as viewed: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter messages marked as viewed successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"count":      len(serverIDs),
+	})
+
+	return nil
+}
+
+// NewsletterSendReaction sends a reaction to a newsletter message
+func (c *WameowClient) NewsletterSendReaction(ctx context.Context, jid string, serverID string, reaction string, messageID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	if serverID == "" {
+		return fmt.Errorf("server ID cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Sending newsletter reaction", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"server_id":  serverID,
+		"reaction":   reaction,
+		"message_id": messageID,
+	})
+
+	// Convert string server ID to MessageServerID
+	msgServerID, err := strconv.ParseUint(serverID, 10, 64)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid server ID format", map[string]interface{}{
+			"session_id": c.sessionID,
+			"server_id":  serverID,
+			"error":      err.Error(),
+		})
+		// Try to handle non-numeric server IDs by using a hash or default value
+		// For now, we'll return an error but with a more helpful message
+		return fmt.Errorf("server ID must be numeric, got: %s", serverID)
+	}
+
+	// Convert messageID to types.MessageID
+	var msgID types.MessageID
+	if messageID != "" {
+		msgID = types.MessageID(messageID)
+	}
+
+	err = c.client.NewsletterSendReaction(parsedJID, types.MessageServerID(msgServerID), reaction, msgID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to send newsletter reaction", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"server_id":  serverID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to send newsletter reaction: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter reaction sent successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"server_id":  serverID,
+		"reaction":   reaction,
+	})
+
+	return nil
+}
+
+// NewsletterSubscribeLiveUpdates subscribes to live updates from a newsletter
+func (c *WameowClient) NewsletterSubscribeLiveUpdates(ctx context.Context, jid string) (int64, error) {
+	if !c.client.IsLoggedIn() {
+		return 0, fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return 0, fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return 0, fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Subscribing to newsletter live updates", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	duration, err := c.client.NewsletterSubscribeLiveUpdates(ctx, parsedJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to subscribe to newsletter live updates", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return 0, fmt.Errorf("failed to subscribe to newsletter live updates: %w", err)
+	}
+
+	durationSeconds := int64(duration.Seconds())
+
+	c.logger.InfoWithFields("Subscribed to newsletter live updates successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"duration":   durationSeconds,
+	})
+
+	return durationSeconds, nil
+}
+
+// NewsletterToggleMute toggles mute status of a newsletter
+func (c *WameowClient) NewsletterToggleMute(ctx context.Context, jid string, mute bool) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("newsletter JID cannot be empty")
+	}
+
+	// Parse and validate JID
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid newsletter JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Toggling newsletter mute status", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"mute":       mute,
+	})
+
+	err = c.client.NewsletterToggleMute(parsedJID, mute)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to toggle newsletter mute status", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"mute":       mute,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to toggle newsletter mute status: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter mute status toggled successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+		"mute":       mute,
+	})
+
+	return nil
+}
+
+// AcceptTOSNotice accepts a terms of service notice
+func (c *WameowClient) AcceptTOSNotice(ctx context.Context, noticeID string, stage string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if noticeID == "" {
+		return fmt.Errorf("notice ID cannot be empty")
+	}
+
+	if stage == "" {
+		return fmt.Errorf("stage cannot be empty")
+	}
+
+	c.logger.InfoWithFields("Accepting TOS notice", map[string]interface{}{
+		"session_id": c.sessionID,
+		"notice_id":  noticeID,
+		"stage":      stage,
+	})
+
+	err := c.client.AcceptTOSNotice(noticeID, stage)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to accept TOS notice", map[string]interface{}{
+			"session_id": c.sessionID,
+			"notice_id":  noticeID,
+			"stage":      stage,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to accept TOS notice: %w", err)
+	}
+
+	c.logger.InfoWithFields("TOS notice accepted successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"notice_id":  noticeID,
+		"stage":      stage,
+	})
+
+	return nil
+}
+
+// UploadNewsletter uploads media for newsletters
+func (c *WameowClient) UploadNewsletter(ctx context.Context, data []byte, mimeType string, mediaType string) (*whatsmeow.UploadResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("data cannot be empty")
+	}
+
+	if mimeType == "" {
+		return nil, fmt.Errorf("mime type cannot be empty")
+	}
+
+	if mediaType == "" {
+		return nil, fmt.Errorf("media type cannot be empty")
+	}
+
+	c.logger.InfoWithFields("Uploading newsletter media", map[string]interface{}{
+		"session_id": c.sessionID,
+		"mime_type":  mimeType,
+		"media_type": mediaType,
+		"data_size":  len(data),
+	})
+
+	// Convert string media type to whatsmeow MediaType
+	whatsmeowMediaType := c.convertStringToMediaType(mediaType)
+
+	uploaded, err := c.client.UploadNewsletter(ctx, data, whatsmeowMediaType)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to upload newsletter media", map[string]interface{}{
+			"session_id": c.sessionID,
+			"mime_type":  mimeType,
+			"media_type": mediaType,
+			"data_size":  len(data),
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to upload newsletter media: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter media uploaded successfully", map[string]interface{}{
+		"session_id":  c.sessionID,
+		"mime_type":   mimeType,
+		"media_type":  mediaType,
+		"data_size":   len(data),
+		"url":         uploaded.URL,
+		"handle":      uploaded.Handle,
+		"file_length": uploaded.FileLength,
+	})
+
+	return &uploaded, nil
+}
+
+// UploadNewsletterReader uploads media for newsletters from a reader
+func (c *WameowClient) UploadNewsletterReader(ctx context.Context, data []byte, mimeType string, mediaType string) (*whatsmeow.UploadResponse, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if len(data) == 0 {
+		return nil, fmt.Errorf("data cannot be empty")
+	}
+
+	if mimeType == "" {
+		return nil, fmt.Errorf("mime type cannot be empty")
+	}
+
+	if mediaType == "" {
+		return nil, fmt.Errorf("media type cannot be empty")
+	}
+
+	c.logger.InfoWithFields("Uploading newsletter media with reader", map[string]interface{}{
+		"session_id": c.sessionID,
+		"mime_type":  mimeType,
+		"media_type": mediaType,
+		"data_size":  len(data),
+	})
+
+	// Convert string media type to whatsmeow MediaType
+	whatsmeowMediaType := c.convertStringToMediaType(mediaType)
+
+	// Create a reader from the data
+	reader := bytes.NewReader(data)
+
+	uploaded, err := c.client.UploadNewsletterReader(ctx, reader, whatsmeowMediaType)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to upload newsletter media with reader", map[string]interface{}{
+			"session_id": c.sessionID,
+			"mime_type":  mimeType,
+			"media_type": mediaType,
+			"data_size":  len(data),
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to upload newsletter media with reader: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter media uploaded successfully with reader", map[string]interface{}{
+		"session_id":  c.sessionID,
+		"mime_type":   mimeType,
+		"media_type":  mediaType,
+		"data_size":   len(data),
+		"url":         uploaded.URL,
+		"handle":      uploaded.Handle,
+		"file_length": uploaded.FileLength,
+	})
+
+	return &uploaded, nil
+}
+
+// convertStringToMediaType converts string media type to whatsmeow MediaType
+func (c *WameowClient) convertStringToMediaType(mediaType string) whatsmeow.MediaType {
+	switch mediaType {
+	case "image":
+		return whatsmeow.MediaImage
+	case "video":
+		return whatsmeow.MediaVideo
+	case "audio":
+		return whatsmeow.MediaAudio
+	case "document":
+		return whatsmeow.MediaDocument
+	default:
+		return whatsmeow.MediaImage // Default fallback
+	}
 }
