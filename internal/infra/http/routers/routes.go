@@ -90,6 +90,11 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Put("/:sessionId/groups/join-approval", groupHandler.SetGroupJoinApprovalMode)   // PUT /sessions/:sessionId/groups/join-approval
 	sessions.Put("/:sessionId/groups/member-add-mode", groupHandler.SetGroupMemberAddMode)    // PUT /sessions/:sessionId/groups/member-add-mode
 
+	// Advanced group routes
+	sessions.Get("/:sessionId/groups/info-from-link", groupHandler.GetGroupInfoFromLink)      // GET /sessions/:sessionId/groups/info-from-link?inviteLink=...
+	sessions.Post("/:sessionId/groups/info-from-invite", groupHandler.GetGroupInfoFromInvite) // POST /sessions/:sessionId/groups/info-from-invite
+	sessions.Post("/:sessionId/groups/join-with-invite", groupHandler.JoinGroupWithInvite)    // POST /sessions/:sessionId/groups/join-with-invite
+
 	// Newsletter management routes
 	newsletterHandler := handlers.NewNewsletterHandler(appLogger, container.GetNewsletterUseCase(), container.GetSessionRepository())
 	sessions.Post("/:sessionId/newsletters/create", newsletterHandler.CreateNewsletter)                    // POST /sessions/:sessionId/newsletters/create
@@ -107,6 +112,13 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Post("/:sessionId/newsletters/upload", newsletterHandler.UploadNewsletter)                    // POST /sessions/:sessionId/newsletters/upload
 	sessions.Post("/:sessionId/newsletters/upload-reader", newsletterHandler.UploadNewsletterReader)       // POST /sessions/:sessionId/newsletters/upload-reader
 	sessions.Get("/:sessionId/newsletters", newsletterHandler.GetSubscribedNewsletters)                    // GET /sessions/:sessionId/newsletters
+
+	// Community management routes
+	communityHandler := handlers.NewCommunityHandler(appLogger, container.GetCommunityUseCase(), container.GetSessionRepository())
+	sessions.Post("/:sessionId/communities/link-group", communityHandler.LinkGroup)                       // POST /sessions/:sessionId/communities/link-group
+	sessions.Post("/:sessionId/communities/unlink-group", communityHandler.UnlinkGroup)                   // POST /sessions/:sessionId/communities/unlink-group
+	sessions.Get("/:sessionId/communities/info", communityHandler.GetCommunityInfo)                       // GET /sessions/:sessionId/communities/info?communityJid=...
+	sessions.Get("/:sessionId/communities/subgroups", communityHandler.GetSubGroups)                      // GET /sessions/:sessionId/communities/subgroups?communityJid=...
 
 	// Contact management routes
 	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())

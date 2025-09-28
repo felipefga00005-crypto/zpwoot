@@ -25,7 +25,7 @@ type CreateNewsletterResponse struct {
 
 // GetNewsletterInfoRequest - Request para obter info de newsletter
 type GetNewsletterInfoRequest struct {
-	JID string `json:"jid" validate:"required"`
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
 }
 
 // GetNewsletterInfoWithInviteRequest - Request para obter info via convite
@@ -62,12 +62,12 @@ type ProfilePictureInfo struct {
 
 // FollowNewsletterRequest - Request para seguir newsletter
 type FollowNewsletterRequest struct {
-	JID string `json:"jid" validate:"required"`
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
 }
 
 // UnfollowNewsletterRequest - Request para deixar de seguir newsletter
 type UnfollowNewsletterRequest struct {
-	JID string `json:"jid" validate:"required"`
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
 }
 
 // SubscribedNewslettersResponse - Response com newsletters seguidos
@@ -141,7 +141,7 @@ func FromDomainList(infos []*newsletter.NewsletterInfo) []NewsletterInfoResponse
 // ToDomain converts GetNewsletterInfoRequest to domain entity
 func (req *GetNewsletterInfoRequest) ToDomain() *newsletter.GetNewsletterInfoRequest {
 	return &newsletter.GetNewsletterInfoRequest{
-		JID: req.JID,
+		JID: req.NewsletterJID,
 	}
 }
 
@@ -155,14 +155,14 @@ func (req *GetNewsletterInfoWithInviteRequest) ToDomain() *newsletter.GetNewslet
 // ToDomain converts FollowNewsletterRequest to domain entity
 func (req *FollowNewsletterRequest) ToDomain() *newsletter.FollowNewsletterRequest {
 	return &newsletter.FollowNewsletterRequest{
-		JID: req.JID,
+		JID: req.NewsletterJID,
 	}
 }
 
 // ToDomain converts UnfollowNewsletterRequest to domain entity
 func (req *UnfollowNewsletterRequest) ToDomain() *newsletter.UnfollowNewsletterRequest {
 	return &newsletter.UnfollowNewsletterRequest{
-		JID: req.JID,
+		JID: req.NewsletterJID,
 	}
 }
 
@@ -260,15 +260,15 @@ func NewErrorResponse(jid, message string) *NewsletterActionResponse {
 
 // GetNewsletterMessagesRequest represents the request for getting newsletter messages
 type GetNewsletterMessagesRequest struct {
-	JID    string `json:"jid" validate:"required"`
-	Count  int    `json:"count,omitempty"`
-	Before string `json:"before,omitempty"` // MessageServerID
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
+	Count         int    `json:"count,omitempty"`
+	Before        string `json:"before,omitempty"` // MessageServerID
 }
 
 // Validate validates the GetNewsletterMessagesRequest
 func (req *GetNewsletterMessagesRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	if req.Count < 0 {
 		return fmt.Errorf("count cannot be negative")
@@ -327,16 +327,16 @@ func NewGetNewsletterMessagesResponse(messages []*newsletter.NewsletterMessage) 
 
 // GetNewsletterMessageUpdatesRequest represents the request for getting newsletter message updates
 type GetNewsletterMessageUpdatesRequest struct {
-	JID   string `json:"jid" validate:"required"`
-	Count int    `json:"count,omitempty"`
-	Since string `json:"since,omitempty"` // ISO timestamp
-	After string `json:"after,omitempty"` // MessageServerID
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
+	Count         int    `json:"count,omitempty"`
+	Since         string `json:"since,omitempty"` // ISO timestamp
+	After         string `json:"after,omitempty"` // MessageServerID
 }
 
 // Validate validates the GetNewsletterMessageUpdatesRequest
 func (req *GetNewsletterMessageUpdatesRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	if req.Count < 0 {
 		return fmt.Errorf("count cannot be negative")
@@ -369,14 +369,14 @@ func NewGetNewsletterMessageUpdatesResponse(updates []*newsletter.NewsletterMess
 
 // NewsletterMarkViewedRequest represents the request for marking newsletter messages as viewed
 type NewsletterMarkViewedRequest struct {
-	JID       string   `json:"jid" validate:"required"`
-	ServerIDs []string `json:"serverIds" validate:"required,min=1"`
+	NewsletterJID string   `json:"newsletterJid" validate:"required"`
+	ServerIDs     []string `json:"serverIds" validate:"required,min=1"`
 }
 
 // Validate validates the NewsletterMarkViewedRequest
 func (req *NewsletterMarkViewedRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	if len(req.ServerIDs) == 0 {
 		return fmt.Errorf("serverIds is required and cannot be empty")
@@ -386,16 +386,16 @@ func (req *NewsletterMarkViewedRequest) Validate() error {
 
 // NewsletterSendReactionRequest represents the request for sending a reaction to a newsletter message
 type NewsletterSendReactionRequest struct {
-	JID       string `json:"jid" validate:"required"`
-	ServerID  string `json:"serverId,omitempty"`   // Optional - will be looked up from MessageID if not provided
-	Reaction  string `json:"reaction"`             // Empty string to remove reaction
-	MessageID string `json:"messageId" validate:"required"` // Required - used to find ServerID if not provided
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
+	ServerID      string `json:"serverId,omitempty"`   // Optional - will be looked up from MessageID if not provided
+	Reaction      string `json:"reaction"`             // Empty string to remove reaction
+	MessageID     string `json:"messageId" validate:"required"` // Required - used to find ServerID if not provided
 }
 
 // Validate validates the NewsletterSendReactionRequest
 func (req *NewsletterSendReactionRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	if req.MessageID == "" {
 		return fmt.Errorf("messageId is required")
@@ -406,27 +406,27 @@ func (req *NewsletterSendReactionRequest) Validate() error {
 
 // NewsletterToggleMuteRequest represents the request for toggling newsletter mute status
 type NewsletterToggleMuteRequest struct {
-	JID  string `json:"jid" validate:"required"`
-	Mute bool   `json:"mute"`
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
+	Mute          bool   `json:"mute"`
 }
 
 // Validate validates the NewsletterToggleMuteRequest
 func (req *NewsletterToggleMuteRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	return nil
 }
 
 // NewsletterSubscribeLiveUpdatesRequest represents the request for subscribing to live updates
 type NewsletterSubscribeLiveUpdatesRequest struct {
-	JID string `json:"jid" validate:"required"`
+	NewsletterJID string `json:"newsletterJid" validate:"required"`
 }
 
 // Validate validates the NewsletterSubscribeLiveUpdatesRequest
 func (req *NewsletterSubscribeLiveUpdatesRequest) Validate() error {
-	if req.JID == "" {
-		return fmt.Errorf("jid is required")
+	if req.NewsletterJID == "" {
+		return fmt.Errorf("newsletterJid is required")
 	}
 	return nil
 }

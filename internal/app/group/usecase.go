@@ -24,6 +24,11 @@ type UseCase interface {
 	UpdateGroupRequestParticipants(ctx context.Context, sessionID string, groupJID string, participants []string, action string) ([]string, []string, error)
 	SetGroupJoinApprovalMode(ctx context.Context, sessionID string, groupJID string, requireApproval bool) error
 	SetGroupMemberAddMode(ctx context.Context, sessionID string, groupJID string, mode string) error
+
+	// Advanced group methods
+	GetGroupInfoFromLink(ctx context.Context, sessionID string, req *GetGroupInfoFromLinkRequest) (*GroupInfoFromLinkResponse, error)
+	GetGroupInfoFromInvite(ctx context.Context, sessionID string, req *GetGroupInfoFromInviteRequest) (*GroupInfoFromInviteResponse, error)
+	JoinGroupWithInvite(ctx context.Context, sessionID string, req *JoinGroupWithInviteRequest) (*JoinGroupWithInviteResponse, error)
 }
 
 type useCaseImpl struct {
@@ -325,4 +330,56 @@ func (uc *useCaseImpl) SetGroupJoinApprovalMode(ctx context.Context, sessionID s
 
 func (uc *useCaseImpl) SetGroupMemberAddMode(ctx context.Context, sessionID string, groupJID string, mode string) error {
 	return uc.wameowMgr.SetGroupMemberAddMode(sessionID, groupJID, mode)
+}
+
+// ============================================================================
+// ADVANCED GROUP METHODS
+// ============================================================================
+
+// GetGroupInfoFromLink gets group information from an invite link
+func (uc *useCaseImpl) GetGroupInfoFromLink(ctx context.Context, sessionID string, req *GetGroupInfoFromLinkRequest) (*GroupInfoFromLinkResponse, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Get group info from link via wameow manager
+	groupInfo, err := uc.wameowMgr.GetGroupInfoFromLink(sessionID, req.InviteLink)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewGroupInfoFromLinkResponse(groupInfo), nil
+}
+
+// GetGroupInfoFromInvite gets group information from an invite
+func (uc *useCaseImpl) GetGroupInfoFromInvite(ctx context.Context, sessionID string, req *GetGroupInfoFromInviteRequest) (*GroupInfoFromInviteResponse, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Get group info from invite via wameow manager
+	groupInfo, err := uc.wameowMgr.GetGroupInfoFromInvite(sessionID, req.GroupJID, req.Inviter, req.Code, req.Expiration)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewGroupInfoFromInviteResponse(groupInfo, req.Code, req.Inviter), nil
+}
+
+// JoinGroupWithInvite joins a group using a specific invite
+func (uc *useCaseImpl) JoinGroupWithInvite(ctx context.Context, sessionID string, req *JoinGroupWithInviteRequest) (*JoinGroupWithInviteResponse, error) {
+	// Validate request
+	if err := req.Validate(); err != nil {
+		return nil, err
+	}
+
+	// Join group with invite via wameow manager
+	err := uc.wameowMgr.JoinGroupWithInvite(sessionID, req.GroupJID, req.Inviter, req.Code, req.Expiration)
+	if err != nil {
+		return NewJoinGroupWithInviteResponse(req.GroupJID, false, "Failed to join group: "+err.Error()), nil
+	}
+
+	return NewJoinGroupWithInviteResponse(req.GroupJID, true, "Successfully joined group"), nil
 }

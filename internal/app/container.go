@@ -6,6 +6,7 @@ import (
 
 	"zpwoot/internal/app/chatwoot"
 	"zpwoot/internal/app/common"
+	"zpwoot/internal/app/community"
 	"zpwoot/internal/app/contact"
 	"zpwoot/internal/app/group"
 	"zpwoot/internal/app/media"
@@ -14,6 +15,7 @@ import (
 	"zpwoot/internal/app/session"
 	"zpwoot/internal/app/webhook"
 	domainChatwoot "zpwoot/internal/domain/chatwoot"
+	domainCommunity "zpwoot/internal/domain/community"
 	domainContact "zpwoot/internal/domain/contact"
 	domainGroup "zpwoot/internal/domain/group"
 	domainMedia "zpwoot/internal/domain/media"
@@ -35,6 +37,7 @@ type Container struct {
 	GroupUseCase      group.UseCase
 	ContactUseCase    contact.UseCase
 	NewsletterUseCase newsletter.UseCase
+	CommunityUseCase  community.UseCase
 
 	logger      *logger.Logger
 	sessionRepo ports.SessionRepository
@@ -149,6 +152,17 @@ func NewContainer(config *ContainerConfig) *Container {
 		*config.Logger,
 	)
 
+	// Create community service and adapter
+	communityService := domainCommunity.NewService()
+	communityManager := wameow.NewCommunityAdapter(config.WameowManager, *config.Logger)
+
+	communityUseCase := community.NewUseCase(
+		communityManager,
+		communityService,
+		config.SessionRepo,
+		*config.Logger,
+	)
+
 	return &Container{
 		CommonUseCase:     commonUseCase,
 		SessionUseCase:    sessionUseCase,
@@ -159,6 +173,7 @@ func NewContainer(config *ContainerConfig) *Container {
 		GroupUseCase:      groupUseCase,
 		ContactUseCase:    contactUseCase,
 		NewsletterUseCase: newsletterUseCase,
+		CommunityUseCase:  communityUseCase,
 		logger:            config.Logger,
 		sessionRepo:       config.SessionRepo,
 	}
@@ -206,6 +221,10 @@ func (c *Container) GetContactUseCase() contact.UseCase {
 
 func (c *Container) GetNewsletterUseCase() newsletter.UseCase {
 	return c.NewsletterUseCase
+}
+
+func (c *Container) GetCommunityUseCase() community.UseCase {
+	return c.CommunityUseCase
 }
 
 func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowManager, error) {

@@ -3644,3 +3644,375 @@ func (c *WameowClient) convertStringToMediaType(mediaType string) whatsmeow.Medi
 		return whatsmeow.MediaImage // Default fallback
 	}
 }
+
+// ============================================================================
+// COMMUNITY METHODS
+// ============================================================================
+
+// LinkGroup links a group to a community
+func (c *WameowClient) LinkGroup(ctx context.Context, communityJID, groupJID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if communityJID == "" {
+		return fmt.Errorf("community JID cannot be empty")
+	}
+
+	if groupJID == "" {
+		return fmt.Errorf("group JID cannot be empty")
+	}
+
+	// Parse and validate JIDs
+	parsedCommunityJID, err := c.parseJID(communityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return fmt.Errorf("invalid community JID: %w", err)
+	}
+
+	parsedGroupJID, err := c.parseJID(groupJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid group JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Linking group to community", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
+	})
+
+	// Use whatsmeow's LinkGroup method
+	err = c.client.LinkGroup(parsedCommunityJID, parsedGroupJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to link group to community", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"group_jid":     groupJID,
+			"error":         err.Error(),
+		})
+		return fmt.Errorf("failed to link group to community: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group linked to community successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
+	})
+
+	return nil
+}
+
+// UnlinkGroup unlinks a group from a community
+func (c *WameowClient) UnlinkGroup(ctx context.Context, communityJID, groupJID string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if communityJID == "" {
+		return fmt.Errorf("community JID cannot be empty")
+	}
+
+	if groupJID == "" {
+		return fmt.Errorf("group JID cannot be empty")
+	}
+
+	// Parse and validate JIDs
+	parsedCommunityJID, err := c.parseJID(communityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return fmt.Errorf("invalid community JID: %w", err)
+	}
+
+	parsedGroupJID, err := c.parseJID(groupJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid group JID", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Unlinking group from community", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
+	})
+
+	// Use whatsmeow's UnlinkGroup method
+	err = c.client.UnlinkGroup(parsedCommunityJID, parsedGroupJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to unlink group from community", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"group_jid":     groupJID,
+			"error":         err.Error(),
+		})
+		return fmt.Errorf("failed to unlink group from community: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group unlinked from community successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
+	})
+
+	return nil
+}
+
+// GetSubGroups gets all sub-groups (linked groups) of a community
+func (c *WameowClient) GetSubGroups(ctx context.Context, communityJID string) ([]*types.GroupLinkTarget, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if communityJID == "" {
+		return nil, fmt.Errorf("community JID cannot be empty")
+	}
+
+	// Parse and validate community JID
+	parsedCommunityJID, err := c.parseJID(communityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("invalid community JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting community sub-groups", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+	})
+
+	// Use whatsmeow's GetSubGroups method
+	subGroups, err := c.client.GetSubGroups(parsedCommunityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get community sub-groups", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get community sub-groups: %w", err)
+	}
+
+	c.logger.InfoWithFields("Community sub-groups retrieved successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"count":         len(subGroups),
+	})
+
+	return subGroups, nil
+}
+
+// GetLinkedGroupsParticipants gets participants from all linked groups in a community
+func (c *WameowClient) GetLinkedGroupsParticipants(ctx context.Context, communityJID string) ([]types.JID, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if communityJID == "" {
+		return nil, fmt.Errorf("community JID cannot be empty")
+	}
+
+	// Parse and validate community JID
+	parsedCommunityJID, err := c.parseJID(communityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("invalid community JID: %w", err)
+	}
+
+	c.logger.InfoWithFields("Getting linked groups participants", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+	})
+
+	// Use whatsmeow's GetLinkedGroupsParticipants method
+	participants, err := c.client.GetLinkedGroupsParticipants(parsedCommunityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get linked groups participants", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get linked groups participants: %w", err)
+	}
+
+	c.logger.InfoWithFields("Linked groups participants retrieved successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+		"count":         len(participants),
+	})
+
+	return participants, nil
+}
+
+// ============================================================================
+// ADVANCED GROUP METHODS
+// ============================================================================
+
+// GetGroupInfoFromLink gets group information from an invite link
+func (c *WameowClient) GetGroupInfoFromLink(ctx context.Context, inviteLink string) (*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if inviteLink == "" {
+		return nil, fmt.Errorf("invite link cannot be empty")
+	}
+
+	c.logger.InfoWithFields("Getting group info from link", map[string]interface{}{
+		"session_id":  c.sessionID,
+		"invite_link": inviteLink,
+	})
+
+	// Use whatsmeow's GetGroupInfoFromLink method
+	groupInfo, err := c.client.GetGroupInfoFromLink(inviteLink)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get group info from link", map[string]interface{}{
+			"session_id":  c.sessionID,
+			"invite_link": inviteLink,
+			"error":       err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get group info from link: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group info retrieved from link successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupInfo.JID.String(),
+		"group_name": groupInfo.GroupName.Name,
+	})
+
+	return groupInfo, nil
+}
+
+// GetGroupInfoFromInvite gets group information from an invite
+func (c *WameowClient) GetGroupInfoFromInvite(ctx context.Context, jid, inviter, code string, expiration int64) (*types.GroupInfo, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return nil, fmt.Errorf("group JID cannot be empty")
+	}
+
+	if code == "" {
+		return nil, fmt.Errorf("invite code cannot be empty")
+	}
+
+	// Parse JIDs
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return nil, fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	var parsedInviter types.JID
+	if inviter != "" {
+		parsedInviter, err = c.parseJID(inviter)
+		if err != nil {
+			return nil, fmt.Errorf("invalid inviter JID: %w", err)
+		}
+	}
+
+	c.logger.InfoWithFields("Getting group info from invite", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  jid,
+		"inviter":    inviter,
+		"code":       code,
+	})
+
+	// Use whatsmeow's GetGroupInfoFromInvite method
+	groupInfo, err := c.client.GetGroupInfoFromInvite(parsedJID, parsedInviter, code, expiration)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get group info from invite", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  jid,
+			"inviter":    inviter,
+			"code":       code,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get group info from invite: %w", err)
+	}
+
+	c.logger.InfoWithFields("Group info retrieved from invite successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  groupInfo.JID.String(),
+		"group_name": groupInfo.GroupName.Name,
+	})
+
+	return groupInfo, nil
+}
+
+// JoinGroupWithInvite joins a group using a specific invite
+func (c *WameowClient) JoinGroupWithInvite(ctx context.Context, jid, inviter, code string, expiration int64) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("group JID cannot be empty")
+	}
+
+	if code == "" {
+		return fmt.Errorf("invite code cannot be empty")
+	}
+
+	// Parse JIDs
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return fmt.Errorf("invalid group JID: %w", err)
+	}
+
+	var parsedInviter types.JID
+	if inviter != "" {
+		parsedInviter, err = c.parseJID(inviter)
+		if err != nil {
+			return fmt.Errorf("invalid inviter JID: %w", err)
+		}
+	}
+
+	c.logger.InfoWithFields("Joining group with invite", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  jid,
+		"inviter":    inviter,
+		"code":       code,
+	})
+
+	// Use whatsmeow's JoinGroupWithInvite method
+	err = c.client.JoinGroupWithInvite(parsedJID, parsedInviter, code, expiration)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to join group with invite", map[string]interface{}{
+			"session_id": c.sessionID,
+			"group_jid":  jid,
+			"inviter":    inviter,
+			"code":       code,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to join group with invite: %w", err)
+	}
+
+	c.logger.InfoWithFields("Joined group with invite successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"group_jid":  jid,
+	})
+
+	return nil
+}

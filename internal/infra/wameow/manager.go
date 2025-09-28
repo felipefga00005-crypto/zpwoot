@@ -924,6 +924,40 @@ func (m *Manager) SetGroupMemberAddMode(sessionID, groupJID string, mode string)
 	return client.SetGroupMemberAddMode(ctx, groupJID, mode)
 }
 
+// ============================================================================
+// ADVANCED GROUP METHODS
+// ============================================================================
+
+// GetGroupInfoFromLink gets group information from an invite link
+func (m *Manager) GetGroupInfoFromLink(sessionID string, inviteLink string) (*types.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetGroupInfoFromLink(context.Background(), inviteLink)
+}
+
+// GetGroupInfoFromInvite gets group information from an invite
+func (m *Manager) GetGroupInfoFromInvite(sessionID string, jid, inviter, code string, expiration int64) (*types.GroupInfo, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.GetGroupInfoFromInvite(context.Background(), jid, inviter, code, expiration)
+}
+
+// JoinGroupWithInvite joins a group using a specific invite
+func (m *Manager) JoinGroupWithInvite(sessionID string, jid, inviter, code string, expiration int64) error {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.JoinGroupWithInvite(context.Background(), jid, inviter, code, expiration)
+}
+
 // Poll management methods
 func (m *Manager) CreatePoll(sessionID, to, name string, options []string, selectableCount int) (*ports.MessageInfo, error) {
 	client := m.getClient(sessionID)

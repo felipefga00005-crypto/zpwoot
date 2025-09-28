@@ -65,7 +65,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if mediaReq.JID == "" {
+	if mediaReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Recipient (Phone) is required"))
 	}
 
@@ -78,12 +78,12 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 
 	// Convert MediaMessageRequest to SendMessageRequest
 	req := &message.SendMessageRequest{
-		JID:      mediaReq.JID,
-		Type:     mediaType,
-		File:     mediaReq.File,
-		Caption:  mediaReq.Caption,
-		MimeType: mediaReq.MimeType,
-		Filename: mediaReq.Filename,
+		RemoteJID: mediaReq.RemoteJID,
+		Type:      mediaType,
+		File:      mediaReq.File,
+		Caption:   mediaReq.Caption,
+		MimeType:  mediaReq.MimeType,
+		Filename:  mediaReq.Filename,
 	}
 
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
@@ -100,7 +100,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send media message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         req.JID,
+			"to":         req.RemoteJID,
 			"error":      err.Error(),
 		})
 
@@ -119,7 +119,7 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Media message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         req.JID,
+		"to":         req.RemoteJID,
 		"message_id": response.ID,
 	})
 
@@ -151,7 +151,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid image message format"))
 	}
 
-	if imageReq.JID == "" {
+	if imageReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -172,7 +172,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		JID:         imageReq.JID,
+		RemoteJID:   imageReq.RemoteJID,
 		Type:        "image",
 		File:        imageReq.File,
 		Caption:     imageReq.Caption,
@@ -186,7 +186,7 @@ func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         imageReq.JID,
+			"to":         imageReq.RemoteJID,
 			"has_reply":  imageReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -226,7 +226,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid audio message format"))
 	}
 
-	if audioReq.JID == "" {
+	if audioReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -247,7 +247,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		JID:         audioReq.JID,
+		RemoteJID:   audioReq.RemoteJID,
 		Type:        "audio",
 		File:        audioReq.File,
 		Caption:     audioReq.Caption,
@@ -260,7 +260,7 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send audio message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         audioReq.JID,
+			"to":         audioReq.RemoteJID,
 			"has_reply":  audioReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -300,7 +300,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid video message format"))
 	}
 
-	if videoReq.JID == "" {
+	if videoReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -321,7 +321,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		JID:         videoReq.JID,
+		RemoteJID:   videoReq.RemoteJID,
 		Type:        "video",
 		File:        videoReq.File,
 		Caption:     videoReq.Caption,
@@ -335,7 +335,7 @@ func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         videoReq.JID,
+			"to":         videoReq.RemoteJID,
 			"has_reply":  videoReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -375,7 +375,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid document message format"))
 	}
 
-	if docReq.JID == "" {
+	if docReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -400,7 +400,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 
 	// Convert to SendMessageRequest for compatibility
 	req := message.SendMessageRequest{
-		JID:         docReq.JID,
+		RemoteJID:   docReq.RemoteJID,
 		Type:        "document",
 		File:        docReq.File,
 		Caption:     docReq.Caption,
@@ -414,7 +414,7 @@ func (h *MessageHandler) SendDocument(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send document message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         docReq.JID,
+			"to":         docReq.RemoteJID,
 			"filename":   docReq.Filename,
 			"has_reply":  docReq.ContextInfo != nil,
 			"error":      err.Error(),
@@ -507,7 +507,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid single contact format"))
 	}
 
-	if contactReq.JID == "" {
+	if contactReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 	if contactReq.ContactName == "" {
@@ -524,7 +524,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 
 	result, err := h.wameowManager.SendMessage(
 		sess.ID.String(),
-		contactReq.JID,
+		contactReq.RemoteJID,
 		"contact",
 		"",
 		"",
@@ -540,7 +540,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send contact message", map[string]interface{}{
 			"session_id":   sess.ID.String(),
-			"to":           contactReq.JID,
+			"to":           contactReq.RemoteJID,
 			"contact_name": contactReq.ContactName,
 			"error":        err.Error(),
 		})
@@ -560,7 +560,7 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 
 	h.logger.InfoWithFields("Contact message sent successfully", map[string]interface{}{
 		"session_id":   sess.ID.String(),
-		"to":           contactReq.JID,
+		"to":           contactReq.RemoteJID,
 		"contact_name": contactReq.ContactName,
 		"message_id":   result.MessageID,
 	})
@@ -574,7 +574,7 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid contact list format"))
 	}
 
-	if contactListReq.JID == "" {
+	if contactListReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -618,21 +618,21 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 	if len(contactListReq.Contacts) == 1 {
 		contact := contacts[0]
 
-		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.JID, contact)
+		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.RemoteJID, contact)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send single contact", map[string]interface{}{
 				"session_id":   sess.ID.String(),
-				"to":           contactListReq.JID,
+				"to":           contactListReq.RemoteJID,
 				"contact_name": contact.Name,
 				"error":        err.Error(),
 			})
 		}
 	} else {
-		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.JID, contacts)
+		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.RemoteJID, contacts)
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
 				"session_id":    sess.ID.String(),
-				"to":            contactListReq.JID,
+				"to":            contactListReq.RemoteJID,
 				"contact_count": len(contactListReq.Contacts),
 				"error":         err.Error(),
 			})
@@ -672,7 +672,7 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 
 	h.logger.InfoWithFields("Contact sent successfully", map[string]interface{}{
 		"session_id":     sess.ID.String(),
-		"to":             contactListReq.JID,
+		"to":             contactListReq.RemoteJID,
 		"total_contacts": result.TotalContacts,
 		"success_count":  result.SuccessCount,
 		"failure_count":  result.FailureCount,
@@ -713,7 +713,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid business profile format"))
 	}
 
-	if businessReq.JID == "" {
+	if businessReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -721,7 +721,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("'name' field is required"))
 	}
 
-	if businessReq.JID == "" {
+	if businessReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'phone' field is required"))
 	}
 
@@ -732,7 +732,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 
 	contact := wameow.ContactInfo{
 		Name:         businessReq.Name,
-		Phone:        businessReq.JID,
+		Phone:        businessReq.RemoteJID,
 		Email:        businessReq.Email,
 		Organization: businessReq.Organization,
 		Title:        businessReq.Title,
@@ -740,11 +740,11 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 		Address:      businessReq.Address,
 	}
 
-	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.JID, contact)
+	result, err := h.wameowManager.SendSingleContactBusinessFormat(sess.ID.String(), businessReq.RemoteJID, contact)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send business profile", map[string]interface{}{
 			"session_id":    sess.ID.String(),
-			"to":            businessReq.JID,
+			"to":            businessReq.RemoteJID,
 			"business_name": businessReq.Name,
 			"error":         err.Error(),
 		})
@@ -758,7 +758,7 @@ func (h *MessageHandler) SendBusinessProfile(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Business profile sent successfully", map[string]interface{}{
 		"session_id":    sess.ID.String(),
-		"to":            businessReq.JID,
+		"to":            businessReq.RemoteJID,
 		"business_name": businessReq.Name,
 		"format_type":   "Business",
 	})
@@ -797,7 +797,7 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid text message format"))
 	}
 
-	if textReq.JID == "" {
+	if textReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -816,11 +816,11 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.JID, textReq.Body, textReq.ContextInfo)
+	result, err := h.wameowManager.SendTextMessage(sess.ID.String(), textReq.RemoteJID, textReq.Body, textReq.ContextInfo)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send text message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         textReq.JID,
+			"to":         textReq.RemoteJID,
 			"has_reply":  textReq.ContextInfo != nil,
 			"error":      err.Error(),
 		})
@@ -834,7 +834,7 @@ func (h *MessageHandler) SendText(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Text message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         textReq.JID,
+		"to":         textReq.RemoteJID,
 		"message_id": result.MessageID,
 		"has_reply":  textReq.ContextInfo != nil,
 	})
@@ -874,10 +874,10 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		ButtonText string `json:"ButtonText"`
 	}
 	type buttonRequest struct {
-		JID     string         `json:"jid"`
-		Title   string         `json:"Title"`
-		Buttons []buttonStruct `json:"Buttons"`
-		Id      string         `json:"Id,omitempty"`
+		RemoteJID string         `json:"remoteJid"`
+		Title     string         `json:"Title"`
+		Buttons   []buttonStruct `json:"Buttons"`
+		Id        string         `json:"Id,omitempty"`
 	}
 
 	var buttonReq buttonRequest
@@ -885,7 +885,7 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
 	}
 
-	if buttonReq.JID == "" {
+	if buttonReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("missing Phone in Payload"))
 	}
 
@@ -914,11 +914,11 @@ func (h *MessageHandler) SendButtonMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.JID, buttonReq.Title, buttons)
+	result, err := h.wameowManager.SendButtonMessage(sess.ID.String(), buttonReq.RemoteJID, buttonReq.Title, buttons)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send button message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         buttonReq.JID,
+			"to":         buttonReq.RemoteJID,
 			"error":      err.Error(),
 		})
 
@@ -965,7 +965,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		Rows  []listItem `json:"rows"`
 	}
 	type listRequest struct {
-		JID        string     `json:"jid"`
+		RemoteJID  string     `json:"remoteJid"`
 		ButtonText string     `json:"ButtonText"`
 		Desc       string     `json:"Desc"`
 		TopText    string     `json:"TopText"`
@@ -981,7 +981,7 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	}
 
 	// Required fields validation - FooterText is optional
-	if listReq.JID == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
+	if listReq.RemoteJID == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("missing required fields: Phone, ButtonText, Desc, TopText"))
 	}
 
@@ -1031,11 +1031,11 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		})
 	}
 
-	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.JID, listReq.Desc, listReq.ButtonText, sections)
+	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.RemoteJID, listReq.Desc, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         listReq.JID,
+			"to":         listReq.RemoteJID,
 			"error":      err.Error(),
 		})
 
@@ -1077,7 +1077,7 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if reactionReq.JID == "" || reactionReq.MessageID == "" || reactionReq.Reaction == "" {
+	if reactionReq.RemoteJID == "" || reactionReq.MessageID == "" || reactionReq.Reaction == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone', 'messageId', and 'reaction' are required"))
 	}
 
@@ -1086,11 +1086,11 @@ func (h *MessageHandler) SendReaction(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.SendReaction(sess.ID.String(), reactionReq.JID, reactionReq.MessageID, reactionReq.Reaction)
+	err = h.wameowManager.SendReaction(sess.ID.String(), reactionReq.RemoteJID, reactionReq.MessageID, reactionReq.Reaction)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send reaction", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         reactionReq.JID,
+			"to":         reactionReq.RemoteJID,
 			"message_id": reactionReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1138,7 +1138,7 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if presenceReq.JID == "" || presenceReq.Presence == "" {
+	if presenceReq.RemoteJID == "" || presenceReq.Presence == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' and 'presence' are required"))
 	}
 
@@ -1160,11 +1160,11 @@ func (h *MessageHandler) SendPresence(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.SendPresence(sess.ID.String(), presenceReq.JID, presenceReq.Presence)
+	err = h.wameowManager.SendPresence(sess.ID.String(), presenceReq.RemoteJID, presenceReq.Presence)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send presence", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         presenceReq.JID,
+			"to":         presenceReq.RemoteJID,
 			"presence":   presenceReq.Presence,
 			"error":      err.Error(),
 		})
@@ -1211,7 +1211,7 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if editReq.JID == "" || editReq.MessageID == "" || editReq.NewBody == "" {
+	if editReq.RemoteJID == "" || editReq.MessageID == "" || editReq.NewBody == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone', 'messageId', and 'newBody' are required"))
 	}
 
@@ -1228,7 +1228,7 @@ func (h *MessageHandler) EditMessage(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to edit message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         editReq.JID,
+			"to":         editReq.RemoteJID,
 			"message_id": editReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1264,7 +1264,7 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 	}
 
 	var markReadReq struct {
-		JID       string `json:"jid" validate:"required"`
+		RemoteJID string `json:"remoteJid" validate:"required"`
 		MessageID string `json:"messageId" validate:"required"`
 	}
 
@@ -1272,7 +1272,7 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
-	if markReadReq.JID == "" || markReadReq.MessageID == "" {
+	if markReadReq.RemoteJID == "" || markReadReq.MessageID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' and 'messageId' are required"))
 	}
 
@@ -1281,11 +1281,11 @@ func (h *MessageHandler) MarkAsRead(c *fiber.Ctx) error {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	err = h.wameowManager.MarkRead(sess.ID.String(), markReadReq.JID, markReadReq.MessageID)
+	err = h.wameowManager.MarkRead(sess.ID.String(), markReadReq.RemoteJID, markReadReq.MessageID)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to mark message as read", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         markReadReq.JID,
+			"to":         markReadReq.RemoteJID,
 			"message_id": markReadReq.MessageID,
 			"error":      err.Error(),
 		})
@@ -1323,7 +1323,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 
 	req.Type = messageType
 
-	if req.JID == "" {
+	if req.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Recipient (Phone) is required"))
 	}
 
@@ -1363,7 +1363,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send "+messageType+" message", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         req.JID,
+			"to":         req.RemoteJID,
 			"type":       messageType,
 			"error":      err.Error(),
 		})
@@ -1386,7 +1386,7 @@ func (h *MessageHandler) sendSpecificMessageType(c *fiber.Ctx, messageType strin
 
 	h.logger.InfoWithFields(capitalizeFirst(messageType)+" message sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         req.JID,
+		"to":         req.RemoteJID,
 		"type":       messageType,
 		"message_id": response.ID,
 	})
@@ -1462,7 +1462,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 	}
 
 	// Validate required fields
-	if pollReq.JID == "" {
+	if pollReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
 
@@ -1494,18 +1494,18 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Sending poll", map[string]interface{}{
 		"session_id":       sess.ID.String(),
-		"to":               pollReq.JID,
+		"to":               pollReq.RemoteJID,
 		"name":             pollReq.Name,
 		"options_count":    len(pollReq.Options),
 		"selectable_count": pollReq.SelectableOptionCount,
 	})
 
 	// Send poll using wameow manager
-	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.JID, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
+	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.RemoteJID, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"to":         pollReq.JID,
+			"to":         pollReq.RemoteJID,
 			"name":       pollReq.Name,
 			"error":      err.Error(),
 		})
@@ -1523,7 +1523,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Poll sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"to":         pollReq.JID,
+		"to":         pollReq.RemoteJID,
 		"name":       pollReq.Name,
 		"message_id": result.MessageID,
 	})
@@ -1532,7 +1532,7 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 		MessageID: result.MessageID,
 		PollName:  pollReq.Name,
 		Options:   pollReq.Options,
-		JID:       pollReq.JID,
+		RemoteJID: pollReq.RemoteJID,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
 	}
@@ -1570,14 +1570,14 @@ func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Message ID is required"))
 	}
 
-	if req.JID == "" {
+	if req.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("Phone field is required"))
 	}
 
 	h.logger.InfoWithFields("Revoking message", map[string]interface{}{
 		"session":    sessionIdentifier,
 		"message_id": req.MessageID,
-		"to":         req.JID,
+		"to":         req.RemoteJID,
 	})
 
 	// Resolve session
@@ -1599,7 +1599,7 @@ func (h *MessageHandler) RevokeMessage(c *fiber.Ctx) error {
 		h.logger.ErrorWithFields("Failed to revoke message", map[string]interface{}{
 			"session_id": sess.ID.String(),
 			"message_id": req.MessageID,
-			"to":         req.JID,
+			"to":         req.RemoteJID,
 			"error":      err.Error(),
 		})
 
@@ -1640,15 +1640,15 @@ func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Message ID is required"))
 	}
 
-	chatJID := c.Query("chatJid")
-	if chatJID == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Chat JID is required"))
+	remoteJID := c.Query("remoteJid")
+	if remoteJID == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Remote JID is required"))
 	}
 
 	h.logger.InfoWithFields("Getting poll results", map[string]interface{}{
-		"session":    sessionIdentifier,
-		"message_id": messageID,
-		"chat_jid":   chatJID,
+		"session":     sessionIdentifier,
+		"message_id":  messageID,
+		"remote_jid":  remoteJID,
 	})
 
 	// Resolve session
@@ -1663,7 +1663,7 @@ func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
 
 	// Create request
 	req := &message.GetPollResultsRequest{
-		JID:           chatJID,
+		RemoteJID:     remoteJID,
 		PollMessageID: messageID,
 	}
 
@@ -1673,7 +1673,7 @@ func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
 		h.logger.ErrorWithFields("Failed to get poll results", map[string]interface{}{
 			"session_id": sess.ID.String(),
 			"message_id": messageID,
-			"chat_jid":   chatJID,
+			"remote_jid": remoteJID,
 			"error":      err.Error(),
 		})
 

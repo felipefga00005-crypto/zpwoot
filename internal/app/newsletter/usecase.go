@@ -150,7 +150,7 @@ func (uc *useCaseImpl) GetNewsletterInfo(ctx context.Context, sessionID string, 
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid get newsletter info request", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("validation failed: %w", err)
@@ -171,7 +171,7 @@ func (uc *useCaseImpl) GetNewsletterInfo(ctx context.Context, sessionID string, 
 	}
 
 	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.JID)
+	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
 
 	uc.logger.InfoWithFields("Getting newsletter info", map[string]interface{}{
 		"session_id": sessionID,
@@ -278,7 +278,7 @@ func (uc *useCaseImpl) FollowNewsletter(ctx context.Context, sessionID string, r
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid follow newsletter request", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("validation failed: %w", err)
@@ -299,7 +299,7 @@ func (uc *useCaseImpl) FollowNewsletter(ctx context.Context, sessionID string, r
 	}
 
 	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.JID)
+	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
 
 	uc.logger.InfoWithFields("Following newsletter", map[string]interface{}{
 		"session_id": sessionID,
@@ -331,7 +331,7 @@ func (uc *useCaseImpl) UnfollowNewsletter(ctx context.Context, sessionID string,
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid unfollow newsletter request", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("validation failed: %w", err)
@@ -352,7 +352,7 @@ func (uc *useCaseImpl) UnfollowNewsletter(ctx context.Context, sessionID string,
 	}
 
 	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.JID)
+	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
 
 	uc.logger.InfoWithFields("Unfollowing newsletter", map[string]interface{}{
 		"session_id": sessionID,
@@ -432,7 +432,7 @@ func (uc *useCaseImpl) GetSubscribedNewsletters(ctx context.Context, sessionID s
 func (uc *useCaseImpl) GetNewsletterMessages(ctx context.Context, sessionID string, req *GetNewsletterMessagesRequest) (*GetNewsletterMessagesResponse, error) {
 	uc.logger.InfoWithFields("Getting newsletter messages", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      req.Count,
 		"before":     req.Before,
 	})
@@ -464,11 +464,11 @@ func (uc *useCaseImpl) GetNewsletterMessages(ctx context.Context, sessionID stri
 	}
 
 	// Get messages from newsletter manager
-	messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.JID, req.Count, req.Before)
+	messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.NewsletterJID, req.Count, req.Before)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to get newsletter messages", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to get newsletter messages: %w", err)
@@ -476,7 +476,7 @@ func (uc *useCaseImpl) GetNewsletterMessages(ctx context.Context, sessionID stri
 
 	uc.logger.InfoWithFields("Newsletter messages retrieved successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      len(messages),
 	})
 
@@ -487,7 +487,7 @@ func (uc *useCaseImpl) GetNewsletterMessages(ctx context.Context, sessionID stri
 func (uc *useCaseImpl) GetNewsletterMessageUpdates(ctx context.Context, sessionID string, req *GetNewsletterMessageUpdatesRequest) (*GetNewsletterMessageUpdatesResponse, error) {
 	uc.logger.InfoWithFields("Getting newsletter message updates", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      req.Count,
 		"since":      req.Since,
 		"after":      req.After,
@@ -520,11 +520,11 @@ func (uc *useCaseImpl) GetNewsletterMessageUpdates(ctx context.Context, sessionI
 	}
 
 	// Get updates from newsletter manager
-	updates, err := uc.newsletterManager.GetNewsletterMessageUpdates(ctx, sessionID, req.JID, req.Count, req.Since, req.After)
+	updates, err := uc.newsletterManager.GetNewsletterMessageUpdates(ctx, sessionID, req.NewsletterJID, req.Count, req.Since, req.After)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to get newsletter message updates", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to get newsletter message updates: %w", err)
@@ -532,7 +532,7 @@ func (uc *useCaseImpl) GetNewsletterMessageUpdates(ctx context.Context, sessionI
 
 	uc.logger.InfoWithFields("Newsletter message updates retrieved successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      len(updates),
 	})
 
@@ -543,7 +543,7 @@ func (uc *useCaseImpl) GetNewsletterMessageUpdates(ctx context.Context, sessionI
 func (uc *useCaseImpl) NewsletterMarkViewed(ctx context.Context, sessionID string, req *NewsletterMarkViewedRequest) (*NewsletterActionResponse, error) {
 	uc.logger.InfoWithFields("Marking newsletter messages as viewed", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      len(req.ServerIDs),
 	})
 
@@ -571,11 +571,11 @@ func (uc *useCaseImpl) NewsletterMarkViewed(ctx context.Context, sessionID strin
 	}
 
 	// Mark messages as viewed
-	err = uc.newsletterManager.NewsletterMarkViewed(ctx, sessionID, req.JID, req.ServerIDs)
+	err = uc.newsletterManager.NewsletterMarkViewed(ctx, sessionID, req.NewsletterJID, req.ServerIDs)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to mark newsletter messages as viewed", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to mark newsletter messages as viewed: %w", err)
@@ -583,18 +583,18 @@ func (uc *useCaseImpl) NewsletterMarkViewed(ctx context.Context, sessionID strin
 
 	uc.logger.InfoWithFields("Newsletter messages marked as viewed successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"count":      len(req.ServerIDs),
 	})
 
-	return NewNewsletterActionResponse(req.JID, "success", "Messages marked as viewed successfully"), nil
+	return NewNewsletterActionResponse(req.NewsletterJID, "success", "Messages marked as viewed successfully"), nil
 }
 
 // NewsletterSendReaction sends a reaction to a newsletter message
 func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID string, req *NewsletterSendReactionRequest) (*NewsletterActionResponse, error) {
 	uc.logger.InfoWithFields("Sending newsletter reaction", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"server_id":  req.ServerID,
 		"reaction":   req.Reaction,
 	})
@@ -627,16 +627,16 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 	if serverID == "" {
 		uc.logger.InfoWithFields("ServerID not provided, looking up from MessageID", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"message_id": req.MessageID,
 		})
 
 		// Get recent messages to find the ServerID for this MessageID
-		messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.JID, 50, "")
+		messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.NewsletterJID, 50, "")
 		if err != nil {
 			uc.logger.ErrorWithFields("Failed to get newsletter messages for ServerID lookup", map[string]interface{}{
 				"session_id": sessionID,
-				"jid":        req.JID,
+				"jid":        req.NewsletterJID,
 				"error":      err.Error(),
 			})
 			return nil, fmt.Errorf("failed to lookup ServerID: %w", err)
@@ -656,16 +656,16 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 		}
 
 		if serverID == "" {
-			return nil, fmt.Errorf("could not find ServerID for MessageID %s in newsletter %s", req.MessageID, req.JID)
+			return nil, fmt.Errorf("could not find ServerID for MessageID %s in newsletter %s", req.MessageID, req.NewsletterJID)
 		}
 	}
 
 	// Send reaction
-	err = uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.JID, serverID, req.Reaction, req.MessageID)
+	err = uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.NewsletterJID, serverID, req.Reaction, req.MessageID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to send newsletter reaction", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"server_id":  serverID,
 			"message_id": req.MessageID,
 			"error":      err.Error(),
@@ -675,7 +675,7 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 
 	uc.logger.InfoWithFields("Newsletter reaction sent successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"server_id":  serverID,
 		"message_id": req.MessageID,
 		"reaction":   req.Reaction,
@@ -686,14 +686,14 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 		message = "Reaction removed successfully"
 	}
 
-	return NewNewsletterActionResponse(req.JID, "success", message), nil
+	return NewNewsletterActionResponse(req.NewsletterJID, "success", message), nil
 }
 
 // NewsletterSubscribeLiveUpdates subscribes to live updates from a newsletter
 func (uc *useCaseImpl) NewsletterSubscribeLiveUpdates(ctx context.Context, sessionID string, req *NewsletterSubscribeLiveUpdatesRequest) (*NewsletterSubscribeLiveUpdatesResponse, error) {
 	uc.logger.InfoWithFields("Subscribing to newsletter live updates", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 	})
 
 	// Validate session
@@ -720,11 +720,11 @@ func (uc *useCaseImpl) NewsletterSubscribeLiveUpdates(ctx context.Context, sessi
 	}
 
 	// Subscribe to live updates
-	duration, err := uc.newsletterManager.NewsletterSubscribeLiveUpdates(ctx, sessionID, req.JID)
+	duration, err := uc.newsletterManager.NewsletterSubscribeLiveUpdates(ctx, sessionID, req.NewsletterJID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to subscribe to newsletter live updates", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to subscribe to newsletter live updates: %w", err)
@@ -732,7 +732,7 @@ func (uc *useCaseImpl) NewsletterSubscribeLiveUpdates(ctx context.Context, sessi
 
 	uc.logger.InfoWithFields("Subscribed to newsletter live updates successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"duration":   duration,
 	})
 
@@ -743,7 +743,7 @@ func (uc *useCaseImpl) NewsletterSubscribeLiveUpdates(ctx context.Context, sessi
 func (uc *useCaseImpl) NewsletterToggleMute(ctx context.Context, sessionID string, req *NewsletterToggleMuteRequest) (*NewsletterActionResponse, error) {
 	uc.logger.InfoWithFields("Toggling newsletter mute status", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"mute":       req.Mute,
 	})
 
@@ -771,11 +771,11 @@ func (uc *useCaseImpl) NewsletterToggleMute(ctx context.Context, sessionID strin
 	}
 
 	// Toggle mute status
-	err = uc.newsletterManager.NewsletterToggleMute(ctx, sessionID, req.JID, req.Mute)
+	err = uc.newsletterManager.NewsletterToggleMute(ctx, sessionID, req.NewsletterJID, req.Mute)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to toggle newsletter mute status", map[string]interface{}{
 			"session_id": sessionID,
-			"jid":        req.JID,
+			"jid":        req.NewsletterJID,
 			"mute":       req.Mute,
 			"error":      err.Error(),
 		})
@@ -784,7 +784,7 @@ func (uc *useCaseImpl) NewsletterToggleMute(ctx context.Context, sessionID strin
 
 	uc.logger.InfoWithFields("Newsletter mute status toggled successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"jid":        req.JID,
+		"jid":        req.NewsletterJID,
 		"mute":       req.Mute,
 	})
 
@@ -793,7 +793,7 @@ func (uc *useCaseImpl) NewsletterToggleMute(ctx context.Context, sessionID strin
 		message = "Newsletter unmuted successfully"
 	}
 
-	return NewNewsletterActionResponse(req.JID, "success", message), nil
+	return NewNewsletterActionResponse(req.NewsletterJID, "success", message), nil
 }
 
 // AcceptTOSNotice accepts a terms of service notice

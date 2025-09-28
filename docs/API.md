@@ -109,7 +109,7 @@ Replace these variables in the examples:
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "body": "Hello World"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "body": "Hello World"}'
 ```
 
 ### Send Image
@@ -117,7 +117,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/image" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "caption": "Test image"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "caption": "Test image"}'
 ```
 
 ### Send Audio
@@ -125,7 +125,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/image" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/audio" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", "ptt": true}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "https://www.soundjay.com/misc/sounds/bell-ringing-05.wav", "ptt": true}'
 ```
 
 ### Send Video
@@ -133,7 +133,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/audio" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/video" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://cdn1.hongtaocdn3.com/video/m3u8/202401/24/49b02fdd58b9/49b02fdd58b9.mp4", "caption": "Test video"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "https://cdn1.hongtaocdn3.com/video/m3u8/202401/24/49b02fdd58b9/49b02fdd58b9.mp4", "caption": "Test video"}'
 ```
 
 ### Send Document
@@ -141,7 +141,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/video" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/document" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "filename": "document.pdf"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf", "filename": "document.pdf"}'
 ```
 
 ### Send Sticker (Base64)
@@ -149,7 +149,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/document" 
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/sticker" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAAAwAQCdASoQABAAAgA0JaQAA3AA/vuqAAA="}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "data:image/webp;base64,UklGRlIAAABXRUJQVlA4IEYAAAAwAQCdASoQABAAAgA0JaQAA3AA/vuqAAA="}'
 ```
 
 ### Send Location
@@ -157,7 +157,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/sticker" \
 curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/location" \
   -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "latitude": -23.5505, "longitude": -46.6333, "address": "São Paulo"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "latitude": -23.5505, "longitude": -46.6333, "address": "São Paulo"}'
 ```
 
 ### Send Contact
@@ -165,7 +165,7 @@ curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33
 curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/contact" \
   -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "contactName": "John Doe", "contactPhone": "+5511987654321"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "contactName": "John Doe", "contactPhone": "+5511987654321"}'
 ```
 
 ### Send Poll
@@ -173,7 +173,7 @@ curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33
 curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/poll" \
   -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "name": "Favorite color?", "options": ["Red", "Blue", "Green"], "selectableOptionCount": 1}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "name": "Favorite color?", "options": ["Red", "Blue", "Green"], "selectableOptionCount": 1}'
 ```
 
 ### Send Reaction
@@ -181,7 +181,7 @@ curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33
 curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/reaction" \
   -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "3EB06398DC0CB5E35C31CE", "reaction": "👍"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "messageId": "3EB06398DC0CB5E35C31CE", "reaction": "👍"}'
 ```
 
 ### Send Media (Auto-detect)
@@ -189,7 +189,7 @@ curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33
 curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33c/messages/send/media" \
   -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "mimeType": "image/jpeg", "caption": "Auto-detected image"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "file": "https://picsum.photos/400/300.jpg", "mimeType": "image/jpeg", "caption": "Auto-detected image"}'
 ```
 
 ### Mark Message as Read
@@ -197,7 +197,7 @@ curl -X POST "http://localhost:8080/sessions/b4f3f798-4f80-4369-b602-ce09e8b0a33
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/mark-read" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID"}'
 ```
 
 ### Edit Message
@@ -205,7 +205,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/mark-read" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/edit" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID", "newBody": "Edited message"}'
+  -d '{"remoteJid": "5511999999999@s.whatsapp.net", "messageId": "MESSAGE_ID", "newBody": "Edited message"}'
 ```
 
 ### Check WhatsApp Numbers
@@ -296,7 +296,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/create" \
 
 ### Get Newsletter Info
 ```bash
-curl "http://localhost:8080/sessions/SESSION_ID/newsletters/info?jid=120363123456789012@newsletter" \
+curl "http://localhost:8080/sessions/SESSION_ID/newsletters/info?newsletterJid=120363123456789012@newsletter" \
   -H "Authorization: ZP_API_KEY"
 ```
 
@@ -313,7 +313,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/info-from-in
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/follow" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "120363123456789012@newsletter"}'
+  -d '{"newsletterJid": "120363123456789012@newsletter"}'
 ```
 
 ### Unfollow Newsletter
@@ -321,7 +321,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/follow" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/unfollow" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "120363123456789012@newsletter"}'
+  -d '{"newsletterJid": "120363123456789012@newsletter"}'
 ```
 
 ### List Subscribed Newsletters
@@ -425,7 +425,7 @@ To send emojis in messages, use one of these methods:
 ### Method 1: JSON File (Recommended)
 ```bash
 # Create file with emoji
-echo '{"jid": "+5511999999999", "body": "Hello! 👋 How are you? 😊🎉"}' > message.json
+echo '{"remoteJid": "+5511999999999", "body": "Hello! 👋 How are you? 😊🎉"}' > message.json
 
 # Send file
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
@@ -439,7 +439,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"jid": "+5511999999999", "body": "Party time! \\ud83c\\udf89"}'
+  -d '{"remoteJid": "+5511999999999", "body": "Party time! \\ud83c\\udf89"}'
 ```
 
 ### Method 3: UTF-8 with --data-raw
@@ -447,7 +447,7 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/messages/send/text" \
   -H "Authorization: ZP_API_KEY" \
   -H "Content-Type: application/json; charset=utf-8" \
-  --data-raw '{"jid": "+5511999999999", "body": "Hello 🌟"}'
+  --data-raw '{"remoteJid": "+5511999999999", "body": "Hello 🌟"}'
 ```
 
 ## Swagger Documentation

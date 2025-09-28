@@ -1,9 +1,11 @@
 package group
 
 import (
+	"fmt"
 	"time"
 
 	"zpwoot/internal/domain/group"
+	"go.mau.fi/whatsmeow/types"
 )
 
 // CreateGroupRequest represents the request to create a new group
@@ -199,4 +201,129 @@ func FromDomainGroupList(groups []*group.GroupInfo) []GroupInfo {
 		}
 	}
 	return result
+}
+
+// ============================================================================
+// ADVANCED GROUP DTOs
+// ============================================================================
+
+// GetGroupInfoFromLinkRequest represents the request for getting group info from link
+type GetGroupInfoFromLinkRequest struct {
+	InviteLink string `json:"inviteLink" validate:"required" example:"https://chat.whatsapp.com/ABC123DEF456"`
+} //@name GetGroupInfoFromLinkRequest
+
+// Validate validates the get group info from link request
+func (r *GetGroupInfoFromLinkRequest) Validate() error {
+	if r.InviteLink == "" {
+		return fmt.Errorf("invite link is required")
+	}
+	return nil
+}
+
+// GetGroupInfoFromInviteRequest represents the request for getting group info from invite
+type GetGroupInfoFromInviteRequest struct {
+	GroupJID   string `json:"groupJid" validate:"required" example:"120363123456789012@g.us"`
+	Inviter    string `json:"inviter,omitempty" example:"5511999999999@s.whatsapp.net"`
+	Code       string `json:"code" validate:"required" example:"ABC123DEF456"`
+	Expiration int64  `json:"expiration,omitempty" example:"1640995200"`
+} //@name GetGroupInfoFromInviteRequest
+
+// Validate validates the get group info from invite request
+func (r *GetGroupInfoFromInviteRequest) Validate() error {
+	if r.GroupJID == "" {
+		return fmt.Errorf("group JID is required")
+	}
+	if r.Code == "" {
+		return fmt.Errorf("invite code is required")
+	}
+	return nil
+}
+
+// JoinGroupWithInviteRequest represents the request for joining group with invite
+type JoinGroupWithInviteRequest struct {
+	GroupJID   string `json:"groupJid" validate:"required" example:"120363123456789012@g.us"`
+	Inviter    string `json:"inviter,omitempty" example:"5511999999999@s.whatsapp.net"`
+	Code       string `json:"code" validate:"required" example:"ABC123DEF456"`
+	Expiration int64  `json:"expiration,omitempty" example:"1640995200"`
+} //@name JoinGroupWithInviteRequest
+
+// Validate validates the join group with invite request
+func (r *JoinGroupWithInviteRequest) Validate() error {
+	if r.GroupJID == "" {
+		return fmt.Errorf("group JID is required")
+	}
+	if r.Code == "" {
+		return fmt.Errorf("invite code is required")
+	}
+	return nil
+}
+
+// GroupInfoFromLinkResponse represents the response for group info from link
+type GroupInfoFromLinkResponse struct {
+	JID              string `json:"jid" example:"120363123456789012@g.us"`
+	Name             string `json:"name" example:"My Group"`
+	Description      string `json:"description" example:"Group description"`
+	ParticipantCount int    `json:"participantCount" example:"10"`
+	IsAnnouncement   bool   `json:"isAnnouncement" example:"false"`
+	IsLocked         bool   `json:"isLocked" example:"false"`
+	CreatedAt        string `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+} //@name GroupInfoFromLinkResponse
+
+// NewGroupInfoFromLinkResponse creates a new group info from link response
+func NewGroupInfoFromLinkResponse(groupInfo *types.GroupInfo) *GroupInfoFromLinkResponse {
+	return &GroupInfoFromLinkResponse{
+		JID:              groupInfo.JID.String(),
+		Name:             groupInfo.GroupName.Name,
+		Description:      groupInfo.GroupTopic.Topic,
+		ParticipantCount: len(groupInfo.Participants),
+		IsAnnouncement:   groupInfo.GroupAnnounce.IsAnnounce,
+		IsLocked:         groupInfo.GroupLocked.IsLocked,
+		CreatedAt:        groupInfo.GroupCreated.Format(time.RFC3339),
+	}
+}
+
+// GroupInfoFromInviteResponse represents the response for group info from invite
+type GroupInfoFromInviteResponse struct {
+	JID              string `json:"jid" example:"120363123456789012@g.us"`
+	Name             string `json:"name" example:"My Group"`
+	Description      string `json:"description" example:"Group description"`
+	ParticipantCount int    `json:"participantCount" example:"10"`
+	IsAnnouncement   bool   `json:"isAnnouncement" example:"false"`
+	IsLocked         bool   `json:"isLocked" example:"false"`
+	CreatedAt        string `json:"createdAt" example:"2024-01-01T00:00:00Z"`
+	InviteCode       string `json:"inviteCode" example:"ABC123DEF456"`
+	Inviter          string `json:"inviter,omitempty" example:"5511999999999@s.whatsapp.net"`
+} //@name GroupInfoFromInviteResponse
+
+// NewGroupInfoFromInviteResponse creates a new group info from invite response
+func NewGroupInfoFromInviteResponse(groupInfo *types.GroupInfo, code, inviter string) *GroupInfoFromInviteResponse {
+	return &GroupInfoFromInviteResponse{
+		JID:              groupInfo.JID.String(),
+		Name:             groupInfo.GroupName.Name,
+		Description:      groupInfo.GroupTopic.Topic,
+		ParticipantCount: len(groupInfo.Participants),
+		IsAnnouncement:   groupInfo.GroupAnnounce.IsAnnounce,
+		IsLocked:         groupInfo.GroupLocked.IsLocked,
+		CreatedAt:        groupInfo.GroupCreated.Format(time.RFC3339),
+		InviteCode:       code,
+		Inviter:          inviter,
+	}
+}
+
+// JoinGroupWithInviteResponse represents the response for joining group with invite
+type JoinGroupWithInviteResponse struct {
+	Success   bool   `json:"success" example:"true"`
+	Message   string `json:"message" example:"Successfully joined group"`
+	GroupJID  string `json:"groupJid" example:"120363123456789012@g.us"`
+	JoinedAt  string `json:"joinedAt" example:"2024-01-01T00:00:00Z"`
+} //@name JoinGroupWithInviteResponse
+
+// NewJoinGroupWithInviteResponse creates a new join group with invite response
+func NewJoinGroupWithInviteResponse(groupJID string, success bool, message string) *JoinGroupWithInviteResponse {
+	return &JoinGroupWithInviteResponse{
+		Success:  success,
+		Message:  message,
+		GroupJID: groupJID,
+		JoinedAt: time.Now().Format(time.RFC3339),
+	}
 }

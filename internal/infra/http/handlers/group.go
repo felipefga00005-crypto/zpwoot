@@ -85,9 +85,9 @@ func (h *GroupHandler) GetGroupInfo(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Query("jid")
+	groupJID := c.Query("groupJid")
 	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
+		return fiber.NewError(400, "Group JID is required as query parameter: ?groupJid=...")
 	}
 
 	req := &group.GetGroupInfoRequest{
@@ -306,9 +306,9 @@ func (h *GroupHandler) GetGroupInviteLink(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJID := c.Query("jid")
+	groupJID := c.Query("groupJid")
 	if groupJID == "" {
-		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
+		return fiber.NewError(400, "Group JID is required as query parameter: ?groupJid=...")
 	}
 
 	reset := c.QueryBool("reset", false)
@@ -458,9 +458,9 @@ func (h *GroupHandler) GetGroupRequestParticipants(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	groupJid := c.Query("jid")
+	groupJid := c.Query("groupJid")
 	if groupJid == "" {
-		return fiber.NewError(400, "Group JID is required as query parameter: ?jid=...")
+		return fiber.NewError(400, "Group JID is required as query parameter: ?groupJid=...")
 	}
 
 	h.logger.InfoWithFields("Getting group request participants", map[string]interface{}{
@@ -643,4 +643,159 @@ func (h *GroupHandler) SetGroupMemberAddMode(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// ============================================================================
+// ADVANCED GROUP HANDLERS
+// ============================================================================
+
+// GetGroupInfoFromLink gets group information from an invite link
+// GET /sessions/:sessionId/groups/info-from-link?inviteLink=...
+func (h *GroupHandler) GetGroupInfoFromLink(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	inviteLink := c.Query("inviteLink")
+	if inviteLink == "" {
+		return fiber.NewError(400, "Invite link parameter is required")
+	}
+
+	req := &group.GetGroupInfoFromLinkRequest{
+		InviteLink: inviteLink,
+	}
+
+	h.logger.InfoWithFields("Getting group info from link", map[string]interface{}{
+		"session_id":  sess.ID.String(),
+		"invite_link": inviteLink,
+	})
+
+	response, err := h.groupUC.GetGroupInfoFromLink(c.Context(), sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to get group info from link", map[string]interface{}{
+			"session_id":  sess.ID.String(),
+			"invite_link": inviteLink,
+			"error":       err.Error(),
+		})
+
+		if err.Error() == "session is not connected" {
+			return fiber.NewError(400, "Session is not connected")
+		}
+
+		return fiber.NewError(500, "Failed to get group info from link")
+	}
+
+	h.logger.InfoWithFields("Group info retrieved from link successfully", map[string]interface{}{
+		"session_id": sess.ID,
+		"group_jid":  response.JID,
+		"group_name": response.Name,
+	})
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// GetGroupInfoFromInvite gets group information from an invite
+// POST /sessions/:sessionId/groups/info-from-invite
+func (h *GroupHandler) GetGroupInfoFromInvite(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	var req group.GetGroupInfoFromInviteRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.WarnWithFields("Failed to parse get group info from invite request", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	h.logger.InfoWithFields("Getting group info from invite", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"group_jid":  req.GroupJID,
+		"code":       req.Code,
+	})
+
+	response, err := h.groupUC.GetGroupInfoFromInvite(c.Context(), sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to get group info from invite", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  req.GroupJID,
+			"code":       req.Code,
+			"error":      err.Error(),
+		})
+
+		if err.Error() == "session is not connected" {
+			return fiber.NewError(400, "Session is not connected")
+		}
+
+		return fiber.NewError(500, "Failed to get group info from invite")
+	}
+
+	h.logger.InfoWithFields("Group info retrieved from invite successfully", map[string]interface{}{
+		"session_id": sess.ID,
+		"group_jid":  response.JID,
+		"group_name": response.Name,
+	})
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// JoinGroupWithInvite joins a group using a specific invite
+// POST /sessions/:sessionId/groups/join-with-invite
+func (h *GroupHandler) JoinGroupWithInvite(c *fiber.Ctx) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	var req group.JoinGroupWithInviteRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.WarnWithFields("Failed to parse join group with invite request", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	h.logger.InfoWithFields("Joining group with invite", map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"group_jid":  req.GroupJID,
+		"code":       req.Code,
+	})
+
+	response, err := h.groupUC.JoinGroupWithInvite(c.Context(), sess.ID.String(), &req)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to join group with invite", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  req.GroupJID,
+			"code":       req.Code,
+			"error":      err.Error(),
+		})
+
+		if err.Error() == "session is not connected" {
+			return fiber.NewError(400, "Session is not connected")
+		}
+
+		return fiber.NewError(500, "Failed to join group with invite")
+	}
+
+	h.logger.InfoWithFields("Joined group with invite successfully", map[string]interface{}{
+		"session_id": sess.ID,
+		"group_jid":  response.GroupJID,
+		"success":    response.Success,
+	})
+
+	return c.Status(200).JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
 }

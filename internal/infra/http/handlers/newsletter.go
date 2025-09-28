@@ -104,26 +104,26 @@ func (h *NewsletterHandler) GetNewsletterInfo(c *fiber.Ctx) error {
 		return fiberErr
 	}
 
-	jid := c.Query("jid")
-	if jid == "" {
-		return fiber.NewError(400, "JID parameter is required")
+	newsletterJid := c.Query("newsletterJid")
+	if newsletterJid == "" {
+		return fiber.NewError(400, "Newsletter JID parameter is required")
 	}
 
 	req := &newsletter.GetNewsletterInfoRequest{
-		JID: jid,
+		NewsletterJID: newsletterJid,
 	}
 
 	h.logger.InfoWithFields("Getting newsletter info", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"jid":        jid,
+		"session_id":     sess.ID.String(),
+		"newsletter_jid": newsletterJid,
 	})
 
 	response, err := h.newsletterUC.GetNewsletterInfo(c.Context(), sess.ID.String(), req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get newsletter info", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"jid":        jid,
-			"error":      err.Error(),
+			"session_id":     sess.ID.String(),
+			"newsletter_jid": newsletterJid,
+			"error":          err.Error(),
 		})
 
 		if err.Error() == "session is not connected" {
@@ -221,14 +221,14 @@ func (h *NewsletterHandler) FollowNewsletter(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Following newsletter", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 	})
 
 	response, err := h.newsletterUC.FollowNewsletter(c.Context(), sess.ID.String(), &req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to follow newsletter", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"error":      err.Error(),
 		})
 
@@ -245,7 +245,7 @@ func (h *NewsletterHandler) FollowNewsletter(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter followed successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 	})
 
 	return c.JSON(fiber.Map{
@@ -273,14 +273,14 @@ func (h *NewsletterHandler) UnfollowNewsletter(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Unfollowing newsletter", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 	})
 
 	response, err := h.newsletterUC.UnfollowNewsletter(c.Context(), sess.ID.String(), &req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to unfollow newsletter", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"error":      err.Error(),
 		})
 
@@ -297,7 +297,7 @@ func (h *NewsletterHandler) UnfollowNewsletter(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter unfollowed successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 	})
 
 	return c.JSON(fiber.Map{
@@ -351,14 +351,14 @@ func (h *NewsletterHandler) GetNewsletterMessages(c *fiber.Ctx) error {
 	}
 
 	// Parse query parameters
-	jid := c.Query("jid")
-	if jid == "" {
-		h.logger.ErrorWithFields("Missing JID parameter", map[string]interface{}{
+	newsletterJid := c.Query("newsletterJid")
+	if newsletterJid == "" {
+		h.logger.ErrorWithFields("Missing Newsletter JID parameter", map[string]interface{}{
 			"session_id": sess.ID.String(),
 		})
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "Missing required parameter: jid",
+			"error":   "Missing required parameter: newsletterJid",
 		})
 	}
 
@@ -367,24 +367,24 @@ func (h *NewsletterHandler) GetNewsletterMessages(c *fiber.Ctx) error {
 	before := c.Query("before", "")  // Optional pagination
 
 	req := &newsletter.GetNewsletterMessagesRequest{
-		JID:    jid,
-		Count:  count,
-		Before: before,
+		NewsletterJID: newsletterJid,
+		Count:         count,
+		Before:        before,
 	}
 
 	h.logger.InfoWithFields("Getting newsletter messages", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"jid":        req.JID,
-		"count":      req.Count,
-		"before":     req.Before,
+		"session_id":     sess.ID.String(),
+		"newsletter_jid": req.NewsletterJID,
+		"count":          req.Count,
+		"before":         req.Before,
 	})
 
 	response, err := h.newsletterUC.GetNewsletterMessages(c.Context(), sess.ID.String(), req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get newsletter messages", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"jid":        req.JID,
-			"error":      err.Error(),
+			"session_id":     sess.ID.String(),
+			"newsletter_jid": req.NewsletterJID,
+			"error":          err.Error(),
 		})
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"success": false,
@@ -394,7 +394,7 @@ func (h *NewsletterHandler) GetNewsletterMessages(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter messages retrieved successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"count":      len(response.Messages),
 	})
 
@@ -412,14 +412,14 @@ func (h *NewsletterHandler) GetNewsletterMessageUpdates(c *fiber.Ctx) error {
 	}
 
 	// Parse query parameters
-	jid := c.Query("jid")
-	if jid == "" {
-		h.logger.ErrorWithFields("Missing JID parameter", map[string]interface{}{
+	newsletterJid := c.Query("newsletterJid")
+	if newsletterJid == "" {
+		h.logger.ErrorWithFields("Missing Newsletter JID parameter", map[string]interface{}{
 			"session_id": sess.ID.String(),
 		})
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"success": false,
-			"error":   "Missing required parameter: jid",
+			"error":   "Missing required parameter: newsletterJid",
 		})
 	}
 
@@ -429,15 +429,15 @@ func (h *NewsletterHandler) GetNewsletterMessageUpdates(c *fiber.Ctx) error {
 	after := c.Query("after", "")      // Optional pagination
 
 	req := &newsletter.GetNewsletterMessageUpdatesRequest{
-		JID:   jid,
-		Count: count,
-		Since: since,
-		After: after,
+		NewsletterJID: newsletterJid,
+		Count:         count,
+		Since:         since,
+		After:         after,
 	}
 
 	h.logger.InfoWithFields("Getting newsletter message updates", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"count":      req.Count,
 		"since":      req.Since,
 		"after":      req.After,
@@ -447,7 +447,7 @@ func (h *NewsletterHandler) GetNewsletterMessageUpdates(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to get newsletter message updates", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -458,7 +458,7 @@ func (h *NewsletterHandler) GetNewsletterMessageUpdates(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter message updates retrieved successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"count":      len(response.Updates),
 	})
 
@@ -489,7 +489,7 @@ func (h *NewsletterHandler) NewsletterMarkViewed(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Marking newsletter messages as viewed", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"count":      len(req.ServerIDs),
 	})
 
@@ -497,7 +497,7 @@ func (h *NewsletterHandler) NewsletterMarkViewed(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to mark newsletter messages as viewed", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -508,7 +508,7 @@ func (h *NewsletterHandler) NewsletterMarkViewed(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter messages marked as viewed successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"count":      len(req.ServerIDs),
 	})
 
@@ -539,7 +539,7 @@ func (h *NewsletterHandler) NewsletterSendReaction(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Sending newsletter reaction", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"server_id":  req.ServerID,
 		"reaction":   req.Reaction,
 	})
@@ -548,7 +548,7 @@ func (h *NewsletterHandler) NewsletterSendReaction(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send newsletter reaction", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"server_id":  req.ServerID,
 			"error":      err.Error(),
 		})
@@ -560,7 +560,7 @@ func (h *NewsletterHandler) NewsletterSendReaction(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter reaction sent successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"server_id":  req.ServerID,
 		"reaction":   req.Reaction,
 	})
@@ -592,14 +592,14 @@ func (h *NewsletterHandler) NewsletterSubscribeLiveUpdates(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Subscribing to newsletter live updates", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 	})
 
 	response, err := h.newsletterUC.NewsletterSubscribeLiveUpdates(c.Context(), sess.ID.String(), &req)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to subscribe to newsletter live updates", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"error":      err.Error(),
 		})
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
@@ -610,7 +610,7 @@ func (h *NewsletterHandler) NewsletterSubscribeLiveUpdates(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Subscribed to newsletter live updates successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"duration":   response.Duration,
 	})
 
@@ -641,7 +641,7 @@ func (h *NewsletterHandler) NewsletterToggleMute(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Toggling newsletter mute status", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"mute":       req.Mute,
 	})
 
@@ -649,7 +649,7 @@ func (h *NewsletterHandler) NewsletterToggleMute(c *fiber.Ctx) error {
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to toggle newsletter mute status", map[string]interface{}{
 			"session_id": sess.ID.String(),
-			"jid":        req.JID,
+			"newsletter_jid": req.NewsletterJID,
 			"mute":       req.Mute,
 			"error":      err.Error(),
 		})
@@ -661,7 +661,7 @@ func (h *NewsletterHandler) NewsletterToggleMute(c *fiber.Ctx) error {
 
 	h.logger.InfoWithFields("Newsletter mute status toggled successfully", map[string]interface{}{
 		"session_id": sess.ID.String(),
-		"jid":        req.JID,
+		"newsletter_jid": req.NewsletterJID,
 		"mute":       req.Mute,
 	})
 

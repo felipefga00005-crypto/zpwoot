@@ -60,6 +60,11 @@ type WameowManager interface {
 	SetGroupJoinApprovalMode(sessionID, groupJID string, requireApproval bool) error
 	SetGroupMemberAddMode(sessionID, groupJID string, mode string) error
 
+	// Advanced group methods
+	GetGroupInfoFromLink(sessionID string, inviteLink string) (*types.GroupInfo, error)
+	GetGroupInfoFromInvite(sessionID string, jid, inviter, code string, expiration int64) (*types.GroupInfo, error)
+	JoinGroupWithInvite(sessionID string, jid, inviter, code string, expiration int64) error
+
 	// Session statistics and event handling
 	GetSessionStats(sessionID string) (*SessionStats, error)
 	RegisterEventHandler(sessionID string, handler EventHandler) error
