@@ -401,9 +401,20 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 func (c *WameowClient) handleQREvent(evt whatsmeow.QRChannelItem) {
 	switch evt.Event {
 	case "code":
-		c.updateQRCode(evt.Code)
-		c.displayQRCode(evt.Code)
-		c.setStatus("connecting")
+		// Verifica se é um novo código antes de atualizar
+		c.qrState.mu.RLock()
+		currentCode := c.qrState.code
+		c.qrState.mu.RUnlock()
+
+		if currentCode != evt.Code {
+			c.updateQRCode(evt.Code)
+			c.displayQRCode(evt.Code)
+			c.setStatus("connecting")
+		} else {
+			c.logger.DebugWithFields("Received duplicate QR code, skipping display", map[string]interface{}{
+				"session_id": c.sessionID,
+			})
+		}
 
 	case "success":
 		c.logger.InfoWithFields("QR code scanned successfully", map[string]interface{}{
@@ -448,6 +459,13 @@ func (c *WameowClient) clearQRCode() {
 
 	c.qrState.code = ""
 	c.qrState.codeBase64 = ""
+
+	// Limpa também o último QR code do gerador para permitir novos códigos
+	if qrGen, ok := c.qrGenerator.(*QRCodeGenerator); ok {
+		qrGen.mu.Lock()
+		qrGen.lastQRCode = ""
+		qrGen.mu.Unlock()
+	}
 }
 
 func (c *WameowClient) stopQRLoop() {

@@ -130,15 +130,27 @@ func (h *EventHandler) handleLoggedOut(evt *events.LoggedOut, sessionID string) 
 }
 
 func (h *EventHandler) handleQR(evt *events.QR, sessionID string) {
+	if len(evt.Codes) == 0 {
+		h.logger.WarnWithFields("QR event received with no codes", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
 	h.logger.InfoWithFields("QR code received", map[string]interface{}{
 		"session_id":  sessionID,
 		"codes_count": len(evt.Codes),
 	})
 
-	qrImage := h.qrGen.GenerateQRCodeImage(evt.Codes[0])
+	// Gera a imagem do QR code apenas se necessário
+	qrCode := evt.Codes[0]
+	if qrCode != "" {
+		qrImage := h.qrGen.GenerateQRCodeImage(qrCode)
+		h.updateSessionQRCode(sessionID, qrImage)
 
-	h.updateSessionQRCode(sessionID, qrImage)
-
+		// Exibe o QR code no terminal (isso é redundante com o client, mas mantemos para compatibilidade)
+		h.qrGen.DisplayQRCodeInTerminal(qrCode, sessionID)
+	}
 }
 
 func (h *EventHandler) handlePairSuccess(evt *events.PairSuccess, sessionID string) {

@@ -622,13 +622,52 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
 
+	// If ServerID is not provided, try to find it from the MessageID
+	serverID := req.ServerID
+	if serverID == "" {
+		uc.logger.InfoWithFields("ServerID not provided, looking up from MessageID", map[string]interface{}{
+			"session_id": sessionID,
+			"jid":        req.JID,
+			"message_id": req.MessageID,
+		})
+
+		// Get recent messages to find the ServerID for this MessageID
+		messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.JID, 50, "")
+		if err != nil {
+			uc.logger.ErrorWithFields("Failed to get newsletter messages for ServerID lookup", map[string]interface{}{
+				"session_id": sessionID,
+				"jid":        req.JID,
+				"error":      err.Error(),
+			})
+			return nil, fmt.Errorf("failed to lookup ServerID: %w", err)
+		}
+
+		// Find the message with matching MessageID
+		for _, msg := range messages {
+			if msg.ID == req.MessageID {
+				serverID = msg.ServerID
+				uc.logger.InfoWithFields("Found ServerID for MessageID", map[string]interface{}{
+					"session_id": sessionID,
+					"message_id": req.MessageID,
+					"server_id":  serverID,
+				})
+				break
+			}
+		}
+
+		if serverID == "" {
+			return nil, fmt.Errorf("could not find ServerID for MessageID %s in newsletter %s", req.MessageID, req.JID)
+		}
+	}
+
 	// Send reaction
-	err = uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.JID, req.ServerID, req.Reaction, req.MessageID)
+	err = uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.JID, serverID, req.Reaction, req.MessageID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to send newsletter reaction", map[string]interface{}{
 			"session_id": sessionID,
 			"jid":        req.JID,
-			"server_id":  req.ServerID,
+			"server_id":  serverID,
+			"message_id": req.MessageID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to send newsletter reaction: %w", err)
@@ -637,7 +676,8 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 	uc.logger.InfoWithFields("Newsletter reaction sent successfully", map[string]interface{}{
 		"session_id": sessionID,
 		"jid":        req.JID,
-		"server_id":  req.ServerID,
+		"server_id":  serverID,
+		"message_id": req.MessageID,
 		"reaction":   req.Reaction,
 	})
 

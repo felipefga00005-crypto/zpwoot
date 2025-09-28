@@ -387,9 +387,9 @@ func (req *NewsletterMarkViewedRequest) Validate() error {
 // NewsletterSendReactionRequest represents the request for sending a reaction to a newsletter message
 type NewsletterSendReactionRequest struct {
 	JID       string `json:"jid" validate:"required"`
-	ServerID  string `json:"serverId" validate:"required"`
-	Reaction  string `json:"reaction"`          // Empty string to remove reaction
-	MessageID string `json:"messageId,omitempty"` // Optional, will be generated if empty
+	ServerID  string `json:"serverId,omitempty"`   // Optional - will be looked up from MessageID if not provided
+	Reaction  string `json:"reaction"`             // Empty string to remove reaction
+	MessageID string `json:"messageId" validate:"required"` // Required - used to find ServerID if not provided
 }
 
 // Validate validates the NewsletterSendReactionRequest
@@ -397,9 +397,10 @@ func (req *NewsletterSendReactionRequest) Validate() error {
 	if req.JID == "" {
 		return fmt.Errorf("jid is required")
 	}
-	if req.ServerID == "" {
-		return fmt.Errorf("serverId is required")
+	if req.MessageID == "" {
+		return fmt.Errorf("messageId is required")
 	}
+	// ServerID is optional - will be looked up if not provided
 	return nil
 }
 

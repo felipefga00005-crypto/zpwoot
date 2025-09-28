@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"zpwoot/internal/domain/session"
@@ -108,7 +109,9 @@ func (c *ConnectionManager) ConnectWithRetry(client *whatsmeow.Client, sessionID
 }
 
 type QRCodeGenerator struct {
-	logger *logger.Logger
+	logger    *logger.Logger
+	mu        sync.Mutex // Protege a saída do terminal
+	lastQRCode string    // Armazena o último QR code exibido para evitar duplicatas
 }
 
 func NewQRCodeGenerator(logger *logger.Logger) *QRCodeGenerator {
@@ -143,6 +146,18 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 		return
 	}
 
+	// Protege a saída do terminal contra concorrência
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	// Evita exibir o mesmo QR code repetidamente
+	if q.lastQRCode == qrCode {
+		q.logger.DebugWithFields("Skipping duplicate QR code display", map[string]interface{}{
+			"session_id": sessionID,
+		})
+		return
+	}
+
 	q.logger.InfoWithFields("Displaying compact QR code in terminal", map[string]interface{}{
 		"session_id": sessionID,
 	})
@@ -159,7 +174,34 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 		})
 	}()
 
-	qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
+	// Limpa o terminal antes de exibir o novo QR code
+	q.clearTerminal()
+
+	// Configura o qrterminal para melhor compatibilidade
+	config := qrterminal.Config{
+		Level:      qrterminal.L,
+		Writer:     os.Stdout,
+		HalfBlocks: true,
+		QuietZone:  1,
+	}
+
+	// Gera o QR code com configuração otimizada
+	qrterminal.GenerateWithConfig(qrCode, config)
+
+	// Adiciona uma linha em branco para separação visual
+	fmt.Fprintln(os.Stdout)
+
+	// Armazena o QR code atual para evitar duplicatas
+	q.lastQRCode = qrCode
+}
+
+// clearTerminal limpa a tela do terminal de forma compatível
+func (q *QRCodeGenerator) clearTerminal() {
+	// Adiciona algumas linhas em branco para "empurrar" o conteúdo anterior para cima
+	// Isso é mais compatível que usar códigos ANSI de limpeza
+	for i := 0; i < 3; i++ {
+		fmt.Fprintln(os.Stdout)
+	}
 }
 
 // sessionManager implements SessionUpdater interface
