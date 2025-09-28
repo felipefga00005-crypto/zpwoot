@@ -2812,3 +2812,256 @@ func (c *WameowClient) SetGroupMemberAddMode(ctx context.Context, groupJID strin
 
 	return nil
 }
+
+// ============================================================================
+// Newsletter Methods
+// ============================================================================
+
+// CreateNewsletter creates a new WhatsApp newsletter/channel
+func (c *WameowClient) CreateNewsletter(ctx context.Context, name, description string) (*types.NewsletterMetadata, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if name == "" {
+		return nil, fmt.Errorf("newsletter name is required")
+	}
+
+	if len(name) > 25 {
+		return nil, fmt.Errorf("newsletter name too long (max 25 characters)")
+	}
+
+	if len(description) > 512 {
+		return nil, fmt.Errorf("description too long (max 512 characters)")
+	}
+
+	params := whatsmeow.CreateNewsletterParams{
+		Name:        name,
+		Description: description,
+	}
+
+	c.logger.InfoWithFields("Creating newsletter", map[string]interface{}{
+		"session_id":  c.sessionID,
+		"name":        name,
+		"description": description,
+	})
+
+	newsletter, err := c.client.CreateNewsletter(params)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to create newsletter", map[string]interface{}{
+			"session_id": c.sessionID,
+			"name":       name,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to create newsletter: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter created successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"newsletter_id": newsletter.ID.String(),
+		"name":          name,
+	})
+
+	return newsletter, nil
+}
+
+// GetNewsletterInfo gets information about a newsletter by JID
+func (c *WameowClient) GetNewsletterInfo(ctx context.Context, jid string) (*types.NewsletterMetadata, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return nil, fmt.Errorf("newsletter JID is required")
+	}
+
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return nil, fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	// Validate that it's a newsletter JID
+	if !strings.Contains(jid, "@newsletter") {
+		return nil, fmt.Errorf("invalid newsletter JID format: must contain @newsletter")
+	}
+
+	c.logger.InfoWithFields("Getting newsletter info", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	newsletter, err := c.client.GetNewsletterInfo(parsedJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get newsletter info", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get newsletter info: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter info retrieved successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"newsletter_id": newsletter.ID.String(),
+		"name":          newsletter.ThreadMeta.Name.Text,
+	})
+
+	return newsletter, nil
+}
+
+// GetNewsletterInfoWithInvite gets newsletter information using an invite key
+func (c *WameowClient) GetNewsletterInfoWithInvite(ctx context.Context, inviteKey string) (*types.NewsletterMetadata, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if inviteKey == "" {
+		return nil, fmt.Errorf("invite key is required")
+	}
+
+	// Clean up the invite key by removing common prefixes
+	cleanKey := strings.TrimSpace(inviteKey)
+	cleanKey = strings.TrimPrefix(cleanKey, "https://whatsapp.com/channel/")
+	cleanKey = strings.TrimPrefix(cleanKey, "whatsapp.com/channel/")
+	cleanKey = strings.TrimPrefix(cleanKey, "channel/")
+
+	if cleanKey == "" {
+		return nil, fmt.Errorf("invalid invite key")
+	}
+
+	c.logger.InfoWithFields("Getting newsletter info with invite", map[string]interface{}{
+		"session_id": c.sessionID,
+		"invite_key": cleanKey,
+	})
+
+	newsletter, err := c.client.GetNewsletterInfoWithInvite(cleanKey)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get newsletter info with invite", map[string]interface{}{
+			"session_id": c.sessionID,
+			"invite_key": cleanKey,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get newsletter info with invite: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter info retrieved with invite successfully", map[string]interface{}{
+		"session_id":    c.sessionID,
+		"newsletter_id": newsletter.ID.String(),
+		"name":          newsletter.ThreadMeta.Name.Text,
+	})
+
+	return newsletter, nil
+}
+
+// FollowNewsletter makes the user follow (subscribe to) a newsletter
+func (c *WameowClient) FollowNewsletter(ctx context.Context, jid string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("newsletter JID is required")
+	}
+
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	// Validate that it's a newsletter JID
+	if !strings.Contains(jid, "@newsletter") {
+		return fmt.Errorf("invalid newsletter JID format: must contain @newsletter")
+	}
+
+	c.logger.InfoWithFields("Following newsletter", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	err = c.client.FollowNewsletter(parsedJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to follow newsletter", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to follow newsletter: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter followed successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	return nil
+}
+
+// UnfollowNewsletter makes the user unfollow (unsubscribe from) a newsletter
+func (c *WameowClient) UnfollowNewsletter(ctx context.Context, jid string) error {
+	if !c.client.IsLoggedIn() {
+		return fmt.Errorf("client is not logged in")
+	}
+
+	if jid == "" {
+		return fmt.Errorf("newsletter JID is required")
+	}
+
+	parsedJID, err := c.parseJID(jid)
+	if err != nil {
+		return fmt.Errorf("invalid newsletter JID: %w", err)
+	}
+
+	// Validate that it's a newsletter JID
+	if !strings.Contains(jid, "@newsletter") {
+		return fmt.Errorf("invalid newsletter JID format: must contain @newsletter")
+	}
+
+	c.logger.InfoWithFields("Unfollowing newsletter", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	err = c.client.UnfollowNewsletter(parsedJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to unfollow newsletter", map[string]interface{}{
+			"session_id": c.sessionID,
+			"jid":        jid,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("failed to unfollow newsletter: %w", err)
+	}
+
+	c.logger.InfoWithFields("Newsletter unfollowed successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"jid":        jid,
+	})
+
+	return nil
+}
+
+// GetSubscribedNewsletters gets all newsletters the user is subscribed to
+func (c *WameowClient) GetSubscribedNewsletters(ctx context.Context) ([]*types.NewsletterMetadata, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	c.logger.InfoWithFields("Getting subscribed newsletters", map[string]interface{}{
+		"session_id": c.sessionID,
+	})
+
+	newsletters, err := c.client.GetSubscribedNewsletters()
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to get subscribed newsletters", map[string]interface{}{
+			"session_id": c.sessionID,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get subscribed newsletters: %w", err)
+	}
+
+	c.logger.InfoWithFields("Subscribed newsletters retrieved successfully", map[string]interface{}{
+		"session_id": c.sessionID,
+		"count":      len(newsletters),
+	})
+
+	return newsletters, nil
+}

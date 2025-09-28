@@ -90,6 +90,15 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 	sessions.Put("/:sessionId/groups/join-approval", groupHandler.SetGroupJoinApprovalMode)   // PUT /sessions/:sessionId/groups/join-approval
 	sessions.Put("/:sessionId/groups/member-add-mode", groupHandler.SetGroupMemberAddMode)    // PUT /sessions/:sessionId/groups/member-add-mode
 
+	// Newsletter management routes
+	newsletterHandler := handlers.NewNewsletterHandler(appLogger, container.GetNewsletterUseCase(), container.GetSessionRepository())
+	sessions.Post("/:sessionId/newsletters/create", newsletterHandler.CreateNewsletter)                    // POST /sessions/:sessionId/newsletters/create
+	sessions.Get("/:sessionId/newsletters/info", newsletterHandler.GetNewsletterInfo)                      // GET /sessions/:sessionId/newsletters/info?jid=...
+	sessions.Post("/:sessionId/newsletters/info-from-invite", newsletterHandler.GetNewsletterInfoWithInvite) // POST /sessions/:sessionId/newsletters/info-from-invite
+	sessions.Post("/:sessionId/newsletters/follow", newsletterHandler.FollowNewsletter)                    // POST /sessions/:sessionId/newsletters/follow
+	sessions.Post("/:sessionId/newsletters/unfollow", newsletterHandler.UnfollowNewsletter)                // POST /sessions/:sessionId/newsletters/unfollow
+	sessions.Get("/:sessionId/newsletters", newsletterHandler.GetSubscribedNewsletters)                    // GET /sessions/:sessionId/newsletters
+
 	// Contact management routes
 	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
 	sessions.Post("/:sessionId/contacts/check", contactHandler.CheckWhatsApp)        // POST /sessions/:sessionId/contacts/check

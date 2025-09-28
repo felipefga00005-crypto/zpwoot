@@ -8,12 +8,16 @@ import (
 	"zpwoot/internal/app/common"
 	"zpwoot/internal/app/contact"
 	"zpwoot/internal/app/group"
+	"zpwoot/internal/app/media"
 	"zpwoot/internal/app/message"
+	"zpwoot/internal/app/newsletter"
 	"zpwoot/internal/app/session"
 	"zpwoot/internal/app/webhook"
 	domainChatwoot "zpwoot/internal/domain/chatwoot"
 	domainContact "zpwoot/internal/domain/contact"
 	domainGroup "zpwoot/internal/domain/group"
+	domainMedia "zpwoot/internal/domain/media"
+	domainNewsletter "zpwoot/internal/domain/newsletter"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
 	"zpwoot/internal/infra/wameow"
@@ -22,13 +26,15 @@ import (
 )
 
 type Container struct {
-	CommonUseCase   common.UseCase
-	SessionUseCase  session.UseCase
-	WebhookUseCase  webhook.UseCase
-	ChatwootUseCase chatwoot.UseCase
-	MessageUseCase  message.UseCase
-	GroupUseCase    group.UseCase
-	ContactUseCase  contact.UseCase
+	CommonUseCase     common.UseCase
+	SessionUseCase    session.UseCase
+	WebhookUseCase    webhook.UseCase
+	ChatwootUseCase   chatwoot.UseCase
+	MessageUseCase    message.UseCase
+	MediaUseCase      media.UseCase
+	GroupUseCase      group.UseCase
+	ContactUseCase    contact.UseCase
+	NewsletterUseCase newsletter.UseCase
 
 	logger      *logger.Logger
 	sessionRepo ports.SessionRepository
@@ -38,6 +44,7 @@ type ContainerConfig struct {
 	SessionRepo  ports.SessionRepository
 	WebhookRepo  ports.WebhookRepository
 	ChatwootRepo ports.ChatwootRepository
+	MediaRepo    ports.MediaRepository
 
 	WameowManager       ports.WameowManager
 	ChatwootIntegration ports.ChatwootIntegration
@@ -110,6 +117,14 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
+	// Create media service and use case
+	mediaService := domainMedia.NewService(config.Logger)
+	mediaUseCase := media.NewUseCase(
+		mediaService,
+		config.MediaRepo,
+		config.Logger,
+	)
+
 	groupUseCase := group.NewUseCase(
 		nil, // No repository needed for groups
 		config.WameowManager,
@@ -121,16 +136,29 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
+	// Create newsletter service and adapter
+	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
+	newsletterManager := wameow.NewNewsletterAdapter(config.WameowManager, *config.Logger)
+
+	newsletterUseCase := newsletter.NewUseCase(
+		newsletterManager,
+		newsletterService,
+		config.SessionRepo,
+		*config.Logger,
+	)
+
 	return &Container{
-		CommonUseCase:   commonUseCase,
-		SessionUseCase:  sessionUseCase,
-		WebhookUseCase:  webhookUseCase,
-		ChatwootUseCase: chatwootUseCase,
-		MessageUseCase:  messageUseCase,
-		GroupUseCase:    groupUseCase,
-		ContactUseCase:  contactUseCase,
-		logger:          config.Logger,
-		sessionRepo:     config.SessionRepo,
+		CommonUseCase:     commonUseCase,
+		SessionUseCase:    sessionUseCase,
+		WebhookUseCase:    webhookUseCase,
+		ChatwootUseCase:   chatwootUseCase,
+		MessageUseCase:    messageUseCase,
+		MediaUseCase:      mediaUseCase,
+		GroupUseCase:      groupUseCase,
+		ContactUseCase:    contactUseCase,
+		NewsletterUseCase: newsletterUseCase,
+		logger:            config.Logger,
+		sessionRepo:       config.SessionRepo,
 	}
 }
 
@@ -166,12 +194,16 @@ func (c *Container) GetGroupUseCase() group.UseCase {
 	return c.GroupUseCase
 }
 
-func (c *Container) GetMediaUseCase() message.UseCase {
-	return c.MessageUseCase
+func (c *Container) GetMediaUseCase() media.UseCase {
+	return c.MediaUseCase
 }
 
 func (c *Container) GetContactUseCase() contact.UseCase {
 	return c.ContactUseCase
+}
+
+func (c *Container) GetNewsletterUseCase() newsletter.UseCase {
+	return c.NewsletterUseCase
 }
 
 func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowManager, error) {

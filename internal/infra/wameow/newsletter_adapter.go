@@ -1,0 +1,242 @@
+package wameow
+
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"go.mau.fi/whatsmeow/types"
+
+	"zpwoot/internal/domain/newsletter"
+	"zpwoot/internal/ports"
+	"zpwoot/platform/logger"
+)
+
+// NewsletterAdapter adapts WameowManager to implement NewsletterManager interface
+type NewsletterAdapter struct {
+	wameowManager ports.WameowManager
+	logger        logger.Logger
+}
+
+// NewNewsletterAdapter creates a new newsletter adapter
+func NewNewsletterAdapter(wameowManager ports.WameowManager, logger logger.Logger) ports.NewsletterManager {
+	return &NewsletterAdapter{
+		wameowManager: wameowManager,
+		logger:        logger,
+	}
+}
+
+// CreateNewsletter creates a new WhatsApp newsletter/channel
+func (na *NewsletterAdapter) CreateNewsletter(ctx context.Context, sessionID string, name, description string) (*newsletter.NewsletterInfo, error) {
+	// Cast to Manager to access internal client
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	metadata, err := client.CreateNewsletter(ctx, name, description)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertNewsletterMetadata(metadata), nil
+}
+
+// GetNewsletterInfo gets information about a newsletter by JID
+func (na *NewsletterAdapter) GetNewsletterInfo(ctx context.Context, sessionID string, jid string) (*newsletter.NewsletterInfo, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	metadata, err := client.GetNewsletterInfo(ctx, jid)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertNewsletterMetadata(metadata), nil
+}
+
+// GetNewsletterInfoWithInvite gets newsletter information using an invite key
+func (na *NewsletterAdapter) GetNewsletterInfoWithInvite(ctx context.Context, sessionID string, inviteKey string) (*newsletter.NewsletterInfo, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	metadata, err := client.GetNewsletterInfoWithInvite(ctx, inviteKey)
+	if err != nil {
+		return nil, err
+	}
+
+	return convertNewsletterMetadata(metadata), nil
+}
+
+// FollowNewsletter makes the user follow (subscribe to) a newsletter
+func (na *NewsletterAdapter) FollowNewsletter(ctx context.Context, sessionID string, jid string) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.FollowNewsletter(ctx, jid)
+}
+
+// UnfollowNewsletter makes the user unfollow (unsubscribe from) a newsletter
+func (na *NewsletterAdapter) UnfollowNewsletter(ctx context.Context, sessionID string, jid string) error {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return fmt.Errorf("session %s not found", sessionID)
+	}
+
+	return client.UnfollowNewsletter(ctx, jid)
+}
+
+// GetSubscribedNewsletters gets all newsletters the user is subscribed to
+func (na *NewsletterAdapter) GetSubscribedNewsletters(ctx context.Context, sessionID string) ([]*newsletter.NewsletterInfo, error) {
+	manager, ok := na.wameowManager.(*Manager)
+	if !ok {
+		return nil, fmt.Errorf("wameow manager is not a Manager instance")
+	}
+
+	client := manager.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("session %s not found", sessionID)
+	}
+
+	metadataList, err := client.GetSubscribedNewsletters(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	newsletters := make([]*newsletter.NewsletterInfo, len(metadataList))
+	for i, metadata := range metadataList {
+		newsletters[i] = convertNewsletterMetadata(metadata)
+	}
+
+	return newsletters, nil
+}
+
+// convertNewsletterMetadata converts whatsmeow types to domain types
+func convertNewsletterMetadata(metadata *types.NewsletterMetadata) *newsletter.NewsletterInfo {
+	if metadata == nil {
+		return nil
+	}
+
+	info := &newsletter.NewsletterInfo{
+		ID:              metadata.ID.String(),
+		CreationTime:    metadata.ThreadMeta.CreationTime.Time,
+		UpdateTime:      time.Now(), // WhatsApp doesn't provide update time, use current time
+		SubscriberCount: metadata.ThreadMeta.SubscriberCount,
+	}
+
+	// Set name
+	info.Name = metadata.ThreadMeta.Name.Text
+
+	// Set description
+	info.Description = metadata.ThreadMeta.Description.Text
+
+	// Set invite code
+	info.InviteCode = metadata.ThreadMeta.InviteCode
+
+	// Set state
+	switch metadata.State.Type {
+	case types.NewsletterStateActive:
+		info.State = newsletter.NewsletterStateActive
+	case types.NewsletterStateSuspended:
+		info.State = newsletter.NewsletterStateSuspended
+	case types.NewsletterStateGeoSuspended:
+		info.State = newsletter.NewsletterStateGeoSuspended
+	default:
+		info.State = newsletter.NewsletterStateActive
+	}
+
+	// Set role and mute state if ViewerMeta is available
+	if metadata.ViewerMeta != nil {
+		// Set role
+		switch metadata.ViewerMeta.Role {
+		case types.NewsletterRoleSubscriber:
+			info.Role = newsletter.NewsletterRoleSubscriber
+		case types.NewsletterRoleGuest:
+			info.Role = newsletter.NewsletterRoleGuest
+		case types.NewsletterRoleAdmin:
+			info.Role = newsletter.NewsletterRoleAdmin
+		case types.NewsletterRoleOwner:
+			info.Role = newsletter.NewsletterRoleOwner
+		default:
+			info.Role = newsletter.NewsletterRoleGuest
+		}
+
+		// Set mute state
+		switch metadata.ViewerMeta.Mute {
+		case types.NewsletterMuteOn:
+			info.Muted = true
+			info.MuteState = newsletter.NewsletterMuteOn
+		case types.NewsletterMuteOff:
+			info.Muted = false
+			info.MuteState = newsletter.NewsletterMuteOff
+		default:
+			info.Muted = false
+			info.MuteState = newsletter.NewsletterMuteOff
+		}
+	} else {
+		// Default values when ViewerMeta is nil
+		info.Role = newsletter.NewsletterRoleGuest
+		info.Muted = false
+		info.MuteState = newsletter.NewsletterMuteOff
+	}
+
+	// Set verification
+	if metadata.ThreadMeta.VerificationState == types.NewsletterVerificationStateVerified {
+		info.Verified = true
+		info.VerificationState = newsletter.NewsletterVerificationStateVerified
+	} else {
+		info.Verified = false
+		info.VerificationState = newsletter.NewsletterVerificationStateUnverified
+	}
+
+	// Set picture info
+	if metadata.ThreadMeta.Picture != nil {
+		info.Picture = &newsletter.ProfilePictureInfo{
+			URL:    metadata.ThreadMeta.Picture.URL,
+			ID:     metadata.ThreadMeta.Picture.ID,
+			Type:   metadata.ThreadMeta.Picture.Type,
+			Direct: metadata.ThreadMeta.Picture.DirectPath,
+		}
+	}
+
+	// Set preview info - Note: Preview is not a pointer in the struct
+	info.Preview = &newsletter.ProfilePictureInfo{
+		URL:    metadata.ThreadMeta.Preview.URL,
+		ID:     metadata.ThreadMeta.Preview.ID,
+		Type:   metadata.ThreadMeta.Preview.Type,
+		Direct: metadata.ThreadMeta.Preview.DirectPath,
+	}
+
+	return info
+}

@@ -84,6 +84,14 @@ Replace these variables in the examples:
 - **PUT** `/sessions/{sessionId}/groups/join-approval` - Set approval mode
 - **PUT** `/sessions/{sessionId}/groups/member-add-mode` - Set add member mode
 
+## Newsletters (WhatsApp Channels)
+- **POST** `/sessions/{sessionId}/newsletters/create` - Create newsletter/channel
+- **GET** `/sessions/{sessionId}/newsletters/info?jid=...` - Get newsletter info
+- **POST** `/sessions/{sessionId}/newsletters/info-from-invite` - Get info via invite
+- **POST** `/sessions/{sessionId}/newsletters/follow` - Follow newsletter
+- **POST** `/sessions/{sessionId}/newsletters/unfollow` - Unfollow newsletter
+- **GET** `/sessions/{sessionId}/newsletters` - List subscribed newsletters
+
 ## Webhooks
 - **POST** `/sessions/{sessionId}/webhook/set` - Configure webhook
 - **GET** `/sessions/{sessionId}/webhook/find` - Get webhook config
@@ -278,6 +286,50 @@ curl -X POST "http://localhost:8080/sessions/SESSION_ID/groups/leave" \
   -d '{"groupJid": "GROUP_JID"}'
 ```
 
+### Create Newsletter
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/create" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Channel", "description": "Channel description"}'
+```
+
+### Get Newsletter Info
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/newsletters/info?jid=120363123456789012@newsletter" \
+  -H "Authorization: ZP_API_KEY"
+```
+
+### Get Newsletter Info with Invite
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/info-from-invite" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"inviteKey": "https://whatsapp.com/channel/0029VaAqUqGCha30a5twXb2j"}'
+```
+
+### Follow Newsletter
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/follow" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "120363123456789012@newsletter"}'
+```
+
+### Unfollow Newsletter
+```bash
+curl -X POST "http://localhost:8080/sessions/SESSION_ID/newsletters/unfollow" \
+  -H "Authorization: ZP_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"jid": "120363123456789012@newsletter"}'
+```
+
+### List Subscribed Newsletters
+```bash
+curl "http://localhost:8080/sessions/SESSION_ID/newsletters" \
+  -H "Authorization: ZP_API_KEY"
+```
+
 ### Configure Proxy
 ```bash
 curl -X POST "http://localhost:8080/sessions/SESSION_ID/proxy/set" \
@@ -361,6 +413,9 @@ The API supports multiple JID formats:
 
 ### Groups
 - **Group JID**: `120363123456789012@g.us`
+
+### Newsletters (Channels)
+- **Newsletter JID**: `120363123456789012@newsletter`
 
 All formats are automatically normalized to WhatsApp JID format.
 
