@@ -54,6 +54,11 @@ func (r *GetCommunityInfoRequest) Validate() error {
 	return nil
 }
 
+// GetCommunityJID returns the community JID
+func (r *GetCommunityInfoRequest) GetCommunityJID() string {
+	return r.CommunityJID
+}
+
 // GetSubGroupsRequest represents the request for getting community sub-groups
 type GetSubGroupsRequest struct {
 	CommunityJID string `json:"communityJid" validate:"required"`
@@ -65,6 +70,11 @@ func (r *GetSubGroupsRequest) Validate() error {
 		return fmt.Errorf("community JID is required")
 	}
 	return nil
+}
+
+// GetCommunityJID returns the community JID
+func (r *GetSubGroupsRequest) GetCommunityJID() string {
+	return r.CommunityJID
 }
 
 // LinkGroupResponse represents the response for linking a group to a community

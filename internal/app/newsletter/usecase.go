@@ -643,13 +643,35 @@ func (uc *useCaseImpl) NewsletterMarkViewed(ctx context.Context, sessionID strin
 
 // NewsletterSendReaction sends a reaction to a newsletter message
 func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID string, req *NewsletterSendReactionRequest) (*NewsletterActionResponse, error) {
+	uc.logReactionRequest(sessionID, req)
+
+	// Validate session and request
+	if err := uc.validateReactionRequest(ctx, sessionID, req); err != nil {
+		return nil, err
+	}
+
+	// Resolve ServerID if needed
+	serverID, err := uc.resolveServerID(ctx, sessionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send reaction and return response
+	return uc.sendReactionAndRespond(ctx, sessionID, req, serverID)
+}
+
+// logReactionRequest logs the reaction request
+func (uc *useCaseImpl) logReactionRequest(sessionID string, req *NewsletterSendReactionRequest) {
 	uc.logger.InfoWithFields("Sending newsletter reaction", map[string]interface{}{
 		"session_id": sessionID,
 		"jid":        req.NewsletterJID,
 		"server_id":  req.ServerID,
 		"reaction":   req.Reaction,
 	})
+}
 
+// validateReactionRequest validates session and request
+func (uc *useCaseImpl) validateReactionRequest(ctx context.Context, sessionID string, req *NewsletterSendReactionRequest) error {
 	// Validate session
 	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
@@ -657,11 +679,11 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("session not found: %w", err)
+		return fmt.Errorf("session not found: %w", err)
 	}
 
 	if session == nil {
-		return nil, fmt.Errorf("session not found")
+		return fmt.Errorf("session not found")
 	}
 
 	// Validate request
@@ -670,49 +692,60 @@ func (uc *useCaseImpl) NewsletterSendReaction(ctx context.Context, sessionID str
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("invalid request: %w", err)
+		return fmt.Errorf("invalid request: %w", err)
 	}
 
-	// If ServerID is not provided, try to find it from the MessageID
+	return nil
+}
+
+// resolveServerID resolves ServerID from MessageID if needed
+func (uc *useCaseImpl) resolveServerID(ctx context.Context, sessionID string, req *NewsletterSendReactionRequest) (string, error) {
 	serverID := req.ServerID
-	if serverID == "" {
-		uc.logger.InfoWithFields("ServerID not provided, looking up from MessageID", map[string]interface{}{
+	if serverID != "" {
+		return serverID, nil
+	}
+
+	uc.logger.InfoWithFields("ServerID not provided, looking up from MessageID", map[string]interface{}{
+		"session_id": sessionID,
+		"jid":        req.NewsletterJID,
+		"message_id": req.MessageID,
+	})
+
+	// Get recent messages to find the ServerID for this MessageID
+	messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.NewsletterJID, 50, "")
+	if err != nil {
+		uc.logger.ErrorWithFields("Failed to get newsletter messages for ServerID lookup", map[string]interface{}{
 			"session_id": sessionID,
 			"jid":        req.NewsletterJID,
-			"message_id": req.MessageID,
+			"error":      err.Error(),
 		})
+		return "", fmt.Errorf("failed to lookup ServerID: %w", err)
+	}
 
-		// Get recent messages to find the ServerID for this MessageID
-		messages, err := uc.newsletterManager.GetNewsletterMessages(ctx, sessionID, req.NewsletterJID, 50, "")
-		if err != nil {
-			uc.logger.ErrorWithFields("Failed to get newsletter messages for ServerID lookup", map[string]interface{}{
+	// Find the message with matching MessageID
+	for _, msg := range messages {
+		if msg.ID == req.MessageID {
+			serverID = msg.ServerID
+			uc.logger.InfoWithFields("Found ServerID for MessageID", map[string]interface{}{
 				"session_id": sessionID,
-				"jid":        req.NewsletterJID,
-				"error":      err.Error(),
+				"message_id": req.MessageID,
+				"server_id":  serverID,
 			})
-			return nil, fmt.Errorf("failed to lookup ServerID: %w", err)
-		}
-
-		// Find the message with matching MessageID
-		for _, msg := range messages {
-			if msg.ID == req.MessageID {
-				serverID = msg.ServerID
-				uc.logger.InfoWithFields("Found ServerID for MessageID", map[string]interface{}{
-					"session_id": sessionID,
-					"message_id": req.MessageID,
-					"server_id":  serverID,
-				})
-				break
-			}
-		}
-
-		if serverID == "" {
-			return nil, fmt.Errorf("could not find ServerID for MessageID %s in newsletter %s", req.MessageID, req.NewsletterJID)
+			break
 		}
 	}
 
+	if serverID == "" {
+		return "", fmt.Errorf("could not find ServerID for MessageID %s in newsletter %s", req.MessageID, req.NewsletterJID)
+	}
+
+	return serverID, nil
+}
+
+// sendReactionAndRespond sends the reaction and returns response
+func (uc *useCaseImpl) sendReactionAndRespond(ctx context.Context, sessionID string, req *NewsletterSendReactionRequest, serverID string) (*NewsletterActionResponse, error) {
 	// Send reaction
-	err = uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.NewsletterJID, serverID, req.Reaction, req.MessageID)
+	err := uc.newsletterManager.NewsletterSendReaction(ctx, sessionID, req.NewsletterJID, serverID, req.Reaction, req.MessageID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to send newsletter reaction", map[string]interface{}{
 			"session_id": sessionID,

@@ -2,6 +2,8 @@ package community
 
 import (
 	"time"
+
+	"zpwoot/internal/constants"
 )
 
 // Community represents a WhatsApp community
@@ -131,12 +133,13 @@ const (
 func IsValidCommunityJID(jid string) bool {
 	// Community JIDs typically end with @g.us but have specific patterns
 	// This is a basic validation - may need to be refined based on WhatsApp's actual format
-	return len(jid) > 0 && (jid[len(jid)-5:] == "@g.us" || jid[len(jid)-12:] == "@newsletter")
+	return len(jid) > 0 && (jid[len(jid)-len(constants.GroupJIDSuffix):] == constants.GroupJIDSuffix ||
+		jid[len(jid)-len(constants.NewsletterJIDSuffix):] == constants.NewsletterJIDSuffix)
 }
 
 // IsValidGroupJID checks if a JID is a valid group JID
 func IsValidGroupJID(jid string) bool {
-	return len(jid) > 0 && jid[len(jid)-5:] == "@g.us"
+	return len(jid) > 0 && jid[len(jid)-len(constants.GroupJIDSuffix):] == constants.GroupJIDSuffix
 }
 
 // Helper methods

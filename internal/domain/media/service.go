@@ -76,12 +76,29 @@ func (s *serviceImpl) DownloadMedia(ctx context.Context, req *DownloadMediaReque
 		return nil, err
 	}
 
+	s.logDownloadRequest(req)
+
+	// Validate client and message
+	msgInfo, err := s.validateAndGetMessageInfo(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Download and process media
+	return s.downloadAndProcessMedia(ctx, req, msgInfo)
+}
+
+// logDownloadRequest logs the download request
+func (s *serviceImpl) logDownloadRequest(req *DownloadMediaRequest) {
 	s.logger.InfoWithFields("Downloading media from WhatsApp", map[string]interface{}{
 		"session_id": req.SessionID,
 		"message_id": req.MessageID,
 		"media_type": req.MediaType,
 	})
+}
 
+// validateAndGetMessageInfo validates client and gets message info
+func (s *serviceImpl) validateAndGetMessageInfo(ctx context.Context, req *DownloadMediaRequest) (*MessageInfo, error) {
 	// Check if WhatsApp client is logged in
 	if !s.whatsappClient.IsLoggedIn() {
 		return nil, ErrClientNotLoggedIn
@@ -106,6 +123,11 @@ func (s *serviceImpl) DownloadMedia(ctx context.Context, req *DownloadMediaReque
 		return nil, ErrMediaTypeMismatch
 	}
 
+	return msgInfo, nil
+}
+
+// downloadAndProcessMedia downloads media and processes it
+func (s *serviceImpl) downloadAndProcessMedia(ctx context.Context, req *DownloadMediaRequest, msgInfo *MessageInfo) (*DownloadMediaResponse, error) {
 	// Download media from WhatsApp
 	data, mimeType, err := s.whatsappClient.DownloadMedia(ctx, req.MessageID)
 	if err != nil {
@@ -120,26 +142,11 @@ func (s *serviceImpl) DownloadMedia(ctx context.Context, req *DownloadMediaReque
 		return nil, ErrFileTooLarge
 	}
 
-	// Generate filename
+	// Generate filename and cache
 	filename := s.generateFilename(req.MessageID, mimeType, msgInfo.Filename)
+	filePath := s.cacheMediaFile(ctx, data, filename, req.MessageID)
 
-	// Save to cache
-	filePath, err := s.cacheManager.SaveFile(ctx, data, filename)
-	if err != nil {
-		s.logger.WarnWithFields("Failed to cache media file", map[string]interface{}{
-			"message_id": req.MessageID,
-			"error":      err.Error(),
-		})
-		// Continue without caching
-		filePath = ""
-	}
-
-	s.logger.InfoWithFields("Media downloaded successfully", map[string]interface{}{
-		"message_id": req.MessageID,
-		"file_size":  len(data),
-		"mime_type":  mimeType,
-		"cached":     filePath != "",
-	})
+	s.logDownloadSuccess(req.MessageID, data, mimeType, filePath)
 
 	return &DownloadMediaResponse{
 		Data:      data,
@@ -149,6 +156,29 @@ func (s *serviceImpl) DownloadMedia(ctx context.Context, req *DownloadMediaReque
 		MediaType: msgInfo.MediaType,
 		FilePath:  filePath,
 	}, nil
+}
+
+// cacheMediaFile caches the media file
+func (s *serviceImpl) cacheMediaFile(ctx context.Context, data []byte, filename, messageID string) string {
+	filePath, err := s.cacheManager.SaveFile(ctx, data, filename)
+	if err != nil {
+		s.logger.WarnWithFields("Failed to cache media file", map[string]interface{}{
+			"message_id": messageID,
+			"error":      err.Error(),
+		})
+		return ""
+	}
+	return filePath
+}
+
+// logDownloadSuccess logs successful download
+func (s *serviceImpl) logDownloadSuccess(messageID string, data []byte, mimeType, filePath string) {
+	s.logger.InfoWithFields("Media downloaded successfully", map[string]interface{}{
+		"message_id": messageID,
+		"file_size":  len(data),
+		"mime_type":  mimeType,
+		"cached":     filePath != "",
+	})
 }
 
 // GetMediaInfo gets information about media in a message without downloading it

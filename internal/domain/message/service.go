@@ -160,13 +160,35 @@ func (mp *MediaProcessor) processBase64(data string) (*ProcessedMedia, error) {
 }
 
 func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*ProcessedMedia, error) {
+	mp.logURLProcessing(url)
+
+	// Download from URL
+	resp, err := mp.downloadFromURL(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	defer mp.closeResponse(resp)
+
+	// Validate response and get mime type
+	mimeType, err := mp.validateResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save to temporary file
+	return mp.saveToTempFile(resp, url, mimeType)
+}
+
+// logURLProcessing logs URL processing start
+func (mp *MediaProcessor) logURLProcessing(url string) {
 	mp.logger.InfoWithFields("Processing URL media", map[string]interface{}{
 		"url": url,
 	})
+}
 
-	client := &http.Client{
-		Timeout: mp.timeout,
-	}
+// downloadFromURL downloads content from URL
+func (mp *MediaProcessor) downloadFromURL(ctx context.Context, url string) (*http.Response, error) {
+	client := &http.Client{Timeout: mp.timeout}
 
 	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
@@ -179,20 +201,27 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 	if err != nil {
 		return nil, fmt.Errorf("failed to download file from URL: %w", err)
 	}
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			mp.logger.WarnWithFields("Failed to close response body", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
-	}()
 
+	return resp, nil
+}
+
+// closeResponse safely closes HTTP response
+func (mp *MediaProcessor) closeResponse(resp *http.Response) {
+	if err := resp.Body.Close(); err != nil {
+		mp.logger.WarnWithFields("Failed to close response body", map[string]interface{}{
+			"error": err.Error(),
+		})
+	}
+}
+
+// validateResponse validates HTTP response and returns mime type
+func (mp *MediaProcessor) validateResponse(resp *http.Response) (string, error) {
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("failed to download file: HTTP %d", resp.StatusCode)
+		return "", fmt.Errorf("failed to download file: HTTP %d", resp.StatusCode)
 	}
 
 	if resp.ContentLength > mp.maxSize {
-		return nil, fmt.Errorf("file size exceeds maximum allowed size of %d bytes", mp.maxSize)
+		return "", fmt.Errorf("file size exceeds maximum allowed size of %d bytes", mp.maxSize)
 	}
 
 	mimeType := resp.Header.Get("Content-Type")
@@ -200,6 +229,11 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 		mimeType = "application/octet-stream"
 	}
 
+	return mimeType, nil
+}
+
+// saveToTempFile saves response content to temporary file
+func (mp *MediaProcessor) saveToTempFile(resp *http.Response, url, mimeType string) (*ProcessedMedia, error) {
 	tempFile, err := os.CreateTemp(mp.tempDir, "whatsmeow-media-*")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary file: %w", err)
@@ -207,14 +241,12 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 
 	written, err := io.CopyN(tempFile, resp.Body, mp.maxSize+1)
 	if err != nil && err != io.EOF {
-		_ = tempFile.Close()
-		_ = os.Remove(tempFile.Name())
+		mp.cleanupTempFile(tempFile)
 		return nil, fmt.Errorf("failed to copy data to temporary file: %w", err)
 	}
 
 	if written > mp.maxSize {
-		_ = tempFile.Close()
-		_ = os.Remove(tempFile.Name())
+		mp.cleanupTempFile(tempFile)
 		return nil, fmt.Errorf("file size exceeds maximum allowed size of %d bytes", mp.maxSize)
 	}
 
@@ -223,12 +255,7 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 		return nil, fmt.Errorf("failed to close temporary file: %w", err)
 	}
 
-	mp.logger.InfoWithFields("URL media processed", map[string]interface{}{
-		"url":       url,
-		"file_path": tempFile.Name(),
-		"mime_type": mimeType,
-		"file_size": written,
-	})
+	mp.logURLProcessingSuccess(url, tempFile.Name(), mimeType, written)
 
 	return &ProcessedMedia{
 		FilePath: tempFile.Name(),
@@ -238,6 +265,22 @@ func (mp *MediaProcessor) processURL(ctx context.Context, url string) (*Processe
 			return os.Remove(tempFile.Name())
 		},
 	}, nil
+}
+
+// cleanupTempFile cleans up temporary file on error
+func (mp *MediaProcessor) cleanupTempFile(tempFile *os.File) {
+	_ = tempFile.Close()
+	_ = os.Remove(tempFile.Name())
+}
+
+// logURLProcessingSuccess logs successful URL processing
+func (mp *MediaProcessor) logURLProcessingSuccess(url, filePath, mimeType string, fileSize int64) {
+	mp.logger.InfoWithFields("URL media processed", map[string]interface{}{
+		"url":       url,
+		"file_path": filePath,
+		"mime_type": mimeType,
+		"file_size": fileSize,
+	})
 }
 
 func DetectMimeType(filename string) string {

@@ -306,12 +306,25 @@ func (m *Migrator) executeMigration(migration *Migration) error {
 func (m *Migrator) Rollback() error {
 	m.logger.Info("Rolling back last migration...")
 
-	query := `
-		SELECT "version", "name" 
-		FROM "zpMigrations" 
-		ORDER BY "version" DESC 
-		LIMIT 1
-	`
+	// Get last migration info
+	version, name, err := m.getLastMigration()
+	if err != nil {
+		return err
+	}
+
+	// Find and validate target migration
+	targetMigration, err := m.findTargetMigration(version)
+	if err != nil {
+		return err
+	}
+
+	// Execute rollback
+	return m.executeRollback(targetMigration, version, name)
+}
+
+// getLastMigration retrieves the last applied migration
+func (m *Migrator) getLastMigration() (int, string, error) {
+	query := `SELECT "version", "name" FROM "zpMigrations" ORDER BY "version" DESC LIMIT 1`
 
 	var version int
 	var name string
@@ -319,32 +332,35 @@ func (m *Migrator) Rollback() error {
 	if err != nil {
 		if err == sql.ErrNoRows {
 			m.logger.Info("No migrations to rollback")
-			return nil
+			return 0, "", nil
 		}
-		return fmt.Errorf("failed to get last migration: %w", err)
+		return 0, "", fmt.Errorf("failed to get last migration: %w", err)
 	}
 
+	return version, name, nil
+}
+
+// findTargetMigration finds and validates the target migration for rollback
+func (m *Migrator) findTargetMigration(version int) (*Migration, error) {
 	migrations, err := m.loadMigrations()
 	if err != nil {
-		return fmt.Errorf("failed to load migrations: %w", err)
+		return nil, fmt.Errorf("failed to load migrations: %w", err)
 	}
 
-	var targetMigration *Migration
 	for _, migration := range migrations {
 		if migration.Version == version {
-			targetMigration = migration
-			break
+			if migration.DownSQL == "" {
+				return nil, fmt.Errorf("migration %d has no down SQL", version)
+			}
+			return migration, nil
 		}
 	}
 
-	if targetMigration == nil {
-		return fmt.Errorf("migration %d not found in files", version)
-	}
+	return nil, fmt.Errorf("migration %d not found in files", version)
+}
 
-	if targetMigration.DownSQL == "" {
-		return fmt.Errorf("migration %d has no down SQL", version)
-	}
-
+// executeRollback executes the rollback transaction
+func (m *Migrator) executeRollback(targetMigration *Migration, version int, name string) error {
 	m.logger.InfoWithFields("Rolling back migration", map[string]interface{}{
 		"version": version,
 		"name":    name,
@@ -364,10 +380,12 @@ func (m *Migrator) Rollback() error {
 		}
 	}()
 
+	// Execute rollback SQL
 	if _, err := tx.Exec(targetMigration.DownSQL); err != nil {
 		return fmt.Errorf("failed to execute rollback SQL: %w", err)
 	}
 
+	// Remove migration record
 	deleteQuery := `DELETE FROM "zpMigrations" WHERE "version" = $1`
 	if _, err := tx.Exec(deleteQuery, version); err != nil {
 		return fmt.Errorf("failed to remove migration record: %w", err)
