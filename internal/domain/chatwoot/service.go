@@ -31,8 +31,11 @@ func (s *Service) SetMessageMapper(messageMapper ports.ChatwootMessageMapper) {
 	s.messageMapper = messageMapper
 }
 
-func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
+// ============================================================================
+// CONFIGURATION MANAGEMENT
+// ============================================================================
 
+func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
 
 	// Set defaults
 	enabled := true
@@ -230,6 +233,10 @@ func (s *Service) DeleteConfig(ctx context.Context) error {
 	return nil
 }
 
+// ============================================================================
+// SYNC OPERATIONS (MOCK IMPLEMENTATIONS)
+// ============================================================================
+
 func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*ChatwootContact, error) {
 	contact := &ChatwootContact{
 		ID:               1, // This would be assigned by Chatwoot
@@ -269,6 +276,10 @@ func (s *Service) SendMessage(ctx context.Context, req *SendMessageToChatwootReq
 
 	return message, nil
 }
+
+// ============================================================================
+// WEBHOOK PROCESSING
+// ============================================================================
 
 func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
 	// Delay 500ms to avoid race conditions (based on Evolution API)
@@ -314,72 +325,89 @@ func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload 
 
 // handleMessageCreated processes new messages from Chatwoot
 func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
-	// Extract message details from webhook payload
-	// O Chatwoot envia os dados da mensagem diretamente no payload, não em um campo "message"
-	var content, messageType string
-	var messageID int
-	var isPrivate bool
+	// Extract and validate message details
+	content, messageType, _, isPrivate := s.extractMessageDetails(payload)
 
+	// Apply message filters
+	if s.shouldSkipMessage(content, messageType, isPrivate, payload) {
+		return nil
+	}
+
+	return s.sendToWhatsApp(ctx, sessionID, payload, content)
+}
+
+// extractMessageDetails extracts message information from webhook payload
+func (s *Service) extractMessageDetails(payload *ChatwootWebhookPayload) (content, messageType string, messageID int, isPrivate bool) {
 	if payload.Message != nil {
-		// Formato antigo (se ainda existir)
+		// Legacy format
 		content = payload.Message.Content
 		messageType = payload.Message.MessageType
 		messageID = payload.Message.ID
 		isPrivate = payload.Message.Private
 	} else {
-		// Formato atual do Chatwoot (baseado nos logs do Sidekiq)
+		// Current Chatwoot format
 		content = payload.Content
 		messageType = payload.MessageType
 		messageID = payload.ID
 		isPrivate = payload.Private
 	}
 
-	// Se o conteúdo estiver vazio, tentar extrair de outros campos possíveis
+	// Try to extract content from alternative sources if empty
 	if content == "" {
-		// Verificar se há conteúdo em content_attributes ou outros campos
-		if payload.ContentAttributes != nil {
-			if textContent, ok := payload.ContentAttributes["text"].(string); ok {
-				content = textContent
-			}
-		}
-		// Verificar se há mensagens na conversa
-		if len(payload.Conversation.Messages) > 0 {
-			lastMessage := payload.Conversation.Messages[len(payload.Conversation.Messages)-1]
-			if lastMessage.Content != "" {
-				content = lastMessage.Content
-				messageType = lastMessage.MessageType
-				messageID = lastMessage.ID
-			}
+		content = s.extractContentFromAlternativeSources(payload)
+	}
+
+	return content, messageType, messageID, isPrivate
+}
+
+// extractContentFromAlternativeSources tries to find content in other payload fields
+func (s *Service) extractContentFromAlternativeSources(payload *ChatwootWebhookPayload) string {
+	// Check content_attributes
+	if payload.ContentAttributes != nil {
+		if textContent, ok := payload.ContentAttributes["text"].(string); ok {
+			return textContent
 		}
 	}
 
-	// Se não há conteúdo e é uma mensagem outgoing, pode ser um problema
+	// Check conversation messages
+	if len(payload.Conversation.Messages) > 0 {
+		lastMessage := payload.Conversation.Messages[len(payload.Conversation.Messages)-1]
+		if lastMessage.Content != "" {
+			return lastMessage.Content
+		}
+	}
+
+	return ""
+}
+
+// shouldSkipMessage determines if a message should be skipped based on various filters
+func (s *Service) shouldSkipMessage(content, messageType string, isPrivate bool, payload *ChatwootWebhookPayload) bool {
+	// Skip empty outgoing messages
 	if content == "" && messageType == "outgoing" {
-		// Não retornar erro, apenas logar para investigação
-		return nil
+		return true
 	}
 
-	// Process both incoming and outgoing messages
-	// - outgoing: mensagens do agente para WhatsApp (enviar para WhatsApp)
-	// - incoming: mensagens do WhatsApp para agente (IGNORAR - já processadas)
+	// Skip incoming messages (already processed from WhatsApp)
 	if messageType == "incoming" {
-		// Mensagens incoming são aquelas que vieram do WhatsApp e já foram processadas
-		// Não precisamos reprocessá-las
-		return nil
+		return true
 	}
 
-	// Para mensagens outgoing, verificar se há conteúdo para enviar
+	// Skip empty outgoing messages
 	if messageType == "outgoing" && content == "" {
-		// Não enviar mensagem vazia para WhatsApp, mas não falhar
-		return nil
+		return true
 	}
 
 	// Skip private messages
 	if isPrivate {
-		return nil
+		return true
 	}
 
-	// Skip bot messages or messages from source_id starting with WAID:
+	// Skip bot messages (source_id starting with WAID:)
+	return s.isBotMessage(payload)
+}
+
+// isBotMessage checks if message is from a bot based on source_id
+func (s *Service) isBotMessage(payload *ChatwootWebhookPayload) bool {
 	var sourceID string
 	if payload.Message != nil {
 		sourceID = payload.Message.SourceID
@@ -387,67 +415,62 @@ func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, pa
 		sourceID = *payload.SourceID
 	}
 
-	if sourceID != "" && len(sourceID) >= 5 && sourceID[:5] == "WAID:" {
-		return nil
-	}
-
-	return s.sendToWhatsApp(ctx, sessionID, payload, content)
+	return sourceID != "" && len(sourceID) >= 5 && sourceID[:5] == "WAID:"
 }
 
 // sendToWhatsApp sends a message from Chatwoot to WhatsApp
 func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload, content string) error {
-	// Determine the correct recipient based on message type (like WhatsApp logic)
-	// For outgoing messages: recipient = Contact (client)
-	// For incoming messages: recipient = Sender (client) - but we don't process incoming here
-	var phoneNumber string
-
-	// Check message type to determine recipient
-	messageType := "outgoing" // Default assumption for messages sent to WhatsApp
-	if payload.Message != nil {
-		messageType = payload.Message.MessageType
+	// Extract recipient phone number
+	phoneNumber, err := s.extractRecipientPhone(payload)
+	if err != nil {
+		return err
 	}
 
-	if messageType == "outgoing" {
-		// Outgoing: agent → client, so recipient is Contact
-		if payload.Contact.PhoneNumber != "" {
-			phoneNumber = payload.Contact.PhoneNumber
-		}
-	} else {
-		// Incoming: client → agent, so recipient would be Sender (but we shouldn't process these)
-		if payload.Sender.PhoneNumber != "" {
-			phoneNumber = payload.Sender.PhoneNumber
-		}
-	}
-
-	// If still no phone number, this is an error
-	if phoneNumber == "" {
-		return fmt.Errorf("no valid recipient phone number found for %s message", messageType)
-	}
-
-	// Format content for WhatsApp (convert Chatwoot markdown to WhatsApp format)
+	// Format content and extract message ID
 	formattedContent := s.formatContentForWhatsApp(content)
+	messageID := s.extractMessageID(payload)
 
-	// Extract message ID for logging
-	var messageID int
-	if payload.Message != nil {
-		messageID = payload.Message.ID
-	} else {
-		messageID = payload.ID
-	}
-
-	// Send message to WhatsApp using wameowManager
+	// Send message to WhatsApp
 	result, err := s.wameowManager.SendMessage(sessionID, phoneNumber, "text", formattedContent, "", "", "", 0, 0, "", "", nil)
 	if err != nil {
 		return fmt.Errorf("failed to send message to WhatsApp: %w", err)
 	}
 
-	// Store the outgoing message in zpMessage table for tracking
-	err = s.storeOutgoingMessage(ctx, sessionID, result.MessageID, phoneNumber, formattedContent, result.Timestamp, messageID, payload.Conversation.ID)
-	if err != nil {
-		// Don't fail the whole operation, just log the error
-	}
+	// Store message for tracking (non-blocking)
+	_ = s.storeOutgoingMessage(ctx, sessionID, result.MessageID, phoneNumber, formattedContent, result.Timestamp, messageID, payload.Conversation.ID)
 
 	return nil
+}
+
+// extractRecipientPhone determines the recipient phone number from payload
+func (s *Service) extractRecipientPhone(payload *ChatwootWebhookPayload) (string, error) {
+	messageType := "outgoing" // Default assumption
+	if payload.Message != nil {
+		messageType = payload.Message.MessageType
+	}
+
+	var phoneNumber string
+	if messageType == "outgoing" {
+		// Outgoing: agent → client, recipient is Contact
+		phoneNumber = payload.Contact.PhoneNumber
+	} else {
+		// Incoming: client → agent, recipient is Sender
+		phoneNumber = payload.Sender.PhoneNumber
+	}
+
+	if phoneNumber == "" {
+		return "", fmt.Errorf("no valid recipient phone number found for %s message", messageType)
+	}
+
+	return phoneNumber, nil
+}
+
+// extractMessageID extracts message ID from payload
+func (s *Service) extractMessageID(payload *ChatwootWebhookPayload) int {
+	if payload.Message != nil {
+		return payload.Message.ID
+	}
+	return payload.ID
 }
 
 // storeOutgoingMessage stores an outgoing message in the zpMessage table
@@ -484,33 +507,18 @@ func (s *Service) storeOutgoingMessage(ctx context.Context, sessionID, whatsappM
 	return nil
 }
 
-// formatContentForWhatsApp formats message content for WhatsApp (based on Evolution API)
+// formatContentForWhatsApp formats message content for WhatsApp
 func (s *Service) formatContentForWhatsApp(content string) string {
-	if content == "" {
-		return content
-	}
-
-	// Convert Chatwoot markdown to WhatsApp format (based on Evolution API)
-	// * -> _ (italic)
-	// ** -> * (bold)
-	// ~~ -> ~ (strikethrough)
-	// ` -> ``` (code)
-
-	// Use regex replacements similar to Evolution API
-	// Note: This is a simplified version, the full regex from Evolution is more complex
-	result := content
-
-	// Replace single * with _ for italic (avoiding double *)
-	// Replace ** with * for bold
-	// Replace ~~ with ~ for strikethrough
-	// Replace single ` with ``` for code (avoiding triple `)
-
-	// For now, return as-is since regex in Go would be complex
-	// TODO: Implement proper markdown conversion
-
-	return result
+	// TODO: Use MessageFormatter for consistent formatting across the application
+	// For now, return as-is to avoid code duplication
+	return content
 }
 
+// ============================================================================
+// UTILITY METHODS & TYPES
+// ============================================================================
+
+// TestConnectionResult represents the result of a connection test
 type TestConnectionResult struct {
 	Success     bool
 	AccountName string
@@ -518,14 +526,7 @@ type TestConnectionResult struct {
 	Error       error
 }
 
-func (s *Service) TestConnection(ctx context.Context) (*TestConnectionResult, error) {
-	return &TestConnectionResult{
-		Success:     true,
-		AccountName: "Test Account",
-		InboxName:   "Wameow Inbox",
-	}, nil
-}
-
+// ChatwootStats represents Chatwoot integration statistics
 type ChatwootStats struct {
 	TotalContacts       int
 	TotalConversations  int
@@ -534,6 +535,16 @@ type ChatwootStats struct {
 	MessagesReceived    int64
 }
 
+// TestConnection tests the connection to Chatwoot (mock implementation)
+func (s *Service) TestConnection(ctx context.Context) (*TestConnectionResult, error) {
+	return &TestConnectionResult{
+		Success:     true,
+		AccountName: "Test Account",
+		InboxName:   "Wameow Inbox",
+	}, nil
+}
+
+// GetStats returns Chatwoot integration statistics (mock implementation)
 func (s *Service) GetStats(ctx context.Context) (*ChatwootStats, error) {
 	return &ChatwootStats{
 		TotalContacts:       100,

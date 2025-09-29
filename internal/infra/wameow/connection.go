@@ -168,8 +168,6 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 	q.lastQRCode = qrCode
 }
 
-
-
 // sessionManager implements SessionUpdater interface
 type sessionManager struct {
 	sessionRepo ports.SessionRepository

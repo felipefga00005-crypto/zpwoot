@@ -50,51 +50,58 @@ func (im *IntegrationManager) IsEnabled(sessionID string) bool {
 func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType string, timestamp time.Time, fromMe bool) error {
 	ctx := context.Background()
 
-	im.logger.InfoWithFields("Processing WhatsApp message for Chatwoot", map[string]interface{}{
-		"session_id":   sessionID,
-		"message_id":   messageID,
-		"from":         from,
-		"message_type": messageType,
-		"from_me":      fromMe,
-	})
-
-	// Skip if message is already mapped (this means it came from Chatwoot originally)
+	// Skip if message is already mapped (originated from Chatwoot)
 	if im.messageMapper.IsMessageMapped(ctx, sessionID, messageID) {
 		return nil
 	}
 
-	// Extract chat JID from sender (for groups, chat != sender)
-	chatJID := from
-	if strings.Contains(from, "@g.us") {
-		chatJID = from // Group message
-	} else if strings.Contains(from, "@s.whatsapp.net") {
-		chatJID = from // Individual message
+	// Create message mapping
+	if err := im.createMessageMapping(ctx, sessionID, messageID, from, messageType, content, timestamp, fromMe); err != nil {
+		return err
 	}
 
-	// Create initial mapping with complete data
+	// Process message through Chatwoot
+	return im.processMessageToChatwoot(ctx, sessionID, messageID, from, content, messageType, fromMe)
+}
+
+// createMessageMapping creates initial message mapping
+func (im *IntegrationManager) createMessageMapping(ctx context.Context, sessionID, messageID, from, messageType, content string, timestamp time.Time, fromMe bool) error {
+	chatJID := im.extractChatJID(from)
+
 	_, err := im.messageMapper.CreateMapping(ctx, sessionID, messageID, from, chatJID, messageType, content, timestamp, fromMe)
 	if err != nil {
 		return fmt.Errorf("failed to create message mapping: %w", err)
 	}
 
+	return nil
+}
+
+// extractChatJID extracts chat JID from sender
+func (im *IntegrationManager) extractChatJID(from string) string {
+	// For both groups and individual messages, use the from field as chatJID
+	return from
+}
+
+// processMessageToChatwoot handles the Chatwoot integration flow
+func (im *IntegrationManager) processMessageToChatwoot(ctx context.Context, sessionID, messageID, from, content, messageType string, fromMe bool) error {
 	// Get Chatwoot client
 	client, err := im.chatwootManager.GetClient(sessionID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get Chatwoot client: %w", err)
 	}
 
 	// Extract phone number from JID
 	phoneNumber := im.extractPhoneFromJID(from)
 	if phoneNumber == "" {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to extract phone number from JID: %s", from)
 	}
 
 	// Get Chatwoot configuration to get inbox ID
 	config, err := im.chatwootManager.GetConfig(sessionID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get Chatwoot config: %w", err)
 	}
 
@@ -109,14 +116,14 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Get or create contact
 	contact, err := im.getOrCreateContact(client, phoneNumber, sessionID, inboxID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get or create contact: %w", err)
 	}
 
 	// Get or create conversation
 	conversation, err := im.getOrCreateConversation(client, contact.ID, sessionID, inboxID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get or create conversation: %w", err)
 	}
 
@@ -124,8 +131,6 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	formattedContent := im.formatContentForChatwoot(content, messageType)
 
 	// Determine message type based on from_me flag
-	// from_me=true (sent by phone/agent) = outgoing in Chatwoot
-	// from_me=false (received from client) = incoming in Chatwoot
 	chatwootMessageType := "incoming" // default for client messages
 	if fromMe {
 		chatwootMessageType = "outgoing" // messages sent by agent/phone
@@ -134,7 +139,7 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Send message to Chatwoot with correct type
 	chatwootMessage, err := client.SendMessageWithType(conversation.ID, formattedContent, chatwootMessageType)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
+		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to send message to Chatwoot: %w", err)
 	}
 
@@ -240,11 +245,11 @@ func (im *IntegrationManager) mergeBrazilianContacts(client ports.ChatwootClient
 	// If we have both formats, merge them (keep the 14-digit as base, like Evolution API)
 	if contact14 != nil && contact13 != nil {
 		im.logger.InfoWithFields("Merging Brazilian contacts", map[string]interface{}{
-			"session_id":        sessionID,
-			"base_contact_id":   contact14.ID,
-			"base_phone":        contact14.PhoneNumber,
-			"merge_contact_id":  contact13.ID,
-			"merge_phone":       contact13.PhoneNumber,
+			"session_id":       sessionID,
+			"base_contact_id":  contact14.ID,
+			"base_phone":       contact14.PhoneNumber,
+			"merge_contact_id": contact13.ID,
+			"merge_phone":      contact13.PhoneNumber,
 		})
 
 		// Use the 14-digit contact as base (Evolution API logic)
@@ -267,9 +272,9 @@ func (im *IntegrationManager) mergeBrazilianContacts(client ports.ChatwootClient
 // mergeContacts merges two contacts in Chatwoot (like Evolution API)
 func (im *IntegrationManager) mergeContacts(client ports.ChatwootClient, baseContactID, mergeContactID int, sessionID string) error {
 	im.logger.InfoWithFields("Merging contacts using Chatwoot API", map[string]interface{}{
-		"session_id":        sessionID,
-		"base_contact_id":   baseContactID,
-		"merge_contact_id":  mergeContactID,
+		"session_id":       sessionID,
+		"base_contact_id":  baseContactID,
+		"merge_contact_id": mergeContactID,
 	})
 
 	// Call the actual Chatwoot merge API (same as Evolution API)
@@ -339,10 +344,10 @@ func (im *IntegrationManager) getOrCreateContact(client ports.ChatwootClient, ph
 		// Return the first found contact
 		contact := foundContacts[0]
 		im.logger.InfoWithFields("Found existing contact", map[string]interface{}{
-			"session_id":      sessionID,
-			"original_phone":  phoneNumber,
-			"contact_id":      contact.ID,
-			"contacts_found":  len(foundContacts),
+			"session_id":     sessionID,
+			"original_phone": phoneNumber,
+			"contact_id":     contact.ID,
+			"contacts_found": len(foundContacts),
 		})
 		return contact, nil
 	}

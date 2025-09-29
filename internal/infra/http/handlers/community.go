@@ -1,12 +1,23 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"zpwoot/internal/app/community"
 	domainSession "zpwoot/internal/domain/session"
 	"zpwoot/internal/infra/http/helpers"
 	"zpwoot/platform/logger"
 
 	"github.com/gofiber/fiber/v2"
+)
+
+// Error message constants
+const (
+	ErrSessionNotFound     = "session not found"
+	ErrSessionNotConnected = "session is not connected"
+	ErrValidationFailed    = "validation failed"
+	ErrCommunityNotFound   = "community not found"
+	ErrInvalidRequestData  = "Invalid request data"
 )
 
 // CommunityHandler handles community-related HTTP requests
@@ -37,7 +48,7 @@ func (h *CommunityHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session,
 			"path":       c.Path(),
 		})
 
-		if err.Error() == "session not found" || err == domainSession.ErrSessionNotFound {
+		if err.Error() == ErrSessionNotFound || err == domainSession.ErrSessionNotFound {
 			return nil, fiber.NewError(404, "Session not found")
 		}
 
@@ -47,218 +58,204 @@ func (h *CommunityHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session,
 	return sess, nil
 }
 
-// LinkGroup links a group to a community
-// POST /sessions/:sessionId/communities/link-group
-func (h *CommunityHandler) LinkGroup(c *fiber.Ctx) error {
+// ============================================================================
+// HELPER METHODS
+// ============================================================================
+
+// parseLinkGroupRequest parses link group request
+func (h *CommunityHandler) parseLinkGroupRequest(c *fiber.Ctx) (interface{}, error) {
+	var req community.LinkGroupRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.WarnWithFields("Failed to parse link group request", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, fiber.NewError(400, "Invalid request body")
+	}
+	return &req, nil
+}
+
+// parseUnlinkGroupRequest parses unlink group request
+func (h *CommunityHandler) parseUnlinkGroupRequest(c *fiber.Ctx) (interface{}, error) {
+	var req community.UnlinkGroupRequest
+	if err := c.BodyParser(&req); err != nil {
+		h.logger.WarnWithFields("Failed to parse unlink group request", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, fiber.NewError(400, "Invalid request body")
+	}
+	return &req, nil
+}
+
+// handleCommunityQueryAction handles common community query action logic
+func (h *CommunityHandler) handleCommunityQueryAction(
+	c *fiber.Ctx,
+	actionName string,
+	paramName string,
+	createRequestFunc func(string) interface{},
+	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+) error {
 	sess, fiberErr := h.resolveSession(c)
 	if fiberErr != nil {
 		return fiberErr
 	}
 
-	var req community.LinkGroupRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse link group request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
+	paramValue := c.Query(paramName)
+	if paramValue == "" {
+		return fiber.NewError(400, fmt.Sprintf("%s parameter is required", paramName))
 	}
 
-	h.logger.InfoWithFields("Linking group to community", map[string]interface{}{
-		"session_id":    sess.ID.String(),
-		"community_jid": req.CommunityJID,
-		"group_jid":     req.GroupJID,
+	req := createRequestFunc(paramValue)
+
+	h.logger.InfoWithFields(actionName, map[string]interface{}{
+		"session_id": sess.ID.String(),
+		paramName:    paramValue,
 	})
 
-	response, err := h.communityUC.LinkGroup(c.Context(), sess.ID.String(), &req)
+	response, err := actionFunc(c.Context(), sess.ID.String(), req)
 	if err != nil {
-		h.logger.ErrorWithFields("Failed to link group to community", map[string]interface{}{
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			paramName:    paramValue,
+			"error":      err.Error(),
+		})
+
+		if err.Error() == ErrSessionNotConnected {
+			return fiber.NewError(400, "Session is not connected")
+		}
+		if err.Error() == ErrCommunityNotFound {
+			return fiber.NewError(404, "Community not found")
+		}
+		return fiber.NewError(500, fmt.Sprintf("Failed to %s", actionName))
+	}
+
+	h.logger.InfoWithFields(fmt.Sprintf("%s successfully", actionName), map[string]interface{}{
+		"session_id": sess.ID,
+		paramName:    paramValue,
+	})
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
+}
+
+// handleGroupLinkAction handles common group link/unlink logic
+func (h *CommunityHandler) handleGroupLinkAction(
+	c *fiber.Ctx,
+	actionName string,
+	parseFunc func(*fiber.Ctx) (interface{}, error),
+	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	req, err := parseFunc(c)
+	if err != nil {
+		return err
+	}
+
+	// Extract JIDs for logging (works for both Link and Unlink requests)
+	var communityJID, groupJID string
+	if linkReq, ok := req.(*community.LinkGroupRequest); ok {
+		communityJID = linkReq.CommunityJID
+		groupJID = linkReq.GroupJID
+	} else if unlinkReq, ok := req.(*community.UnlinkGroupRequest); ok {
+		communityJID = unlinkReq.CommunityJID
+		groupJID = unlinkReq.GroupJID
+	}
+
+	h.logger.InfoWithFields(fmt.Sprintf("%s group", actionName), map[string]interface{}{
+		"session_id":    sess.ID.String(),
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
+	})
+
+	response, err := actionFunc(c.Context(), sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to %s group", actionName), map[string]interface{}{
 			"session_id":    sess.ID.String(),
-			"community_jid": req.CommunityJID,
-			"group_jid":     req.GroupJID,
+			"community_jid": communityJID,
+			"group_jid":     groupJID,
 			"error":         err.Error(),
 		})
 
-		if err.Error() == "session is not connected" {
+		if err.Error() == ErrSessionNotConnected {
 			return fiber.NewError(400, "Session is not connected")
 		}
-
-		if err.Error() == "validation failed" {
-			return fiber.NewError(400, "Invalid request data")
+		if err.Error() == ErrValidationFailed {
+			return fiber.NewError(400, ErrInvalidRequestData)
 		}
-
-		return fiber.NewError(500, "Failed to link group to community")
+		return fiber.NewError(500, fmt.Sprintf("Failed to %s group", actionName))
 	}
 
-	h.logger.InfoWithFields("Group linked to community successfully", map[string]interface{}{
+	h.logger.InfoWithFields(fmt.Sprintf("Group %s successfully", actionName), map[string]interface{}{
 		"session_id":    sess.ID,
-		"community_jid": response.CommunityJID,
-		"group_jid":     response.GroupJID,
+		"community_jid": communityJID,
+		"group_jid":     groupJID,
 	})
 
 	return c.Status(200).JSON(fiber.Map{
 		"success": true,
 		"data":    response,
 	})
+}
+
+// LinkGroup links a group to a community
+// POST /sessions/:sessionId/communities/link-group
+func (h *CommunityHandler) LinkGroup(c *fiber.Ctx) error {
+	return h.handleGroupLinkAction(
+		c,
+		"link",
+		h.parseLinkGroupRequest,
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.communityUC.LinkGroup(ctx, sessionID, req.(*community.LinkGroupRequest))
+		},
+	)
 }
 
 // UnlinkGroup unlinks a group from a community
 // POST /sessions/:sessionId/communities/unlink-group
 func (h *CommunityHandler) UnlinkGroup(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req community.UnlinkGroupRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse unlink group request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	h.logger.InfoWithFields("Unlinking group from community", map[string]interface{}{
-		"session_id":    sess.ID.String(),
-		"community_jid": req.CommunityJID,
-		"group_jid":     req.GroupJID,
-	})
-
-	response, err := h.communityUC.UnlinkGroup(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to unlink group from community", map[string]interface{}{
-			"session_id":    sess.ID.String(),
-			"community_jid": req.CommunityJID,
-			"group_jid":     req.GroupJID,
-			"error":         err.Error(),
-		})
-
-		if err.Error() == "session is not connected" {
-			return fiber.NewError(400, "Session is not connected")
-		}
-
-		if err.Error() == "validation failed" {
-			return fiber.NewError(400, "Invalid request data")
-		}
-
-		return fiber.NewError(500, "Failed to unlink group from community")
-	}
-
-	h.logger.InfoWithFields("Group unlinked from community successfully", map[string]interface{}{
-		"session_id":    sess.ID,
-		"community_jid": response.CommunityJID,
-		"group_jid":     response.GroupJID,
-	})
-
-	return c.Status(200).JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleGroupLinkAction(
+		c,
+		"unlink",
+		h.parseUnlinkGroupRequest,
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.communityUC.UnlinkGroup(ctx, sessionID, req.(*community.UnlinkGroupRequest))
+		},
+	)
 }
 
 // GetCommunityInfo gets information about a community
 // GET /sessions/:sessionId/communities/info?communityJid=...
 func (h *CommunityHandler) GetCommunityInfo(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	communityJid := c.Query("communityJid")
-	if communityJid == "" {
-		return fiber.NewError(400, "Community JID parameter is required")
-	}
-
-	req := &community.GetCommunityInfoRequest{
-		CommunityJID: communityJid,
-	}
-
-	h.logger.InfoWithFields("Getting community info", map[string]interface{}{
-		"session_id":    sess.ID.String(),
-		"community_jid": communityJid,
-	})
-
-	response, err := h.communityUC.GetCommunityInfo(c.Context(), sess.ID.String(), req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to get community info", map[string]interface{}{
-			"session_id":    sess.ID.String(),
-			"community_jid": communityJid,
-			"error":         err.Error(),
-		})
-
-		if err.Error() == "session is not connected" {
-			return fiber.NewError(400, "Session is not connected")
-		}
-
-		if err.Error() == "community not found" {
-			return fiber.NewError(404, "Community not found")
-		}
-
-		return fiber.NewError(500, "Failed to get community info")
-	}
-
-	h.logger.InfoWithFields("Community info retrieved successfully", map[string]interface{}{
-		"session_id":    sess.ID,
-		"community_jid": response.JID,
-		"name":          response.Name,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleCommunityQueryAction(
+		c,
+		"get community info",
+		"communityJid",
+		func(jid string) interface{} {
+			return &community.GetCommunityInfoRequest{CommunityJID: jid}
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.communityUC.GetCommunityInfo(ctx, sessionID, req.(*community.GetCommunityInfoRequest))
+		},
+	)
 }
 
 // GetSubGroups gets all sub-groups of a community
 // GET /sessions/:sessionId/communities/subgroups?communityJid=...
 func (h *CommunityHandler) GetSubGroups(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	communityJid := c.Query("communityJid")
-	if communityJid == "" {
-		return fiber.NewError(400, "Community JID parameter is required")
-	}
-
-	req := &community.GetSubGroupsRequest{
-		CommunityJID: communityJid,
-	}
-
-	h.logger.InfoWithFields("Getting community sub-groups", map[string]interface{}{
-		"session_id":    sess.ID.String(),
-		"community_jid": communityJid,
-	})
-
-	response, err := h.communityUC.GetSubGroups(c.Context(), sess.ID.String(), req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to get community sub-groups", map[string]interface{}{
-			"session_id":    sess.ID.String(),
-			"community_jid": communityJid,
-			"error":         err.Error(),
-		})
-
-		if err.Error() == "session is not connected" {
-			return fiber.NewError(400, "Session is not connected")
-		}
-
-		if err.Error() == "community not found" {
-			return fiber.NewError(404, "Community not found")
-		}
-
-		return fiber.NewError(500, "Failed to get community sub-groups")
-	}
-
-	h.logger.InfoWithFields("Community sub-groups retrieved successfully", map[string]interface{}{
-		"session_id":    sess.ID,
-		"community_jid": response.CommunityJID,
-		"count":         response.TotalCount,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleCommunityQueryAction(
+		c,
+		"get community sub-groups",
+		"communityJid",
+		func(jid string) interface{} {
+			return &community.GetSubGroupsRequest{CommunityJID: jid}
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.communityUC.GetSubGroups(ctx, sessionID, req.(*community.GetSubGroupsRequest))
+		},
+	)
 }

@@ -44,6 +44,54 @@ func (h *GroupHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session, *fi
 	return sess, nil
 }
 
+// handleGroupAction handles common group action logic
+func (h *GroupHandler) handleGroupAction(
+	c *fiber.Ctx,
+	actionName string,
+	parseFunc func(*fiber.Ctx) (interface{}, error),
+	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	req, err := parseFunc(c)
+	if err != nil {
+		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	// Extract GroupJID for logging if available
+	var groupJID string
+	if reqWithJID, ok := req.(interface{ GetGroupJID() string }); ok {
+		groupJID = reqWithJID.GetGroupJID()
+		if groupJID == "" {
+			return fiber.NewError(400, "Group JID is required in request body")
+		}
+	}
+
+	h.logger.InfoWithFields(fmt.Sprintf("%s", actionName), map[string]interface{}{
+		"session_id": sess.ID.String(),
+		"group_jid":  groupJID,
+	})
+
+	response, err := actionFunc(c.Context(), sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"group_jid":  groupJID,
+			"error":      err.Error(),
+		})
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(response)
+}
+
 // CreateGroup creates a new WhatsApp group
 func (h *GroupHandler) CreateGroup(c *fiber.Ctx) error {
 	sess, fiberErr := h.resolveSession(c)

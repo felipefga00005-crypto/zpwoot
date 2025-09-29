@@ -205,7 +205,7 @@ func (d *EventDispatcher) enrichEventData(evt interface{}, eventMap map[string]i
 	case *events.LoggedOut:
 		// Add logout metadata
 		eventMap["logged_out_at"] = time.Now().Unix()
-		eventMap["reason"] = string(v.Reason)
+		eventMap["reason"] = fmt.Sprintf("%d", v.Reason)
 
 	case *events.KeepAliveTimeout:
 		// Add keepalive timeout metadata

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	"zpwoot/internal/domain/newsletter"
+	"zpwoot/internal/domain/session"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -156,7 +158,19 @@ func (uc *useCaseImpl) GetNewsletterInfo(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Validate session
+	// Format JID
+	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
+
+	// Use generic helper
+	return uc.getNewsletterInfoGeneric(ctx, sessionID, jid, "jid", uc.newsletterManager.GetNewsletterInfo)
+}
+
+// ============================================================================
+// HELPER METHODS
+// ============================================================================
+
+// validateSessionAndConnection validates session exists and is connected
+func (uc *useCaseImpl) validateSessionAndConnection(ctx context.Context, sessionID string) (*session.Session, error) {
 	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
@@ -170,42 +184,198 @@ func (uc *useCaseImpl) GetNewsletterInfo(ctx context.Context, sessionID string, 
 		return nil, fmt.Errorf("session is not connected")
 	}
 
-	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
+	return session, nil
+}
 
-	uc.logger.InfoWithFields("Getting newsletter info", map[string]interface{}{
-		"session_id": sessionID,
-		"jid":        jid,
-	})
-
-	// Get newsletter info via WhatsApp
-	newsletterInfo, err := uc.newsletterManager.GetNewsletterInfo(ctx, sessionID, jid)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to get newsletter info", map[string]interface{}{
-			"session_id": sessionID,
-			"jid":        jid,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to get newsletter info: %w", err)
-	}
-
-	// Process newsletter info
+// processNewsletterInfoCommon handles common newsletter info processing
+func (uc *useCaseImpl) processNewsletterInfoCommon(ctx context.Context, sessionID string, newsletterInfo *newsletter.NewsletterInfo) error {
 	if err := uc.newsletterService.ProcessNewsletterInfo(newsletterInfo); err != nil {
 		uc.logger.ErrorWithFields("Failed to process newsletter info", map[string]interface{}{
 			"session_id":    sessionID,
 			"newsletter_id": newsletterInfo.ID,
 			"error":         err.Error(),
 		})
-		return nil, fmt.Errorf("failed to process newsletter info: %w", err)
+		return fmt.Errorf("failed to process newsletter info: %w", err)
+	}
+	return nil
+}
+
+// getNewsletterInfoGeneric handles common newsletter info retrieval logic
+func (uc *useCaseImpl) getNewsletterInfoGeneric(
+	ctx context.Context,
+	sessionID string,
+	identifier string,
+	identifierType string,
+	getInfoFunc func(context.Context, string, string) (*newsletter.NewsletterInfo, error),
+) (*NewsletterInfoResponse, error) {
+	// Validate session and connection
+	_, err := uc.validateSessionAndConnection(ctx, sessionID)
+	if err != nil {
+		return nil, err
 	}
 
-	uc.logger.InfoWithFields("Newsletter info retrieved successfully", map[string]interface{}{
+	uc.logger.InfoWithFields(fmt.Sprintf("Getting newsletter info via %s", identifierType), map[string]interface{}{
+		"session_id":   sessionID,
+		identifierType: identifier,
+	})
+
+	// Get newsletter info via WhatsApp
+	newsletterInfo, err := getInfoFunc(ctx, sessionID, identifier)
+	if err != nil {
+		uc.logger.ErrorWithFields(fmt.Sprintf("Failed to get newsletter info via %s", identifierType), map[string]interface{}{
+			"session_id":   sessionID,
+			identifierType: identifier,
+			"error":        err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get newsletter info via %s: %w", identifierType, err)
+	}
+
+	// Process newsletter info
+	if err := uc.processNewsletterInfoCommon(ctx, sessionID, newsletterInfo); err != nil {
+		return nil, err
+	}
+
+	uc.logger.InfoWithFields(fmt.Sprintf("Newsletter info retrieved via %s successfully", identifierType), map[string]interface{}{
 		"session_id":    sessionID,
 		"newsletter_id": newsletterInfo.ID,
 		"name":          newsletterInfo.Name,
 	})
 
 	return NewNewsletterInfoResponse(newsletterInfo), nil
+}
+
+// validateNewsletterActionRequest validates common newsletter action request
+func (uc *useCaseImpl) validateNewsletterActionRequest(ctx context.Context, sessionID, jid string) (string, error) {
+	// Validate session and connection
+	_, err := uc.validateSessionAndConnection(ctx, sessionID)
+	if err != nil {
+		return "", err
+	}
+
+	// Format JID
+	formattedJID := uc.newsletterService.FormatNewsletterJID(jid)
+	return formattedJID, nil
+}
+
+// newsletterActionGeneric handles common newsletter action logic (follow/unfollow)
+func (uc *useCaseImpl) newsletterActionGeneric(
+	ctx context.Context,
+	sessionID string,
+	jid string,
+	actionName string,
+	actionFunc func(context.Context, string, string) error,
+	responseFunc func(string) *NewsletterActionResponse,
+) (*NewsletterActionResponse, error) {
+	// Validate session and format JID
+	formattedJID, err := uc.validateNewsletterActionRequest(ctx, sessionID, jid)
+	if err != nil {
+		return nil, err
+	}
+
+	uc.logger.InfoWithFields(fmt.Sprintf("%s newsletter", actionName), map[string]interface{}{
+		"session_id": sessionID,
+		"jid":        formattedJID,
+	})
+
+	// Execute action via WhatsApp
+	err = actionFunc(ctx, sessionID, formattedJID)
+	if err != nil {
+		uc.logger.ErrorWithFields(fmt.Sprintf("Failed to %s newsletter", actionName), map[string]interface{}{
+			"session_id": sessionID,
+			"jid":        formattedJID,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to %s newsletter: %w", actionName, err)
+	}
+
+	uc.logger.InfoWithFields(fmt.Sprintf("Newsletter %s successfully", actionName), map[string]interface{}{
+		"session_id": sessionID,
+		"jid":        formattedJID,
+	})
+
+	return responseFunc(formattedJID), nil
+}
+
+// uploadNewsletterGeneric handles common upload logic
+func (uc *useCaseImpl) uploadNewsletterGeneric(
+	ctx context.Context,
+	sessionID string,
+	req *UploadNewsletterRequest,
+	uploadType string,
+	uploadFunc func(context.Context, string, []byte, string, string) (*newsletter.UploadNewsletterResponse, error),
+) (*UploadNewsletterResponse, error) {
+	uc.logger.InfoWithFields(fmt.Sprintf("Uploading newsletter media %s", uploadType), map[string]interface{}{
+		"session_id": sessionID,
+		"mime_type":  req.MimeType,
+		"media_type": req.MediaType,
+		"data_size":  len(req.Data),
+	})
+
+	// Validate request and session
+	if err := uc.validateUploadRequest(ctx, sessionID, req); err != nil {
+		return nil, err
+	}
+
+	// Upload media
+	response, err := uploadFunc(ctx, sessionID, req.Data, req.MimeType, req.MediaType)
+	if err != nil {
+		uc.logger.ErrorWithFields(fmt.Sprintf("Failed to upload newsletter media %s", uploadType), map[string]interface{}{
+			"session_id": sessionID,
+			"mime_type":  req.MimeType,
+			"media_type": req.MediaType,
+			"data_size":  len(req.Data),
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to upload newsletter media %s: %w", uploadType, err)
+	}
+
+	uc.logger.InfoWithFields(fmt.Sprintf("Newsletter media uploaded successfully %s", uploadType), map[string]interface{}{
+		"session_id":  sessionID,
+		"mime_type":   req.MimeType,
+		"media_type":  req.MediaType,
+		"data_size":   len(req.Data),
+		"url":         response.URL,
+		"handle":      response.Handle,
+		"file_length": response.FileLength,
+	})
+
+	// Convert domain response to DTO response
+	return &UploadNewsletterResponse{
+		URL:        response.URL,
+		DirectPath: response.DirectPath,
+		Handle:     response.Handle,
+		ObjectID:   response.ObjectID,
+		FileSHA256: response.FileSHA256,
+		FileLength: response.FileLength,
+	}, nil
+}
+
+// validateUploadRequest validates upload request and session
+func (uc *useCaseImpl) validateUploadRequest(ctx context.Context, sessionID string, req *UploadNewsletterRequest) error {
+	// Validate session
+	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("session not found: %w", err)
+	}
+
+	if session == nil {
+		return fmt.Errorf("session not found")
+	}
+
+	// Validate request
+	if err := req.Validate(); err != nil {
+		uc.logger.ErrorWithFields("Invalid request", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		return fmt.Errorf("invalid request: %w", err)
+	}
+
+	return nil
 }
 
 // GetNewsletterInfoWithInvite gets newsletter information using invite key
@@ -220,56 +390,11 @@ func (uc *useCaseImpl) GetNewsletterInfoWithInvite(ctx context.Context, sessionI
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Validate session
-	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
-	}
-
 	// Clean invite key
 	inviteKey := uc.newsletterService.CleanInviteKey(req.InviteKey)
 
-	uc.logger.InfoWithFields("Getting newsletter info with invite", map[string]interface{}{
-		"session_id": sessionID,
-		"invite_key": inviteKey,
-	})
-
-	// Get newsletter info via WhatsApp
-	newsletterInfo, err := uc.newsletterManager.GetNewsletterInfoWithInvite(ctx, sessionID, inviteKey)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to get newsletter info with invite", map[string]interface{}{
-			"session_id": sessionID,
-			"invite_key": inviteKey,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to get newsletter info with invite: %w", err)
-	}
-
-	// Process newsletter info
-	if err := uc.newsletterService.ProcessNewsletterInfo(newsletterInfo); err != nil {
-		uc.logger.ErrorWithFields("Failed to process newsletter info", map[string]interface{}{
-			"session_id":    sessionID,
-			"newsletter_id": newsletterInfo.ID,
-			"error":         err.Error(),
-		})
-		return nil, fmt.Errorf("failed to process newsletter info: %w", err)
-	}
-
-	uc.logger.InfoWithFields("Newsletter info retrieved with invite successfully", map[string]interface{}{
-		"session_id":    sessionID,
-		"newsletter_id": newsletterInfo.ID,
-		"name":          newsletterInfo.Name,
-	})
-
-	return NewNewsletterInfoResponse(newsletterInfo), nil
+	// Use generic helper
+	return uc.getNewsletterInfoGeneric(ctx, sessionID, inviteKey, "invite_key", uc.newsletterManager.GetNewsletterInfoWithInvite)
 }
 
 // FollowNewsletter follows a newsletter
@@ -284,45 +409,8 @@ func (uc *useCaseImpl) FollowNewsletter(ctx context.Context, sessionID string, r
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Validate session
-	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
-	}
-
-	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
-
-	uc.logger.InfoWithFields("Following newsletter", map[string]interface{}{
-		"session_id": sessionID,
-		"jid":        jid,
-	})
-
-	// Follow newsletter via WhatsApp
-	err = uc.newsletterManager.FollowNewsletter(ctx, sessionID, jid)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to follow newsletter", map[string]interface{}{
-			"session_id": sessionID,
-			"jid":        jid,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to follow newsletter: %w", err)
-	}
-
-	uc.logger.InfoWithFields("Newsletter followed successfully", map[string]interface{}{
-		"session_id": sessionID,
-		"jid":        jid,
-	})
-
-	return NewSuccessFollowResponse(jid), nil
+	// Use generic helper
+	return uc.newsletterActionGeneric(ctx, sessionID, req.NewsletterJID, "follow", uc.newsletterManager.FollowNewsletter, NewSuccessFollowResponse)
 }
 
 // UnfollowNewsletter unfollows a newsletter
@@ -337,45 +425,8 @@ func (uc *useCaseImpl) UnfollowNewsletter(ctx context.Context, sessionID string,
 		return nil, fmt.Errorf("validation failed: %w", err)
 	}
 
-	// Validate session
-	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
-	}
-
-	// Format JID
-	jid := uc.newsletterService.FormatNewsletterJID(req.NewsletterJID)
-
-	uc.logger.InfoWithFields("Unfollowing newsletter", map[string]interface{}{
-		"session_id": sessionID,
-		"jid":        jid,
-	})
-
-	// Unfollow newsletter via WhatsApp
-	err = uc.newsletterManager.UnfollowNewsletter(ctx, sessionID, jid)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to unfollow newsletter", map[string]interface{}{
-			"session_id": sessionID,
-			"jid":        jid,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to unfollow newsletter: %w", err)
-	}
-
-	uc.logger.InfoWithFields("Newsletter unfollowed successfully", map[string]interface{}{
-		"session_id": sessionID,
-		"jid":        jid,
-	})
-
-	return NewSuccessUnfollowResponse(jid), nil
+	// Use generic helper
+	return uc.newsletterActionGeneric(ctx, sessionID, req.NewsletterJID, "unfollow", uc.newsletterManager.UnfollowNewsletter, NewSuccessUnfollowResponse)
 }
 
 // GetSubscribedNewsletters gets all subscribed newsletters
@@ -850,132 +901,10 @@ func (uc *useCaseImpl) AcceptTOSNotice(ctx context.Context, sessionID string, re
 
 // UploadNewsletter uploads media for newsletters
 func (uc *useCaseImpl) UploadNewsletter(ctx context.Context, sessionID string, req *UploadNewsletterRequest) (*UploadNewsletterResponse, error) {
-	uc.logger.InfoWithFields("Uploading newsletter media", map[string]interface{}{
-		"session_id": sessionID,
-		"mime_type":  req.MimeType,
-		"media_type": req.MediaType,
-		"data_size":  len(req.Data),
-	})
-
-	// Validate session
-	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	if session == nil {
-		return nil, fmt.Errorf("session not found")
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		uc.logger.ErrorWithFields("Invalid request", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Upload media
-	response, err := uc.newsletterManager.UploadNewsletter(ctx, sessionID, req.Data, req.MimeType, req.MediaType)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to upload newsletter media", map[string]interface{}{
-			"session_id": sessionID,
-			"mime_type":  req.MimeType,
-			"media_type": req.MediaType,
-			"data_size":  len(req.Data),
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to upload newsletter media: %w", err)
-	}
-
-	uc.logger.InfoWithFields("Newsletter media uploaded successfully", map[string]interface{}{
-		"session_id":  sessionID,
-		"mime_type":   req.MimeType,
-		"media_type":  req.MediaType,
-		"data_size":   len(req.Data),
-		"url":         response.URL,
-		"handle":      response.Handle,
-		"file_length": response.FileLength,
-	})
-
-	// Convert domain response to DTO response
-	return &UploadNewsletterResponse{
-		URL:        response.URL,
-		DirectPath: response.DirectPath,
-		Handle:     response.Handle,
-		ObjectID:   response.ObjectID,
-		FileSHA256: response.FileSHA256,
-		FileLength: response.FileLength,
-	}, nil
+	return uc.uploadNewsletterGeneric(ctx, sessionID, req, "", uc.newsletterManager.UploadNewsletter)
 }
 
 // UploadNewsletterReader uploads media for newsletters from a reader
 func (uc *useCaseImpl) UploadNewsletterReader(ctx context.Context, sessionID string, req *UploadNewsletterRequest) (*UploadNewsletterResponse, error) {
-	uc.logger.InfoWithFields("Uploading newsletter media with reader", map[string]interface{}{
-		"session_id": sessionID,
-		"mime_type":  req.MimeType,
-		"media_type": req.MediaType,
-		"data_size":  len(req.Data),
-	})
-
-	// Validate session
-	session, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		uc.logger.ErrorWithFields("Session not found", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("session not found: %w", err)
-	}
-
-	if session == nil {
-		return nil, fmt.Errorf("session not found")
-	}
-
-	// Validate request
-	if err := req.Validate(); err != nil {
-		uc.logger.ErrorWithFields("Invalid request", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("invalid request: %w", err)
-	}
-
-	// Upload media with reader
-	response, err := uc.newsletterManager.UploadNewsletterReader(ctx, sessionID, req.Data, req.MimeType, req.MediaType)
-	if err != nil {
-		uc.logger.ErrorWithFields("Failed to upload newsletter media with reader", map[string]interface{}{
-			"session_id": sessionID,
-			"mime_type":  req.MimeType,
-			"media_type": req.MediaType,
-			"data_size":  len(req.Data),
-			"error":      err.Error(),
-		})
-		return nil, fmt.Errorf("failed to upload newsletter media with reader: %w", err)
-	}
-
-	uc.logger.InfoWithFields("Newsletter media uploaded successfully with reader", map[string]interface{}{
-		"session_id":  sessionID,
-		"mime_type":   req.MimeType,
-		"media_type":  req.MediaType,
-		"data_size":   len(req.Data),
-		"url":         response.URL,
-		"handle":      response.Handle,
-		"file_length": response.FileLength,
-	})
-
-	// Convert domain response to DTO response
-	return &UploadNewsletterResponse{
-		URL:        response.URL,
-		DirectPath: response.DirectPath,
-		Handle:     response.Handle,
-		ObjectID:   response.ObjectID,
-		FileSHA256: response.FileSHA256,
-		FileLength: response.FileLength,
-	}, nil
+	return uc.uploadNewsletterGeneric(ctx, sessionID, req, "with reader", uc.newsletterManager.UploadNewsletterReader)
 }

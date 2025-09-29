@@ -12,6 +12,18 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
+// Message type constants
+const (
+	MessageTypeText     = "text"
+	MessageTypeImage    = "image"
+	MessageTypeAudio    = "audio"
+	MessageTypeVideo    = "video"
+	MessageTypeDocument = "document"
+	MessageTypeSticker  = "sticker"
+	MessageTypeLocation = "location"
+	MessageTypeContact  = "contact"
+)
+
 // WebhookEventHandler defines interface for handling webhook events
 type WebhookEventHandler interface {
 	HandleWhatsmeowEvent(evt interface{}, sessionID string) error
@@ -209,7 +221,7 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 
 	if evt.Message.ContactMessage != nil {
 		contactMsg := evt.Message.ContactMessage
-		messageInfo["message_type"] = "contact"
+		messageInfo["message_type"] = MessageTypeContact
 
 		if contactMsg.DisplayName != nil {
 			messageInfo["contact_display_name"] = *contactMsg.DisplayName
@@ -264,19 +276,19 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 			}
 		}
 	} else {
-		messageType := "text"
+		messageType := MessageTypeText
 		if evt.Message.ImageMessage != nil {
-			messageType = "image"
+			messageType = MessageTypeImage
 		} else if evt.Message.AudioMessage != nil {
-			messageType = "audio"
+			messageType = MessageTypeAudio
 		} else if evt.Message.VideoMessage != nil {
-			messageType = "video"
+			messageType = MessageTypeVideo
 		} else if evt.Message.DocumentMessage != nil {
-			messageType = "document"
+			messageType = MessageTypeDocument
 		} else if evt.Message.StickerMessage != nil {
-			messageType = "sticker"
+			messageType = MessageTypeSticker
 		} else if evt.Message.LocationMessage != nil {
-			messageType = "location"
+			messageType = MessageTypeLocation
 		}
 
 		messageInfo["message_type"] = messageType
@@ -304,7 +316,7 @@ func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID
 	// Extract message information
 	messageID := evt.Info.ID
 	from := evt.Info.Sender.String()
-	chat := evt.Info.Chat.String()  // This is the actual recipient/chat
+	chat := evt.Info.Chat.String() // This is the actual recipient/chat
 	timestamp := evt.Info.Timestamp
 	fromMe := evt.Info.IsFromMe
 
@@ -312,7 +324,7 @@ func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID
 	// The Sender is always our session number, but Chat is who we sent the message to
 	contactNumber := from
 	if fromMe {
-		contactNumber = chat  // Use the recipient (who we sent the message to)
+		contactNumber = chat // Use the recipient (who we sent the message to)
 	}
 
 	// For messages sent by us (from_me=true), we need to distinguish:
@@ -335,11 +347,11 @@ func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID
 	}
 
 	// Determine message type and content
-	messageType := "text"
+	messageType := MessageTypeText
 	content := ""
 
 	if evt.Message.ContactMessage != nil {
-		messageType = "contact"
+		messageType = MessageTypeContact
 		if evt.Message.ContactMessage.DisplayName != nil {
 			content = "Contact: " + *evt.Message.ContactMessage.DisplayName
 		} else {

@@ -213,7 +213,9 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, pay
 		domainPayload.MessageType = payload.MessageType
 		domainPayload.ContentType = payload.ContentType
 		domainPayload.Private = payload.Private
-		if payload.SourceID != nil { domainPayload.SourceID = payload.SourceID }
+		if payload.SourceID != nil {
+			domainPayload.SourceID = payload.SourceID
+		}
 	}
 
 	// Sender: prefer root sender, fallback to nested message.sender
@@ -239,13 +241,13 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, pay
 				}
 			}
 			// 2) Fallback to meta.sender.phone_number (Chatwoot returns this in conversation meta)
-				// 2) Fallback to meta.sender.phone_number
-				if domainPayload.Sender.PhoneNumber == "" {
-					if phone, err := client.GetConversationSenderPhone(domainPayload.Conversation.ID); err == nil && phone != "" {
-						domainPayload.Sender.PhoneNumber = phone
-						domainPayload.Contact.PhoneNumber = phone
-					}
+			// 2) Fallback to meta.sender.phone_number
+			if domainPayload.Sender.PhoneNumber == "" {
+				if phone, err := client.GetConversationSenderPhone(domainPayload.Conversation.ID); err == nil && phone != "" {
+					domainPayload.Sender.PhoneNumber = phone
+					domainPayload.Contact.PhoneNumber = phone
 				}
+			}
 
 			if domainPayload.Sender.PhoneNumber == "" {
 				if phone, err := client.GetConversationSenderPhone(domainPayload.Conversation.ID); err == nil && phone != "" {

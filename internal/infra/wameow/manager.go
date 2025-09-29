@@ -1128,12 +1128,12 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 
 	// Debug logging for Brazilian numbers
 	m.logger.InfoWithFields("Sending text message - JID details", map[string]interface{}{
-		"session_id":    sessionID,
-		"original_to":   to,
-		"parsed_jid":    recipientJID.String(),
-		"jid_user":      recipientJID.User,
-		"jid_server":    recipientJID.Server,
-		"text":          text,
+		"session_id":  sessionID,
+		"original_to": to,
+		"parsed_jid":  recipientJID.String(),
+		"jid_user":    recipientJID.User,
+		"jid_server":  recipientJID.Server,
+		"text":        text,
 	})
 
 	messageID := client.GetClient().GenerateMessageID()
@@ -1182,7 +1182,7 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 						"session_id":         sessionID,
 						"original_number":    to,
 						"alternative_number": alternativeNumber,
-						"used_jid":          altRecipientJID.String(),
+						"used_jid":           altRecipientJID.String(),
 					})
 					// Update the recipient JID for logging
 					recipientJID = altRecipientJID

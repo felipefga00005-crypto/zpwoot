@@ -1,8 +1,11 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
 	"zpwoot/internal/app/common"
 	"zpwoot/internal/app/contact"
+	"zpwoot/internal/domain/session"
 	domainSession "zpwoot/internal/domain/session"
 	"zpwoot/internal/infra/http/helpers"
 	"zpwoot/platform/logger"
@@ -24,6 +27,40 @@ func NewContactHandler(appLogger *logger.Logger, contactUC contact.UseCase, sess
 	}
 }
 
+// handleContactAction handles common contact action logic
+func (h *ContactHandler) handleContactAction(
+	c *fiber.Ctx,
+	actionName string,
+	successMessage string,
+	parseFunc func(*fiber.Ctx, *session.Session) (interface{}, error),
+	actionFunc func(context.Context, interface{}) (interface{}, error),
+) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return c.Status(fiberErr.Code).JSON(common.NewErrorResponse(fiberErr.Message))
+	}
+
+	req, err := parseFunc(c, sess)
+	if err != nil {
+		h.logger.Error("Failed to parse request body: " + err.Error())
+		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+	}
+
+	h.logger.InfoWithFields(actionName, map[string]interface{}{
+		"session_id":   sess.ID.String(),
+		"session_name": sess.Name,
+	})
+
+	result, err := actionFunc(c.Context(), req)
+	if err != nil {
+		h.logger.Error(fmt.Sprintf("Failed to %s: %s", actionName, err.Error()))
+		return c.Status(500).JSON(common.NewErrorResponse(fmt.Sprintf("Failed to %s", actionName)))
+	}
+
+	response := common.NewSuccessResponse(result, successMessage)
+	return c.JSON(response)
+}
+
 // @Summary Check if phone numbers are on WhatsApp
 // @Description Check if one or more phone numbers are registered on WhatsApp
 // @Tags Contacts
@@ -38,33 +75,22 @@ func NewContactHandler(appLogger *logger.Logger, contactUC contact.UseCase, sess
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/contacts/check [post]
 func (h *ContactHandler) CheckWhatsApp(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return c.Status(fiberErr.Code).JSON(common.NewErrorResponse(fiberErr.Message))
-	}
-
-	var req contact.CheckWhatsAppRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.Error("Failed to parse request body: " + err.Error())
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
-	}
-
-	req.SessionID = sess.ID.String()
-
-	h.logger.InfoWithFields("Checking WhatsApp numbers", map[string]interface{}{
-		"session_id":   sess.ID.String(),
-		"session_name": sess.Name,
-		"phone_count":  len(req.PhoneNumbers),
-	})
-
-	result, err := h.contactUC.CheckWhatsApp(c.Context(), &req)
-	if err != nil {
-		h.logger.Error("Failed to check WhatsApp numbers: " + err.Error())
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to check WhatsApp numbers"))
-	}
-
-	response := common.NewSuccessResponse(result, "Phone numbers checked successfully")
-	return c.JSON(response)
+	return h.handleContactAction(
+		c,
+		"Checking WhatsApp numbers",
+		"Phone numbers checked successfully",
+		func(c *fiber.Ctx, sess *session.Session) (interface{}, error) {
+			var req contact.CheckWhatsAppRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			req.SessionID = sess.ID.String()
+			return &req, nil
+		},
+		func(ctx context.Context, req interface{}) (interface{}, error) {
+			return h.contactUC.CheckWhatsApp(ctx, req.(*contact.CheckWhatsAppRequest))
+		},
+	)
 }
 
 // @Summary Get profile picture
@@ -133,33 +159,22 @@ func (h *ContactHandler) GetProfilePicture(c *fiber.Ctx) error {
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/contacts/info [post]
 func (h *ContactHandler) GetUserInfo(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return c.Status(fiberErr.Code).JSON(common.NewErrorResponse(fiberErr.Message))
-	}
-
-	var req contact.GetUserInfoRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.Error("Failed to parse request body: " + err.Error())
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
-	}
-
-	req.SessionID = sess.ID.String()
-
-	h.logger.InfoWithFields("Getting user info", map[string]interface{}{
-		"session_id":   sess.ID.String(),
-		"session_name": sess.Name,
-		"jid_count":    len(req.JIDs),
-	})
-
-	result, err := h.contactUC.GetUserInfo(c.Context(), &req)
-	if err != nil {
-		h.logger.Error("Failed to get user info: " + err.Error())
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to get user info"))
-	}
-
-	response := common.NewSuccessResponse(result, "User information retrieved successfully")
-	return c.JSON(response)
+	return h.handleContactAction(
+		c,
+		"Getting user info",
+		"User information retrieved successfully",
+		func(c *fiber.Ctx, sess *session.Session) (interface{}, error) {
+			var req contact.GetUserInfoRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			req.SessionID = sess.ID.String()
+			return &req, nil
+		},
+		func(ctx context.Context, req interface{}) (interface{}, error) {
+			return h.contactUC.GetUserInfo(ctx, req.(*contact.GetUserInfoRequest))
+		},
+	)
 }
 
 // @Summary List contacts

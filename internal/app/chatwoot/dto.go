@@ -165,9 +165,9 @@ type Sender struct {
 } //@name Sender
 
 type ChatwootWebhookPayload struct {
-	Event        string                 `json:"event" example:"message_created"`
-	Account      ChatwootAccount        `json:"account"`
-	Conversation ChatwootConversation   `json:"conversation,omitempty"`
+	Event        string               `json:"event" example:"message_created"`
+	Account      ChatwootAccount      `json:"account"`
+	Conversation ChatwootConversation `json:"conversation,omitempty"`
 
 	// Real Chatwoot webhook fields (top-level)
 	ID          int                    `json:"id,omitempty"`

@@ -26,6 +26,10 @@ func NewWebhookHandler(logger *logger.Logger, manager ports.ChatwootManager, wam
 	}
 }
 
+// ============================================================================
+// MAIN WEBHOOK PROCESSING
+// ============================================================================
+
 // ProcessWebhook processes incoming webhooks from Chatwoot
 func (h *WebhookHandler) ProcessWebhook(ctx context.Context, webhook *chatwootdomain.ChatwootWebhookPayload, sessionID string) error {
 	// Delay 500ms to avoid race conditions (based on Evolution API)
@@ -63,6 +67,10 @@ func (h *WebhookHandler) ProcessWebhook(ctx context.Context, webhook *chatwootdo
 
 	return nil
 }
+
+// ============================================================================
+// EVENT HANDLERS
+// ============================================================================
 
 // handleConversationStatusChanged handles conversation status changes
 func (h *WebhookHandler) handleConversationStatusChanged(ctx context.Context, webhook *chatwootdomain.ChatwootWebhookPayload, sessionID string) error {
@@ -141,13 +149,14 @@ func (h *WebhookHandler) sendToWhatsApp(ctx context.Context, webhook *chatwootdo
 	return nil
 }
 
+// ============================================================================
+// MESSAGE FILTERS & UTILITIES
+// ============================================================================
+
 // formatContentForWhatsApp formats message content for WhatsApp
 func (h *WebhookHandler) formatContentForWhatsApp(content string) string {
-	// TODO: Implement markdown conversion from Chatwoot to WhatsApp format
-	// Chatwoot uses standard markdown, WhatsApp uses different formatting
-	// ** -> *
-	// * -> _
-	// ~~ -> ~
+	// TODO: Use MessageFormatter for consistent formatting
+	// Avoiding code duplication with service.go
 	return content
 }
 
@@ -192,35 +201,4 @@ func (h *WebhookHandler) isBotMessage(webhook *chatwootdomain.ChatwootWebhookPay
 	}
 
 	return false
-}
-
-// extractPhoneFromContact extracts phone number from contact
-func (h *WebhookHandler) extractPhoneFromContact(contact chatwootdomain.ChatwootContact) string {
-	// Try phone_number field first
-	if contact.PhoneNumber != "" {
-		return contact.PhoneNumber
-	}
-
-	// Try identifier field
-	if contact.Identifier != "" {
-		return contact.Identifier
-	}
-
-	// Try additional_attributes
-	if contact.AdditionalAttributes != nil {
-		if phone, exists := contact.AdditionalAttributes["phone_number"]; exists {
-			if phoneStr, ok := phone.(string); ok {
-				return phoneStr
-			}
-		}
-	}
-
-	return ""
-}
-
-// normalizePhoneNumber normalizes phone number for WhatsApp
-func (h *WebhookHandler) normalizePhoneNumber(phone string) string {
-	// TODO: Implement phone number normalization
-	// Remove special characters, add country code if needed, etc.
-	return phone
 }

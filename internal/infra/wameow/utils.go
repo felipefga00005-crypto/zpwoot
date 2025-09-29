@@ -60,9 +60,7 @@ func (v *JIDValidator) Normalize(jid string) string {
 	}
 
 	// Remove leading + if present
-	if strings.HasPrefix(jid, "+") {
-		jid = jid[1:]
-	}
+	jid = strings.TrimPrefix(jid, "+")
 
 	// Remove any spaces or dashes
 	jid = strings.ReplaceAll(jid, " ", "")
@@ -311,10 +309,10 @@ func GetBrazilianAlternativeNumber(phoneNumber string) string {
 	// Check if it matches Brazilian pattern: 55 + 2 digits (DDD) + 1 digit + 8 digits
 	// Regex equivalent: /^(\d{2})(\d{2})\d{1}(\d{8})$/
 	if len(cleaned) == 13 && strings.HasPrefix(cleaned, "55") {
-		countryCode := cleaned[:2]  // "55"
-		ddd := cleaned[2:4]         // Area code (DDD)
-		joker := cleaned[4:5]       // The "joker" digit (usually 9)
-		number := cleaned[5:]       // The 8-digit number
+		countryCode := cleaned[:2] // "55"
+		ddd := cleaned[2:4]        // Area code (DDD)
+		joker := cleaned[4:5]      // The "joker" digit (usually 9)
+		number := cleaned[5:]      // The 8-digit number
 
 		if countryCode == "55" {
 			// Convert DDD to int for comparison
@@ -344,9 +342,9 @@ func GetBrazilianAlternativeNumber(phoneNumber string) string {
 
 	// Check if it's a 12-digit Brazilian number (without the 9)
 	if len(cleaned) == 12 && strings.HasPrefix(cleaned, "55") {
-		countryCode := cleaned[:2]  // "55"
-		ddd := cleaned[2:4]         // Area code (DDD)
-		number := cleaned[4:]       // The 8-digit number
+		countryCode := cleaned[:2] // "55"
+		ddd := cleaned[2:4]        // Area code (DDD)
+		number := cleaned[4:]      // The 8-digit number
 
 		// Add the 9 to create the 13-digit format
 		return "+" + countryCode + ddd + "9" + number

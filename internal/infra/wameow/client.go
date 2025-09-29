@@ -24,6 +24,13 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
+// VCard constants
+const (
+	VCardBegin   = "BEGIN:VCARD\n"
+	VCardVersion = "VERSION:3.0\n"
+	VCardEnd     = "END:VCARD"
+)
+
 // WhatsAppClient defines the interface for WhatsApp client operations
 type WhatsAppClient interface {
 	Connect() error
@@ -698,8 +705,8 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 	var contactMessages []*waE2E.ContactMessage
 
 	for _, contact := range contacts {
-		vcard := "BEGIN:VCARD\n"
-		vcard += "VERSION:3.0\n"
+		vcard := VCardBegin
+		vcard += VCardVersion
 		vcard += fmt.Sprintf("FN:%s\n", contact.Name)
 		vcard += fmt.Sprintf("N:%s;;;;\n", contact.Name)
 		vcard += fmt.Sprintf("TEL:%s\n", contact.Phone)
@@ -721,7 +728,7 @@ func (c *WameowClient) SendContactListMessage(ctx context.Context, to string, co
 			vcard += fmt.Sprintf("ADR:%s\n", contact.Address)
 		}
 
-		vcard += "END:VCARD"
+		vcard += VCardEnd
 
 		c.logger.InfoWithFields("📋 Generated vCard for contact", map[string]interface{}{
 			"session_id":    c.sessionID,

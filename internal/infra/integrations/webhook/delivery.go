@@ -327,7 +327,7 @@ func (s *WebhookDeliveryService) deliverWebhook(ctx context.Context, webhookConf
 			Latency: time.Since(startTime),
 		}
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response body
 	responseBody, err := io.ReadAll(resp.Body)

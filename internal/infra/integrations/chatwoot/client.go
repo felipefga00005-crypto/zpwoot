@@ -35,6 +35,10 @@ func NewClient(baseURL, token, accountID string, logger *logger.Logger) *Client 
 	}
 }
 
+// ============================================================================
+// INBOX OPERATIONS
+// ============================================================================
+
 // CreateInbox creates a new inbox in Chatwoot
 func (c *Client) CreateInbox(name, webhookURL string) (*ports.ChatwootInbox, error) {
 	payload := map[string]interface{}{
@@ -98,6 +102,10 @@ func (c *Client) DeleteInbox(inboxID int) error {
 
 	return nil
 }
+
+// ============================================================================
+// CONTACT OPERATIONS
+// ============================================================================
 
 // CreateContact creates a new contact
 func (c *Client) CreateContact(phone, name string, inboxID int) (*ports.ChatwootContact, error) {
@@ -175,6 +183,10 @@ func (c *Client) UpdateContactAttributes(contactID int, attributes map[string]in
 
 	return nil
 }
+
+// ============================================================================
+// CONVERSATION OPERATIONS
+// ============================================================================
 
 // CreateConversation creates a new conversation
 func (c *Client) CreateConversation(contactID, inboxID int) (*ports.ChatwootConversation, error) {
@@ -264,6 +276,10 @@ func (c *Client) UpdateConversationStatus(conversationID int, status string) err
 	return nil
 }
 
+// ============================================================================
+// MESSAGE OPERATIONS
+// ============================================================================
+
 // SendMessage sends a message to a conversation
 func (c *Client) SendMessage(conversationID int, content string) (*ports.ChatwootMessage, error) {
 	return c.SendMessageWithType(conversationID, content, "incoming")
@@ -311,6 +327,10 @@ func (c *Client) GetMessages(conversationID int, before int) ([]ports.ChatwootMe
 	return response.Payload, nil
 }
 
+// ============================================================================
+// ACCOUNT OPERATIONS
+// ============================================================================
+
 // GetAccount gets account information
 func (c *Client) GetAccount() (*ports.ChatwootAccount, error) {
 	var account ports.ChatwootAccount
@@ -331,6 +351,10 @@ func (c *Client) UpdateAccount(updates map[string]interface{}) error {
 
 	return nil
 }
+
+// ============================================================================
+// HTTP CLIENT UTILITIES
+// ============================================================================
 
 // makeRequest makes an HTTP request to the Chatwoot API
 func (c *Client) makeRequest(method, endpoint string, payload interface{}, result interface{}) error {
@@ -357,7 +381,7 @@ func (c *Client) makeRequest(method, endpoint string, payload interface{}, resul
 	if err != nil {
 		return fmt.Errorf("failed to make request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		bodyBytes, _ := io.ReadAll(resp.Body)
@@ -382,19 +406,19 @@ func (c *Client) MergeContacts(baseContactID, mergeContactID int) error {
 
 	// Prepare the merge request body (same as Evolution API)
 	requestBody := map[string]interface{}{
-		"base_contact_id":  baseContactID,
+		"base_contact_id":   baseContactID,
 		"mergee_contact_id": mergeContactID,
 	}
 
 	// Make the merge request to Chatwoot API (same endpoint as Evolution API)
-	url := fmt.Sprintf("/api/v1/accounts/%d/actions/contact_merge", c.accountID)
+	url := fmt.Sprintf("/api/v1/accounts/%s/actions/contact_merge", c.accountID)
 
 	err := c.makeRequest("POST", url, requestBody, nil)
 	if err != nil {
 		c.logger.ErrorWithFields("Failed to merge contacts", map[string]interface{}{
 			"base_contact_id":  baseContactID,
 			"merge_contact_id": mergeContactID,
-			"error":           err.Error(),
+			"error":            err.Error(),
 		})
 		return fmt.Errorf("failed to merge contacts: %w", err)
 	}

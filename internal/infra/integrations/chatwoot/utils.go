@@ -354,5 +354,3 @@ func (u *Utils) GetErrorCategory(err error) string {
 		return "unknown"
 	}
 }
-
-

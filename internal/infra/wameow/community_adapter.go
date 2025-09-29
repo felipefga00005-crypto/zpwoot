@@ -134,19 +134,6 @@ func extractIDFromJID(jid string) string {
 	return jid
 }
 
-// convertToLinkedGroup converts whatsmeow GroupInfo to domain LinkedGroup
-func convertToLinkedGroup(groupInfo *types.GroupInfo) *community.LinkedGroup {
-	return &community.LinkedGroup{
-		JID:              groupInfo.JID.String(),
-		Name:             groupInfo.GroupName.Name,
-		Description:      groupInfo.GroupTopic.Topic,
-		ParticipantCount: len(groupInfo.Participants),
-		IsOwner:          false, // Would need to be determined from user's role
-		IsAdmin:          false, // Would need to be determined from user's role
-		LinkedAt:         groupInfo.GroupCreated,
-	}
-}
-
 // convertToLinkedGroupFromTarget converts whatsmeow GroupLinkTarget to domain LinkedGroup
 func convertToLinkedGroupFromTarget(groupTarget *types.GroupLinkTarget) *community.LinkedGroup {
 	return &community.LinkedGroup{

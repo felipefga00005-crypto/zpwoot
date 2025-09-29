@@ -19,6 +19,10 @@ func NewMessageFormatter(logger *logger.Logger) *MessageFormatter {
 	}
 }
 
+// ============================================================================
+// MAIN FORMATTING METHODS
+// ============================================================================
+
 // FormatMarkdownForChatwoot converts WhatsApp markdown to Chatwoot markdown
 func (mf *MessageFormatter) FormatMarkdownForChatwoot(content string) string {
 	mf.logger.DebugWithFields("Formatting markdown for Chatwoot", map[string]interface{}{
@@ -64,6 +68,10 @@ func (mf *MessageFormatter) FormatMarkdownForWhatsApp(content string) string {
 
 	return content
 }
+
+// ============================================================================
+// MARKDOWN CONVERSION UTILITIES
+// ============================================================================
 
 // convertBoldMarkdown converts bold markdown formatting
 func (mf *MessageFormatter) convertBoldMarkdown(content, from, to string) string {
@@ -133,6 +141,10 @@ func (mf *MessageFormatter) convertStrikethroughMarkdown(content, from, to strin
 
 	return content
 }
+
+// ============================================================================
+// SPECIAL MESSAGE FORMATTERS
+// ============================================================================
 
 // FormatQuotedMessage formats a quoted message for Chatwoot
 func (mf *MessageFormatter) FormatQuotedMessage(originalMessage, quotedContent string) string {
