@@ -58,15 +58,16 @@ func (mm *MessageMapper) CreateMapping(ctx context.Context, sessionID, zpMessage
 }
 
 // UpdateMapping updates an existing mapping with Chatwoot IDs
-func (mm *MessageMapper) UpdateMapping(ctx context.Context, zpMessageID string, cwMessageID, cwConversationID int) error {
+func (mm *MessageMapper) UpdateMapping(ctx context.Context, sessionID, zpMessageID string, cwMessageID, cwConversationID int) error {
 	mm.logger.InfoWithFields("Updating message mapping", map[string]interface{}{
+		"session_id":         sessionID,
 		"zp_message_id":      zpMessageID,
 		"cw_message_id":      cwMessageID,
 		"cw_conversation_id": cwConversationID,
 	})
 
 	// Get existing mapping
-	mapping, err := mm.repository.GetMessageByZpID(ctx, "", zpMessageID)
+	mapping, err := mm.repository.GetMessageByZpID(ctx, sessionID, zpMessageID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing mapping: %w", err)
 	}
@@ -110,13 +111,14 @@ func (mm *MessageMapper) GetMappingByCwID(ctx context.Context, cwMessageID int) 
 }
 
 // MarkAsFailed marks a mapping as failed
-func (mm *MessageMapper) MarkAsFailed(ctx context.Context, zpMessageID string) error {
+func (mm *MessageMapper) MarkAsFailed(ctx context.Context, sessionID, zpMessageID string) error {
 	mm.logger.WarnWithFields("Marking mapping as failed", map[string]interface{}{
+		"session_id":    sessionID,
 		"zp_message_id": zpMessageID,
 	})
 
 	// Get existing mapping
-	mapping, err := mm.repository.GetMessageByZpID(ctx, "", zpMessageID)
+	mapping, err := mm.repository.GetMessageByZpID(ctx, sessionID, zpMessageID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing mapping: %w", err)
 	}
@@ -146,13 +148,14 @@ func (mm *MessageMapper) GetPendingMappings(ctx context.Context, sessionID strin
 }
 
 // DeleteMapping deletes a mapping
-func (mm *MessageMapper) DeleteMapping(ctx context.Context, zpMessageID string) error {
+func (mm *MessageMapper) DeleteMapping(ctx context.Context, sessionID, zpMessageID string) error {
 	mm.logger.InfoWithFields("Deleting mapping", map[string]interface{}{
+		"session_id":    sessionID,
 		"zp_message_id": zpMessageID,
 	})
 
 	// Get existing mapping
-	mapping, err := mm.repository.GetMessageByZpID(ctx, "", zpMessageID)
+	mapping, err := mm.repository.GetMessageByZpID(ctx, sessionID, zpMessageID)
 	if err != nil {
 		return fmt.Errorf("failed to get existing mapping: %w", err)
 	}

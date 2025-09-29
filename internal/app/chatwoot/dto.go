@@ -181,8 +181,8 @@ type ChatwootConversation struct {
 	Status               string                 `json:"status" example:"open"`
 	ContactID            int                    `json:"contact_id" example:"123"`
 	InboxID              int                    `json:"inbox_id" example:"1"`
-	AgentLastSeenAt      *string                `json:"agent_last_seen_at,omitempty"`
-	ContactLastSeenAt    *string                `json:"contact_last_seen_at,omitempty"`
+	AgentLastSeenAt      interface{}            `json:"agent_last_seen_at,omitempty"`
+	ContactLastSeenAt    interface{}            `json:"contact_last_seen_at,omitempty"`
 	Timestamp            int64                  `json:"timestamp" example:"1640995200"`
 	UnreadCount          int                    `json:"unread_count" example:"0"`
 	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`

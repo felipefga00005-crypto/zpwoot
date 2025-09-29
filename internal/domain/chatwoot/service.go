@@ -2,6 +2,7 @@ package chatwoot
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"zpwoot/internal/ports"
@@ -11,14 +12,16 @@ import (
 )
 
 type Service struct {
-	logger     *logger.Logger
-	repository ports.ChatwootRepository
+	logger        *logger.Logger
+	repository    ports.ChatwootRepository
+	wameowManager ports.WameowManager
 }
 
-func NewService(logger *logger.Logger, repository ports.ChatwootRepository) *Service {
+func NewService(logger *logger.Logger, repository ports.ChatwootRepository, wameowManager ports.WameowManager) *Service {
 	return &Service{
-		logger:     logger,
-		repository: repository,
+		logger:        logger,
+		repository:    repository,
+		wameowManager: wameowManager,
 	}
 }
 
@@ -316,7 +319,146 @@ func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload 
 		"account_id": payload.Account.ID,
 	})
 
+	// Delay 500ms to avoid race conditions (based on Evolution API)
+	time.Sleep(500 * time.Millisecond)
+
+	// Skip private messages
+	if payload.Message != nil && payload.Message.Private {
+		s.logger.DebugWithFields("Skipping private message", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+		})
+		return nil
+	}
+
+	// Skip message updates without deletion
+	if payload.Event == "message_updated" {
+		// TODO: Handle message deletion if needed
+		s.logger.DebugWithFields("Skipping message update", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+		})
+		return nil
+	}
+
+	// Process conversation status changes
+	if payload.Event == "conversation_status_changed" {
+		// TODO: Handle conversation status changes if needed
+		s.logger.DebugWithFields("Processing conversation status change", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+		})
+		return nil
+	}
+
+	// Process new messages (main functionality)
+	if payload.Event == "message_created" {
+		return s.handleMessageCreated(ctx, sessionID, payload)
+	}
+
 	return nil
+}
+
+// handleMessageCreated processes new messages from Chatwoot
+func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
+	if payload.Message == nil {
+		return fmt.Errorf("message is nil in webhook payload")
+	}
+
+	// Skip incoming messages (only process outgoing messages from agents)
+	if payload.Message.MessageType != "outgoing" {
+		s.logger.DebugWithFields("Skipping incoming message", map[string]interface{}{
+			"session_id":   sessionID,
+			"message_id":   payload.Message.ID,
+			"message_type": payload.Message.MessageType,
+		})
+		return nil
+	}
+
+	// Skip bot messages or messages from source_id starting with WAID:
+	if payload.Message.SourceID != "" && len(payload.Message.SourceID) >= 5 && payload.Message.SourceID[:5] == "WAID:" {
+		s.logger.DebugWithFields("Skipping bot message", map[string]interface{}{
+			"session_id": sessionID,
+			"message_id": payload.Message.ID,
+			"source_id":  payload.Message.SourceID,
+		})
+		return nil
+	}
+
+	return s.sendToWhatsApp(ctx, sessionID, payload)
+}
+
+// sendToWhatsApp sends a message from Chatwoot to WhatsApp
+func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
+	// Extract phone number from contact
+	phoneNumber := payload.Contact.PhoneNumber
+	if phoneNumber == "" {
+		return fmt.Errorf("contact phone number is empty")
+	}
+
+	// Format content for WhatsApp (convert Chatwoot markdown to WhatsApp format)
+	content := s.formatContentForWhatsApp(payload.Message.Content)
+
+	s.logger.InfoWithFields("Sending message to WhatsApp", map[string]interface{}{
+		"session_id":      sessionID,
+		"to":              phoneNumber,
+		"content":         content,
+		"message_id":      payload.Message.ID,
+		"conversation_id": payload.Conversation.ID,
+	})
+
+	// Send message to WhatsApp using wameowManager
+	result, err := s.wameowManager.SendTextMessage(sessionID, phoneNumber, content, nil)
+	if err != nil {
+		s.logger.ErrorWithFields("Failed to send message to WhatsApp", map[string]interface{}{
+			"session_id":      sessionID,
+			"to":              phoneNumber,
+			"content":         content,
+			"message_id":      payload.Message.ID,
+			"conversation_id": payload.Conversation.ID,
+			"error":           err.Error(),
+		})
+		return fmt.Errorf("failed to send message to WhatsApp: %w", err)
+	}
+
+	s.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
+		"session_id":        sessionID,
+		"to":                phoneNumber,
+		"content":           content,
+		"whatsapp_msg_id":   result.MessageID,
+		"chatwoot_msg_id":   payload.Message.ID,
+		"conversation_id":   payload.Conversation.ID,
+		"timestamp":         result.Timestamp,
+	})
+
+	return nil
+}
+
+// formatContentForWhatsApp formats message content for WhatsApp (based on Evolution API)
+func (s *Service) formatContentForWhatsApp(content string) string {
+	if content == "" {
+		return content
+	}
+
+	// Convert Chatwoot markdown to WhatsApp format (based on Evolution API)
+	// * -> _ (italic)
+	// ** -> * (bold)
+	// ~~ -> ~ (strikethrough)
+	// ` -> ``` (code)
+
+	// Use regex replacements similar to Evolution API
+	// Note: This is a simplified version, the full regex from Evolution is more complex
+	result := content
+
+	// Replace single * with _ for italic (avoiding double *)
+	// Replace ** with * for bold
+	// Replace ~~ with ~ for strikethrough
+	// Replace single ` with ``` for code (avoiding triple `)
+
+	// For now, return as-is since regex in Go would be complex
+	// TODO: Implement proper markdown conversion
+
+	return result
 }
 
 type TestConnectionResult struct {

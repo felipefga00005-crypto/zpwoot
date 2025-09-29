@@ -84,21 +84,21 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Get Chatwoot client
 	client, err := im.chatwootManager.GetClient(sessionID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get Chatwoot client: %w", err)
 	}
 
 	// Extract phone number from JID
 	phoneNumber := im.extractPhoneFromJID(from)
 	if phoneNumber == "" {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to extract phone number from JID: %s", from)
 	}
 
 	// Get Chatwoot configuration to get inbox ID
 	config, err := im.chatwootManager.GetConfig(sessionID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get Chatwoot config: %w", err)
 	}
 
@@ -113,14 +113,14 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Get or create contact
 	contact, err := im.getOrCreateContact(client, phoneNumber, sessionID, inboxID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get or create contact: %w", err)
 	}
 
 	// Get or create conversation
 	conversation, err := im.getOrCreateConversation(client, contact.ID, sessionID, inboxID)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to get or create conversation: %w", err)
 	}
 
@@ -130,12 +130,12 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Send message to Chatwoot
 	chatwootMessage, err := client.SendMessage(conversation.ID, formattedContent)
 	if err != nil {
-		im.messageMapper.MarkAsFailed(ctx, messageID)
+		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to send message to Chatwoot: %w", err)
 	}
 
 	// Update mapping with Chatwoot IDs
-	err = im.messageMapper.UpdateMapping(ctx, messageID, chatwootMessage.ID, conversation.ID)
+	err = im.messageMapper.UpdateMapping(ctx, sessionID, messageID, chatwootMessage.ID, conversation.ID)
 	if err != nil {
 		im.logger.WarnWithFields("Failed to update mapping", map[string]interface{}{
 			"message_id":         messageID,
@@ -363,7 +363,7 @@ func (im *IntegrationManager) ProcessPendingMessages(sessionID string, limit int
 		// This is a simplified version that just marks them as failed
 		// In a real implementation, you'd store more message data or retrieve it from WhatsApp
 
-		err := im.messageMapper.MarkAsFailed(ctx, mapping.ZpMessageID)
+		err := im.messageMapper.MarkAsFailed(ctx, sessionID, mapping.ZpMessageID)
 		if err != nil {
 			im.logger.WarnWithFields("Failed to mark mapping as failed", map[string]interface{}{
 				"message_id": mapping.ZpMessageID,

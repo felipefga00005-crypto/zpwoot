@@ -437,8 +437,12 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 			inboxName = *req.InboxName
 		}
 
-		// Generate webhook URL automatically
-		webhookURL := fmt.Sprintf("http://localhost:8080/chatwoot/webhook/%s", sessionID)
+		// Generate webhook URL automatically using server configuration
+		serverHost := os.Getenv("SERVER_HOST")
+		if serverHost == "" {
+			serverHost = "http://localhost:8080" // fallback
+		}
+		webhookURL := fmt.Sprintf("%s/chatwoot/webhook/%s", serverHost, sessionID)
 
 		// Call auto-creation logic
 		autoCreateErr := h.chatwootUC.AutoCreateInbox(ctx, sessionID, inboxName, webhookURL)
@@ -489,17 +493,13 @@ func (h *ChatwootHandler) FindConfig(c *fiber.Ctx) error {
 	})
 }
 
-// getBaseURL extracts the base URL from the request
+// getBaseURL gets the base URL from server configuration
 func (h *ChatwootHandler) getBaseURL(c *fiber.Ctx) string {
-	scheme := "http"
-	if c.Protocol() == "https" {
-		scheme = "https"
+	// Use SERVER_HOST from environment configuration
+	serverHost := os.Getenv("SERVER_HOST")
+	if serverHost == "" {
+		serverHost = "http://localhost:8080" // fallback
 	}
 
-	host := c.Get("Host")
-	if host == "" {
-		host = "localhost:8080" // fallback
-	}
-
-	return fmt.Sprintf("%s://%s", scheme, host)
+	return serverHost
 }

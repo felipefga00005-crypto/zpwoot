@@ -161,4 +161,5 @@ func setupGlobalRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger
 	// Chatwoot webhook (without authentication - like Evolution API)
 	chatwootHandler := handlers.NewChatwootHandler(container.GetChatwootUseCase(), appLogger)
 	app.Post("/sessions/:sessionId/chatwoot/webhook", chatwootHandler.ReceiveWebhook) // POST /sessions/:sessionId/chatwoot/webhook
+	app.Post("/chatwoot/webhook/:sessionId", chatwootHandler.ReceiveWebhook)          // POST /chatwoot/webhook/:sessionId (alternative route)
 }

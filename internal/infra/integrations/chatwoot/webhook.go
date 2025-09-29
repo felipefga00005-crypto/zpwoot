@@ -150,11 +150,28 @@ func (h *WebhookHandler) sendToWhatsApp(ctx context.Context, webhook *chatwootdo
 	// Format content for WhatsApp (convert Chatwoot markdown to WhatsApp format)
 	content := h.formatContentForWhatsApp(webhook.Message.Content)
 
-	// TODO: Implement actual message sending to WhatsApp
-	// This would use the wameowManager to send the message
-	h.logger.InfoWithFields("Would send to WhatsApp", map[string]interface{}{
-		"to":      phoneNumber,
-		"content": content,
+	// Send message to WhatsApp using wameowManager
+	result, err := h.wameowManager.SendTextMessage(sessionID, phoneNumber, content, nil)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to send message to WhatsApp", map[string]interface{}{
+			"session_id":      sessionID,
+			"to":              phoneNumber,
+			"content":         content,
+			"message_id":      webhook.Message.ID,
+			"conversation_id": webhook.Conversation.ID,
+			"error":           err.Error(),
+		})
+		return fmt.Errorf("failed to send message to WhatsApp: %w", err)
+	}
+
+	h.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
+		"session_id":        sessionID,
+		"to":                phoneNumber,
+		"content":           content,
+		"whatsapp_msg_id":   result.MessageID,
+		"chatwoot_msg_id":   webhook.Message.ID,
+		"conversation_id":   webhook.Conversation.ID,
+		"timestamp":         result.Timestamp,
 	})
 
 	return nil
