@@ -28,27 +28,27 @@ func NewMessageRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootMess
 
 // zpMessageModel represents the complete database model for zpMessage table
 type zpMessageModel struct {
-	ID               string        `db:"id"`
-	SessionID        string        `db:"sessionId"`
+	ID        string `db:"id"`
+	SessionID string `db:"sessionId"`
 
 	// WhatsApp Message Data
-	ZpMessageID      string        `db:"zpMessageId"`
-	ZpSender         string        `db:"zpSender"`
-	ZpChat           string        `db:"zpChat"`
-	ZpTimestamp      time.Time     `db:"zpTimestamp"`
-	ZpFromMe         bool          `db:"zpFromMe"`
-	ZpType           string        `db:"zpType"`
-	Content          string        `db:"content"`
+	ZpMessageID string    `db:"zpMessageId"`
+	ZpSender    string    `db:"zpSender"`
+	ZpChat      string    `db:"zpChat"`
+	ZpTimestamp time.Time `db:"zpTimestamp"`
+	ZpFromMe    bool      `db:"zpFromMe"`
+	ZpType      string    `db:"zpType"`
+	Content     string    `db:"content"`
 
 	// Chatwoot Message Data
 	CwMessageID      sql.NullInt64 `db:"cwMessageId"`
 	CwConversationID sql.NullInt64 `db:"cwConversationId"`
 
 	// Sync Status
-	SyncStatus       string        `db:"syncStatus"`
-	CreatedAt        time.Time     `db:"createdAt"`
-	UpdatedAt        time.Time     `db:"updatedAt"`
-	SyncedAt         sql.NullTime  `db:"syncedAt"`
+	SyncStatus string       `db:"syncStatus"`
+	CreatedAt  time.Time    `db:"createdAt"`
+	UpdatedAt  time.Time    `db:"updatedAt"`
+	SyncedAt   sql.NullTime `db:"syncedAt"`
 }
 
 // CreateMessage creates a new message mapping

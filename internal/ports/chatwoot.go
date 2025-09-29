@@ -234,27 +234,27 @@ type ContactUpdate struct {
 
 // ZpMessage represents a complete mapping between WhatsApp message and Chatwoot message
 type ZpMessage struct {
-	ID               string     `json:"id"`
-	SessionID        string     `json:"session_id"`
+	ID        string `json:"id"`
+	SessionID string `json:"session_id"`
 
 	// WhatsApp Message Data (from whatsmeow)
-	ZpMessageID      string     `json:"zp_message_id"`                // WhatsApp message ID
-	ZpSender         string     `json:"zp_sender"`                    // WhatsApp sender JID
-	ZpChat           string     `json:"zp_chat"`                      // WhatsApp chat JID
-	ZpTimestamp      time.Time  `json:"zp_timestamp"`                 // WhatsApp message timestamp
-	ZpFromMe         bool       `json:"zp_from_me"`                   // Whether message was sent by me
-	ZpType           string     `json:"zp_type"`                      // WhatsApp message type
-	Content          string     `json:"content"`                      // Message text content
+	ZpMessageID string    `json:"zp_message_id"` // WhatsApp message ID
+	ZpSender    string    `json:"zp_sender"`     // WhatsApp sender JID
+	ZpChat      string    `json:"zp_chat"`       // WhatsApp chat JID
+	ZpTimestamp time.Time `json:"zp_timestamp"`  // WhatsApp message timestamp
+	ZpFromMe    bool      `json:"zp_from_me"`    // Whether message was sent by me
+	ZpType      string    `json:"zp_type"`       // WhatsApp message type
+	Content     string    `json:"content"`       // Message text content
 
 	// Chatwoot Message Data
-	CwMessageID      *int       `json:"cw_message_id,omitempty"`      // Chatwoot message ID
-	CwConversationID *int       `json:"cw_conversation_id,omitempty"` // Chatwoot conversation ID
+	CwMessageID      *int `json:"cw_message_id,omitempty"`      // Chatwoot message ID
+	CwConversationID *int `json:"cw_conversation_id,omitempty"` // Chatwoot conversation ID
 
 	// Sync Status
-	SyncStatus       string     `json:"sync_status"`                  // pending, synced, failed
-	CreatedAt        time.Time  `json:"created_at"`
-	UpdatedAt        time.Time  `json:"updated_at"`
-	SyncedAt         *time.Time `json:"synced_at,omitempty"`
+	SyncStatus string     `json:"sync_status"` // pending, synced, failed
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
+	SyncedAt   *time.Time `json:"synced_at,omitempty"`
 }
 
 // ChatwootMessageRepository defines the interface for zpMessage operations

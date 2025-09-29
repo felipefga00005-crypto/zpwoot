@@ -165,13 +165,13 @@ func (h *WebhookHandler) sendToWhatsApp(ctx context.Context, webhook *chatwootdo
 	}
 
 	h.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
-		"session_id":        sessionID,
-		"to":                phoneNumber,
-		"content":           content,
-		"whatsapp_msg_id":   result.MessageID,
-		"chatwoot_msg_id":   webhook.Message.ID,
-		"conversation_id":   webhook.Conversation.ID,
-		"timestamp":         result.Timestamp,
+		"session_id":      sessionID,
+		"to":              phoneNumber,
+		"content":         content,
+		"whatsapp_msg_id": result.MessageID,
+		"chatwoot_msg_id": webhook.Message.ID,
+		"conversation_id": webhook.Conversation.ID,
+		"timestamp":       result.Timestamp,
 	})
 
 	return nil

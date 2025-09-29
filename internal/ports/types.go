@@ -135,7 +135,7 @@ type ChatwootMessage struct {
 	ID                int                    `json:"id"`
 	ConversationID    int                    `json:"conversation_id"`
 	Content           string                 `json:"content"`
-	MessageType       int                    `json:"message_type"`        // Chatwoot returns this as number (0=incoming, 1=outgoing)
+	MessageType       int                    `json:"message_type"` // Chatwoot returns this as number (0=incoming, 1=outgoing)
 	ContentType       string                 `json:"content_type"`
 	ContentAttributes map[string]interface{} `json:"content_attributes,omitempty"`
 	Metadata          map[string]interface{} `json:"metadata,omitempty"`

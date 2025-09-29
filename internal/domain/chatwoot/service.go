@@ -422,13 +422,13 @@ func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload 
 	}
 
 	s.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
-		"session_id":        sessionID,
-		"to":                phoneNumber,
-		"content":           content,
-		"whatsapp_msg_id":   result.MessageID,
-		"chatwoot_msg_id":   payload.Message.ID,
-		"conversation_id":   payload.Conversation.ID,
-		"timestamp":         result.Timestamp,
+		"session_id":      sessionID,
+		"to":              phoneNumber,
+		"content":         content,
+		"whatsapp_msg_id": result.MessageID,
+		"chatwoot_msg_id": payload.Message.ID,
+		"conversation_id": payload.Conversation.ID,
+		"timestamp":       result.Timestamp,
 	})
 
 	return nil

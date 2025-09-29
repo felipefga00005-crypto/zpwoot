@@ -202,7 +202,7 @@ func (c *Client) ListContactConversations(contactID int) ([]ports.ChatwootConver
 	}
 
 	c.logger.InfoWithFields("Contact conversations listed", map[string]interface{}{
-		"contact_id":         contactID,
+		"contact_id":          contactID,
 		"conversations_count": len(response.Payload),
 	})
 
@@ -330,7 +330,7 @@ func (c *Client) SendMessage(conversationID int, content string) (*ports.Chatwoo
 
 	payload := map[string]interface{}{
 		"content":      content,
-		"message_type": "incoming",  // Messages from WhatsApp are incoming to Chatwoot
+		"message_type": "incoming", // Messages from WhatsApp are incoming to Chatwoot
 	}
 
 	var message ports.ChatwootMessage

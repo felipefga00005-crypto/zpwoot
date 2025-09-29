@@ -39,8 +39,8 @@ import (
 	"zpwoot/internal/infra/db"
 	"zpwoot/internal/infra/http/middleware"
 	"zpwoot/internal/infra/http/routers"
-	"zpwoot/internal/infra/integrations/webhook"
 	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
+	"zpwoot/internal/infra/integrations/webhook"
 	"zpwoot/internal/infra/repository"
 	"zpwoot/internal/infra/wameow"
 	"zpwoot/internal/ports"
@@ -460,10 +460,10 @@ func configureChatwootIntegration(whatsappManager *wameow.Manager, integrationMa
 // connectOnStartup automatically reconnects existing sessions on startup
 func connectOnStartup(container *app.Container, logger *logger.Logger) {
 	const (
-		startupDelay    = 3 * time.Second
+		startupDelay     = 3 * time.Second
 		operationTimeout = 60 * time.Second
-		sessionLimit    = 100
-		reconnectDelay  = 1 * time.Second
+		sessionLimit     = 100
+		reconnectDelay   = 1 * time.Second
 	)
 
 	time.Sleep(startupDelay)
