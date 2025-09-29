@@ -3,6 +3,7 @@ package handlers
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -381,8 +382,12 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 				inboxName = *req.InboxName
 			}
 
-			// Generate webhook URL automatically
-			webhookURL := fmt.Sprintf("http://localhost:8080/chatwoot/webhook/%s", sessionID)
+			// Generate webhook URL automatically using server configuration
+			serverHost := os.Getenv("SERVER_HOST")
+			if serverHost == "" {
+				serverHost = "http://localhost:8080" // fallback
+			}
+			webhookURL := fmt.Sprintf("%s/chatwoot/webhook/%s", serverHost, sessionID)
 
 			// Call auto-creation logic (this would need to be implemented in the use case)
 			autoCreateErr := h.chatwootUC.AutoCreateInbox(ctx, sessionID, inboxName, webhookURL)
