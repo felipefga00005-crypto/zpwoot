@@ -16,6 +16,7 @@ type ProxyConfig struct {
 
 type CreateSessionRequest struct {
 	Name        string       `json:"name" validate:"required,min=3,max=50" example:"my-session"`
+	QrCode      bool         `json:"qrCode" example:"false"`
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 } //@name CreateSessionRequest
 
@@ -24,6 +25,8 @@ type CreateSessionResponse struct {
 	Name        string       `json:"name" example:"my-session"`
 	IsConnected bool         `json:"isConnected" example:"false"`
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
+	QrCode      string       `json:"qrCode,omitempty" example:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."`
+	Code        string       `json:"code,omitempty" example:"2@abc123..."`
 	CreatedAt   time.Time    `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 } //@name CreateSessionResponse
 
@@ -75,9 +78,10 @@ type PairPhoneRequest struct {
 } //@name PairPhoneRequest
 
 type QRCodeResponse struct {
-	QRCode    string    `json:"qrCode" example:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="`
-	ExpiresAt time.Time `json:"expiresAt" example:"2024-01-01T00:01:00Z"`
-	Timeout   int       `json:"timeoutSeconds" example:"60"`
+	QRCode      string    `json:"qrCode" example:"2@abc123def456..."`
+	QRCodeImage string    `json:"qrCodeImage,omitempty" example:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="`
+	ExpiresAt   time.Time `json:"expiresAt" example:"2024-01-01T00:01:00Z"`
+	Timeout     int       `json:"timeoutSeconds" example:"60"`
 } //@name QRCodeResponse
 
 type SetProxyRequest struct {
@@ -87,6 +91,13 @@ type SetProxyRequest struct {
 type ProxyResponse struct {
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 } //@name ProxyResponse
+
+type ConnectSessionResponse struct {
+	Success bool   `json:"success" example:"true"`
+	Message string `json:"message" example:"Session connection initiated successfully"`
+	QrCode  string `json:"qrCode,omitempty" example:"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."`
+	Code    string `json:"code,omitempty" example:"2@abc123..."`
+} //@name ConnectSessionResponse
 
 func (r *CreateSessionRequest) ToCreateSessionRequest() *domainSession.CreateSessionRequest {
 	var proxyConfig *domainSession.ProxyConfig
@@ -101,6 +112,7 @@ func (r *CreateSessionRequest) ToCreateSessionRequest() *domainSession.CreateSes
 	}
 	return &domainSession.CreateSessionRequest{
 		Name:        r.Name,
+		QrCode:      r.QrCode,
 		ProxyConfig: proxyConfig,
 	}
 }

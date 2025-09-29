@@ -61,6 +61,7 @@ type ProxyConfig struct {
 
 type CreateSessionRequest struct {
 	Name        string       `json:"name" validate:"required,min=1,max=100"`
+	QrCode      bool         `json:"qrCode"`
 	ProxyConfig *ProxyConfig `json:"proxyConfig,omitempty"`
 }
 
@@ -81,9 +82,10 @@ type PairPhoneRequest struct {
 }
 
 type QRCodeResponse struct {
-	QRCode    string    `json:"qr_code"`
-	ExpiresAt time.Time `json:"expires_at"`
-	Timeout   int       `json:"timeout_seconds"`
+	QRCode      string    `json:"qr_code"`
+	QRCodeImage string    `json:"qr_code_image,omitempty"`
+	ExpiresAt   time.Time `json:"expires_at"`
+	Timeout     int       `json:"timeout_seconds"`
 }
 
 func NewSession(name string) *Session {

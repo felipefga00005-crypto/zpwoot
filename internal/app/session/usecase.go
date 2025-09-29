@@ -12,7 +12,7 @@ type UseCase interface {
 	ListSessions(ctx context.Context, req *ListSessionsRequest) (*ListSessionsResponse, error)
 	GetSessionInfo(ctx context.Context, sessionID string) (*SessionInfoResponse, error)
 	DeleteSession(ctx context.Context, sessionID string) error
-	ConnectSession(ctx context.Context, sessionID string) error
+	ConnectSession(ctx context.Context, sessionID string) (*ConnectSessionResponse, error)
 	LogoutSession(ctx context.Context, sessionID string) error
 	GetQRCode(ctx context.Context, sessionID string) (*QRCodeResponse, error)
 	PairPhone(ctx context.Context, sessionID string, req *PairPhoneRequest) error
@@ -63,6 +63,16 @@ func (uc *useCaseImpl) CreateSession(ctx context.Context, req *CreateSessionRequ
 		IsConnected: sess.IsConnected,
 		ProxyConfig: proxyConfig,
 		CreatedAt:   sess.CreatedAt,
+	}
+
+	// If QR code was requested during creation, generate it
+	if req.QrCode {
+		qrResponse, err := uc.sessionService.GetQRCode(ctx, sess.ID.String())
+		if err == nil && qrResponse != nil {
+			response.QrCode = qrResponse.QRCodeImage
+			response.Code = qrResponse.QRCode
+		}
+		// Don't fail creation if QR code generation fails
 	}
 
 	return response, nil
@@ -121,8 +131,25 @@ func (uc *useCaseImpl) DeleteSession(ctx context.Context, sessionID string) erro
 	return uc.sessionService.DeleteSession(ctx, sessionID)
 }
 
-func (uc *useCaseImpl) ConnectSession(ctx context.Context, sessionID string) error {
-	return uc.sessionService.ConnectSession(ctx, sessionID)
+func (uc *useCaseImpl) ConnectSession(ctx context.Context, sessionID string) (*ConnectSessionResponse, error) {
+	err := uc.sessionService.ConnectSession(ctx, sessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	response := &ConnectSessionResponse{
+		Success: true,
+		Message: "Session connection initiated successfully",
+	}
+
+	// Try to get QR code if available
+	qrResponse, qrErr := uc.sessionService.GetQRCode(ctx, sessionID)
+	if qrErr == nil && qrResponse != nil {
+		response.QrCode = qrResponse.QRCodeImage
+		response.Code = qrResponse.QRCode
+	}
+
+	return response, nil
 }
 
 func (uc *useCaseImpl) LogoutSession(ctx context.Context, sessionID string) error {

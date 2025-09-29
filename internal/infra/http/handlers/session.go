@@ -112,15 +112,16 @@ func (h *SessionHandler) handleSessionActionNoReturn(
 }
 
 // @Summary Create new session
-// @Description Create a new WhatsApp session with optional proxy configuration
+// @Description Create a new WhatsApp session with optional proxy configuration. If qrCode is true, returns QR code immediately for connection.
 // @Tags Sessions
 // @Security ApiKeyAuth
 // @Accept json
 // @Produce json
 // @Security ApiKeyAuth
-// @Param request body session.CreateSessionRequest true "Session creation request"
-// @Success 201 {object} session.CreateSessionResponse "Session created successfully"
+// @Param request body session.CreateSessionRequest true "Session creation request with optional qrCode flag"
+// @Success 201 {object} session.CreateSessionResponse "Session created successfully. If qrCode was true, includes QR code data."
 // @Failure 400 {object} object "Bad Request"
+// @Failure 409 {object} object "Session already exists"
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/create [post]
 func (h *SessionHandler) CreateSession(c *fiber.Ctx) error {
@@ -269,17 +270,19 @@ func (h *SessionHandler) DeleteSession(c *fiber.Ctx) error {
 }
 
 // @Summary Connect session
-// @Description Connect a WhatsApp session to start receiving messages
+// @Description Connect a WhatsApp session to start receiving messages. Returns QR code if device is not registered.
 // @Tags Sessions
 // @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
-// @Success 200 {object} common.SuccessResponse "Session connection initiated successfully"
+// @Success 200 {object} session.ConnectSessionResponse "Session connection initiated successfully with QR code if needed"
 // @Failure 404 {object} object "Session not found"
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/connect [post]
 func (h *SessionHandler) ConnectSession(c *fiber.Ctx) error {
-	return h.handleSessionActionNoReturn(c, "connect session", h.sessionUC.ConnectSession, "Session connection initiated successfully")
+	return h.handleSessionAction(c, "connect session", func(ctx context.Context, sessionID string) (interface{}, error) {
+		return h.sessionUC.ConnectSession(ctx, sessionID)
+	})
 }
 
 // @Summary Logout session
@@ -297,12 +300,12 @@ func (h *SessionHandler) LogoutSession(c *fiber.Ctx) error {
 }
 
 // @Summary Get QR code
-// @Description Get QR code for WhatsApp session pairing
+// @Description Get QR code for WhatsApp session pairing. Returns both raw QR code string and base64 image.
 // @Tags Sessions
 // @Security ApiKeyAuth
 // @Produce json
 // @Param sessionId path string true "Session ID"
-// @Success 200 {object} session.QRCodeResponse "QR code generated successfully"
+// @Success 200 {object} session.QRCodeResponse "QR code generated successfully with base64 image"
 // @Failure 404 {object} object "Session not found"
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/qr [get]

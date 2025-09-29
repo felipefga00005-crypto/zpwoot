@@ -57,6 +57,15 @@ func (s *Service) CreateSession(ctx context.Context, req *CreateSessionRequest) 
 		return nil, errors.Wrap(err, "failed to initialize Wameow session")
 	}
 
+	// If QR code was requested, initiate connection to generate QR code
+	if req.QrCode {
+		// Start connection process which will generate QR code
+		if err := s.Wameow.ConnectSession(session.ID.String()); err != nil {
+			// Don't fail session creation if QR code generation fails
+			// Just log the error
+		}
+	}
+
 	return session, nil
 }
 

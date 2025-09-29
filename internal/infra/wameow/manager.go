@@ -204,10 +204,14 @@ func (m *Manager) GetQRCode(sessionID string) (*session.QRCodeResponse, error) {
 		return nil, fmt.Errorf("failed to get QR code for session %s: %w", sessionID, err)
 	}
 
+	// Generate QR code image
+	qrCodeImage := m.qrGenerator.GenerateQRCodeImage(qrCode)
+
 	return &session.QRCodeResponse{
-		QRCode:    qrCode,
-		ExpiresAt: time.Now().Add(2 * time.Minute),
-		Timeout:   120,
+		QRCode:      qrCode,
+		QRCodeImage: qrCodeImage,
+		ExpiresAt:   time.Now().Add(2 * time.Minute),
+		Timeout:     120,
 	}, nil
 }
 

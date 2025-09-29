@@ -611,7 +611,7 @@ func reconnectSessions(ctx context.Context, sessions []*session.Session, session
 			continue
 		}
 
-		if err := sessionUC.ConnectSession(ctx, sessionID); err != nil {
+		if _, err := sessionUC.ConnectSession(ctx, sessionID); err != nil {
 			logger.ErrorWithFields("Failed to auto-connect session", map[string]interface{}{
 				"session_id": sessionID,
 				"error":      err.Error(),
