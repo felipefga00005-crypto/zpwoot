@@ -105,6 +105,21 @@ definitions:
         example: https://chatwoot.example.com
         type: string
     type: object
+  ConnectSessionResponse:
+    properties:
+      code:
+        example: 2@abc123...
+        type: string
+      message:
+        example: Session connection initiated successfully
+        type: string
+      qrCode:
+        example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
+        type: string
+      success:
+        example: true
+        type: boolean
+    type: object
   ContactListMessageResponse:
     properties:
       failureCount:
@@ -170,18 +185,68 @@ definitions:
       accountId:
         example: "1"
         type: string
-      apiKey:
-        example: chatwoot-api-key-123
-        type: string
+      autoCreate:
+        example: true
+        type: boolean
+      convPending:
+        example: false
+        type: boolean
+      enabled:
+        example: true
+        type: boolean
+      ignoreJids:
+        example:
+        - '["5511888888888@s.whatsapp.net"]'
+        items:
+          type: string
+        type: array
+      importContacts:
+        example: false
+        type: boolean
+      importDays:
+        example: 60
+        type: integer
+      importMessages:
+        example: false
+        type: boolean
       inboxId:
         example: "1"
         type: string
+      inboxName:
+        description: Advanced configuration - shorter names matching DB columns
+        example: WhatsApp zpwoot
+        type: string
+      logo:
+        example: https://zpwoot.com/logo.png
+        type: string
+      mergeBrazil:
+        example: true
+        type: boolean
+      number:
+        example: "5511999999999"
+        type: string
+      organization:
+        example: zpwoot Bot
+        type: string
+      reopenConv:
+        example: true
+        type: boolean
+      signDelimiter:
+        example: \n\n
+        type: string
+      signMsg:
+        example: false
+        type: boolean
+      token:
+        example: WAF6y4K5s6sdR9uVpsdE7BCt
+        type: string
       url:
-        example: https://chatwoot.example.com
+        description: Core configuration - matching zpChatwoot table
+        example: http://localhost:3001
         type: string
     required:
     - accountId
-    - apiKey
+    - token
     - url
     type: object
   CreateChatwootConfigResponse:
@@ -272,11 +337,17 @@ definitions:
         type: string
       proxyConfig:
         $ref: '#/definitions/ProxyConfig'
+      qrCode:
+        example: false
+        type: boolean
     required:
     - name
     type: object
   CreateSessionResponse:
     properties:
+      code:
+        example: 2@abc123...
+        type: string
       createdAt:
         example: "2024-01-01T00:00:00Z"
         type: string
@@ -291,6 +362,9 @@ definitions:
         type: string
       proxyConfig:
         $ref: '#/definitions/ProxyConfig'
+      qrCode:
+        example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...
+        type: string
     type: object
   DeviceInfoResponse:
     properties:
@@ -631,6 +705,9 @@ definitions:
         example: "2024-01-01T00:01:00Z"
         type: string
       qrCode:
+        example: 2@abc123def456...
+        type: string
+      qrCodeImage:
         example: data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==
         type: string
       timeoutSeconds:
@@ -1426,7 +1503,8 @@ paths:
       - Chatwoot
   /sessions/{sessionId}/connect:
     post:
-      description: Connect a WhatsApp session to start receiving messages
+      description: Connect a WhatsApp session to start receiving messages. Returns
+        QR code if device is not registered.
       parameters:
       - description: Session ID
         in: path
@@ -1437,9 +1515,9 @@ paths:
       - application/json
       responses:
         "200":
-          description: Session connection initiated successfully
+          description: Session connection initiated successfully with QR code if needed
           schema:
-            $ref: '#/definitions/SuccessResponse'
+            $ref: '#/definitions/ConnectSessionResponse'
         "404":
           description: Session not found
           schema:
@@ -3070,7 +3148,8 @@ paths:
       - Sessions
   /sessions/{sessionId}/qr:
     get:
-      description: Get QR code for WhatsApp session pairing
+      description: Get QR code for WhatsApp session pairing. Returns both raw QR code
+        string and base64 image.
       parameters:
       - description: Session ID
         in: path
@@ -3081,7 +3160,7 @@ paths:
       - application/json
       responses:
         "200":
-          description: QR code generated successfully
+          description: QR code generated successfully with base64 image
           schema:
             $ref: '#/definitions/QRCodeResponse'
         "404":
@@ -3221,9 +3300,10 @@ paths:
     post:
       consumes:
       - application/json
-      description: Create a new WhatsApp session with optional proxy configuration
+      description: Create a new WhatsApp session with optional proxy configuration.
+        If qrCode is true, returns QR code immediately for connection.
       parameters:
-      - description: Session creation request
+      - description: Session creation request with optional qrCode flag
         in: body
         name: request
         required: true
@@ -3233,11 +3313,16 @@ paths:
       - application/json
       responses:
         "201":
-          description: Session created successfully
+          description: Session created successfully. If qrCode was true, includes
+            QR code data.
           schema:
             $ref: '#/definitions/CreateSessionResponse'
         "400":
           description: Bad Request
+          schema:
+            type: object
+        "409":
+          description: Session already exists
           schema:
             type: object
         "500":

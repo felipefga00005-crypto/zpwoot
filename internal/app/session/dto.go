@@ -168,8 +168,9 @@ func FromSessionInfo(si *domainSession.SessionInfo) *SessionInfoResponse {
 
 func FromQRCodeResponse(qr *domainSession.QRCodeResponse) *QRCodeResponse {
 	return &QRCodeResponse{
-		QRCode:    qr.QRCode,
-		ExpiresAt: qr.ExpiresAt,
-		Timeout:   qr.Timeout,
+		QRCode:      qr.QRCode,
+		QRCodeImage: qr.QRCodeImage,
+		ExpiresAt:   qr.ExpiresAt,
+		Timeout:     qr.Timeout,
 	}
 }

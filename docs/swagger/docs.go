@@ -95,7 +95,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Create a new WhatsApp session with optional proxy configuration",
+                "description": "Create a new WhatsApp session with optional proxy configuration. If qrCode is true, returns QR code immediately for connection.",
                 "consumes": [
                     "application/json"
                 ],
@@ -108,7 +108,7 @@ const docTemplate = `{
                 "summary": "Create new session",
                 "parameters": [
                     {
-                        "description": "Session creation request",
+                        "description": "Session creation request with optional qrCode flag",
                         "name": "request",
                         "in": "body",
                         "required": true,
@@ -119,13 +119,19 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "201": {
-                        "description": "Session created successfully",
+                        "description": "Session created successfully. If qrCode was true, includes QR code data.",
                         "schema": {
                             "$ref": "#/definitions/CreateSessionResponse"
                         }
                     },
                     "400": {
                         "description": "Bad Request",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "409": {
+                        "description": "Session already exists",
                         "schema": {
                             "type": "object"
                         }
@@ -325,7 +331,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Connect a WhatsApp session to start receiving messages",
+                "description": "Connect a WhatsApp session to start receiving messages. Returns QR code if device is not registered.",
                 "produces": [
                     "application/json"
                 ],
@@ -344,9 +350,9 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "Session connection initiated successfully",
+                        "description": "Session connection initiated successfully with QR code if needed",
                         "schema": {
-                            "$ref": "#/definitions/SuccessResponse"
+                            "$ref": "#/definitions/ConnectSessionResponse"
                         }
                     },
                     "404": {
@@ -2991,7 +2997,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Get QR code for WhatsApp session pairing",
+                "description": "Get QR code for WhatsApp session pairing. Returns both raw QR code string and base64 image.",
                 "produces": [
                     "application/json"
                 ],
@@ -3010,7 +3016,7 @@ const docTemplate = `{
                 ],
                 "responses": {
                     "200": {
-                        "description": "QR code generated successfully",
+                        "description": "QR code generated successfully with base64 image",
                         "schema": {
                             "$ref": "#/definitions/QRCodeResponse"
                         }
@@ -3386,6 +3392,27 @@ const docTemplate = `{
                 }
             }
         },
+        "ConnectSessionResponse": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "2@abc123..."
+                },
+                "message": {
+                    "type": "string",
+                    "example": "Session connection initiated successfully"
+                },
+                "qrCode": {
+                    "type": "string",
+                    "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
         "ContactListMessageResponse": {
             "type": "object",
             "properties": {
@@ -3475,7 +3502,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "accountId",
-                "apiKey",
+                "token",
                 "url"
             ],
             "properties": {
@@ -3483,17 +3510,84 @@ const docTemplate = `{
                     "type": "string",
                     "example": "1"
                 },
-                "apiKey": {
-                    "type": "string",
-                    "example": "chatwoot-api-key-123"
+                "autoCreate": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "convPending": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "enabled": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "ignoreJids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    },
+                    "example": [
+                        "[\"5511888888888@s.whatsapp.net\"]"
+                    ]
+                },
+                "importContacts": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "importDays": {
+                    "type": "integer",
+                    "example": 60
+                },
+                "importMessages": {
+                    "type": "boolean",
+                    "example": false
                 },
                 "inboxId": {
                     "type": "string",
                     "example": "1"
                 },
-                "url": {
+                "inboxName": {
+                    "description": "Advanced configuration - shorter names matching DB columns",
                     "type": "string",
-                    "example": "https://chatwoot.example.com"
+                    "example": "WhatsApp zpwoot"
+                },
+                "logo": {
+                    "type": "string",
+                    "example": "https://zpwoot.com/logo.png"
+                },
+                "mergeBrazil": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "number": {
+                    "type": "string",
+                    "example": "5511999999999"
+                },
+                "organization": {
+                    "type": "string",
+                    "example": "zpwoot Bot"
+                },
+                "reopenConv": {
+                    "type": "boolean",
+                    "example": true
+                },
+                "signDelimiter": {
+                    "type": "string",
+                    "example": "\\n\\n"
+                },
+                "signMsg": {
+                    "type": "boolean",
+                    "example": false
+                },
+                "token": {
+                    "type": "string",
+                    "example": "WAF6y4K5s6sdR9uVpsdE7BCt"
+                },
+                "url": {
+                    "description": "Core configuration - matching zpChatwoot table",
+                    "type": "string",
+                    "example": "http://localhost:3001"
                 }
             }
         },
@@ -3618,12 +3712,20 @@ const docTemplate = `{
                 },
                 "proxyConfig": {
                     "$ref": "#/definitions/ProxyConfig"
+                },
+                "qrCode": {
+                    "type": "boolean",
+                    "example": false
                 }
             }
         },
         "CreateSessionResponse": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string",
+                    "example": "2@abc123..."
+                },
                 "createdAt": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
@@ -3642,6 +3744,10 @@ const docTemplate = `{
                 },
                 "proxyConfig": {
                     "$ref": "#/definitions/ProxyConfig"
+                },
+                "qrCode": {
+                    "type": "string",
+                    "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA..."
                 }
             }
         },
@@ -4118,6 +4224,10 @@ const docTemplate = `{
                     "example": "2024-01-01T00:01:00Z"
                 },
                 "qrCode": {
+                    "type": "string",
+                    "example": "2@abc123def456..."
+                },
+                "qrCodeImage": {
                     "type": "string",
                     "example": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
                 },
