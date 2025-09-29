@@ -71,7 +71,11 @@ func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
 	case *events.LoggedOut:
 		h.handleLoggedOut(v, sessionID)
 	case *events.QR:
-		h.handleQR(v, sessionID)
+		// QR events are handled by client QR channel to avoid duplication
+		// All QR code processing is done through client.handleQREvent()
+		h.logger.DebugWithFields("QR event received but skipped (handled by client channel)", map[string]interface{}{
+			"session_id": sessionID,
+		})
 	case *events.PairSuccess:
 		h.handlePairSuccess(v, sessionID)
 	case *events.PairError:
@@ -714,4 +718,15 @@ func (h *EventHandler) deliverToWebhook(evt interface{}, sessionID string) {
 			"error":      err.Error(),
 		})
 	}
+}
+
+// HandleQRCode implements the EventHandler interface for client integration
+func (h *EventHandler) HandleQRCode(sessionID string, qrCode string) {
+	// Create a fake QR event to reuse existing logic
+	evt := &events.QR{
+		Codes: []string{qrCode},
+	}
+
+	// Call the existing QR handler
+	h.handleQR(evt, sessionID)
 }

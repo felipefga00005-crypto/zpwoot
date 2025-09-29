@@ -92,6 +92,9 @@ type WameowClient struct {
 	qrGenerator QRGenerator
 	msgSender   MessageSender
 
+	// Event handling
+	eventHandler QREventHandler
+
 	// State management
 	mu           sync.RWMutex
 	status       string
@@ -100,9 +103,16 @@ type WameowClient struct {
 	// QR code management
 	qrState QRState
 
+	// Event handling
+	eventHandlers []func(interface{})
+
 	// Lifecycle management
 	ctx    context.Context
 	cancel context.CancelFunc
+}
+
+type QREventHandler interface {
+	HandleQRCode(sessionID string, qrCode string)
 }
 
 // QRState encapsulates QR code related state
@@ -147,6 +157,7 @@ func NewWameowClient(
 		logger:       logger,
 		sessionMgr:   NewSessionManager(sessionRepo, logger),
 		qrGenerator:  NewQRCodeGenerator(logger),
+		eventHandler: nil, // Will be set by manager
 		status:       "disconnected",
 		lastActivity: time.Now(),
 		qrState: QRState{
@@ -160,6 +171,11 @@ func NewWameowClient(
 	wameowClient.msgSender = NewMessageSender(client, logger)
 
 	return wameowClient, nil
+}
+
+// SetEventHandler sets the event handler for the client
+func (c *WameowClient) SetEventHandler(handler QREventHandler) {
+	c.eventHandler = handler
 }
 
 func getExistingDeviceJID(sessionRepo ports.SessionRepository, sessionID string) (string, error) {
@@ -408,17 +424,25 @@ func (c *WameowClient) handleQRLoop(qrChan <-chan whatsmeow.QRChannelItem) {
 func (c *WameowClient) handleQREvent(evt whatsmeow.QRChannelItem) {
 	switch evt.Event {
 	case "code":
-		// Verifica se é um novo código antes de atualizar
+		// Update internal state and handle QR code display/storage
 		c.qrState.mu.RLock()
 		currentCode := c.qrState.code
 		c.qrState.mu.RUnlock()
 
 		if currentCode != evt.Code {
 			c.updateQRCode(evt.Code)
-			// QR code display is handled by events.go to avoid duplication
 			c.setStatus("connecting")
+
+			c.logger.InfoWithFields("QR code received from channel", map[string]interface{}{
+				"session_id": c.sessionID,
+			})
+
+			// Call event handler to display QR code and save to database
+			if c.eventHandler != nil {
+				c.eventHandler.HandleQRCode(c.sessionID, evt.Code)
+			}
 		} else {
-			c.logger.DebugWithFields("Received duplicate QR code, skipping display", map[string]interface{}{
+			c.logger.DebugWithFields("Received duplicate QR code, skipping", map[string]interface{}{
 				"session_id": c.sessionID,
 			})
 		}
@@ -456,6 +480,7 @@ func (c *WameowClient) updateQRCode(code string) {
 func (c *WameowClient) displayQRCode(code string) {
 	c.qrGenerator.DisplayQRCodeInTerminal(code, c.sessionID)
 }
+
 
 func (c *WameowClient) clearQRCode() {
 	c.qrState.mu.Lock()

@@ -103,7 +103,18 @@ func (m *Manager) createWameowClient(sessionID string) (*WameowClient, error) {
 
 // configureSession configures the session with event handlers and proxy
 func (m *Manager) configureSession(client *WameowClient, sessionID string, config *session.ProxyConfig) error {
+	// Setup WhatsApp event handlers
 	m.setupEventHandlers(client.GetClient(), sessionID)
+
+	// Create and set event handler for client QR code integration
+	eventHandler := NewEventHandler(m, m.sessionMgr, m.qrGenerator, m.logger)
+	if m.webhookHandler != nil {
+		eventHandler.SetWebhookHandler(m.webhookHandler)
+	}
+	if m.chatwootManager != nil {
+		eventHandler.SetChatwootManager(m.chatwootManager)
+	}
+	client.SetEventHandler(eventHandler)
 
 	if config != nil {
 		if err := m.applyProxyConfig(client.GetClient(), config); err != nil {
