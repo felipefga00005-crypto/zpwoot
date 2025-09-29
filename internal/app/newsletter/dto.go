@@ -65,6 +65,11 @@ type FollowNewsletterRequest struct {
 	NewsletterJID string `json:"newsletterJid" validate:"required"`
 }
 
+// GetNewsletterJID returns the newsletter JID for interface compliance
+func (r *FollowNewsletterRequest) GetNewsletterJID() string {
+	return r.NewsletterJID
+}
+
 // UnfollowNewsletterRequest - Request para deixar de seguir newsletter
 type UnfollowNewsletterRequest struct {
 	NewsletterJID string `json:"newsletterJid" validate:"required"`

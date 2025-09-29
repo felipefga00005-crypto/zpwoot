@@ -37,6 +37,81 @@ func NewMessageHandler(
 	}
 }
 
+// handleMediaMessage handles common media message logic
+func (h *MessageHandler) handleMediaMessage(
+	c *fiber.Ctx,
+	messageType string,
+	parseFunc func(*fiber.Ctx) (*message.SendMessageRequest, *fiber.Error),
+) error {
+	sessionIdentifier := c.Params("sessionId")
+	if sessionIdentifier == "" {
+		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
+	}
+
+	req, fiberErr := parseFunc(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	ctx := c.Context()
+	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to send %s message", messageType), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"to":         req.RemoteJID,
+			"has_reply":  req.ContextInfo != nil,
+			"error":      err.Error(),
+		})
+
+		if strings.Contains(err.Error(), "not connected") {
+			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+		}
+
+		return c.Status(500).JSON(common.NewErrorResponse(fmt.Sprintf("Failed to send %s message", messageType)))
+	}
+
+	return c.JSON(common.NewSuccessResponse(response, fmt.Sprintf("%s message sent successfully", strings.Title(messageType))))
+}
+
+// parseMediaRequest parses common media request fields
+func parseMediaRequest(c *fiber.Ctx, messageType string, parseBody func(*fiber.Ctx) (string, string, string, string, string, *message.ContextInfo, error)) (*message.SendMessageRequest, *fiber.Error) {
+	remoteJID, file, caption, mimeType, filename, contextInfo, err := parseBody(c)
+	if err != nil {
+		return nil, fiber.NewError(400, fmt.Sprintf("Invalid %s message format", messageType))
+	}
+
+	if remoteJID == "" {
+		return nil, fiber.NewError(400, "'Phone' field is required")
+	}
+
+	if file == "" {
+		return nil, fiber.NewError(400, "'file' field is required")
+	}
+
+	if contextInfo != nil {
+		if contextInfo.StanzaID == "" {
+			return nil, fiber.NewError(400, "'contextInfo.stanzaId' is required when replying")
+		}
+	}
+
+	req := &message.SendMessageRequest{
+		RemoteJID:   remoteJID,
+		Type:        messageType,
+		File:        file,
+		Caption:     caption,
+		MimeType:    mimeType,
+		Filename:    filename,
+		ContextInfo: contextInfo,
+	}
+
+	return req, nil
+}
+
 // @Summary Send media message
 // @Description Send a media file (image, audio, video, document) with optional caption
 // @Tags Messages
@@ -141,64 +216,15 @@ func (h *MessageHandler) SendMedia(c *fiber.Ctx) error {
 // @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/image [post]
 func (h *MessageHandler) SendImage(c *fiber.Ctx) error {
-	sessionIdentifier := c.Params("sessionId")
-	if sessionIdentifier == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
-	}
-
-	var imageReq message.ImageMessageRequest
-	if err := c.BodyParser(&imageReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid image message format"))
-	}
-
-	if imageReq.RemoteJID == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
-	}
-
-	if imageReq.File == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
-	}
-
-	if imageReq.ContextInfo != nil {
-		if imageReq.ContextInfo.StanzaID == "" {
-			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
-		}
-	}
-
-	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
-	if err != nil {
-		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
-	}
-
-	// Convert to SendMessageRequest for compatibility
-	req := message.SendMessageRequest{
-		RemoteJID:   imageReq.RemoteJID,
-		Type:        "image",
-		File:        imageReq.File,
-		Caption:     imageReq.Caption,
-		MimeType:    imageReq.MimeType,
-		Filename:    imageReq.Filename,
-		ContextInfo: imageReq.ContextInfo,
-	}
-
-	ctx := c.Context()
-	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"to":         imageReq.RemoteJID,
-			"has_reply":  imageReq.ContextInfo != nil,
-			"error":      err.Error(),
+	return h.handleMediaMessage(c, "image", func(c *fiber.Ctx) (*message.SendMessageRequest, *fiber.Error) {
+		return parseMediaRequest(c, "image", func(c *fiber.Ctx) (string, string, string, string, string, *message.ContextInfo, error) {
+			var imageReq message.ImageMessageRequest
+			if err := c.BodyParser(&imageReq); err != nil {
+				return "", "", "", "", "", nil, err
+			}
+			return imageReq.RemoteJID, imageReq.File, imageReq.Caption, imageReq.MimeType, imageReq.Filename, imageReq.ContextInfo, nil
 		})
-
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send image message"))
-	}
-
-	return c.JSON(common.NewSuccessResponse(response, "Image message sent successfully"))
+	})
 }
 
 // @Summary Send audio message
@@ -290,64 +316,15 @@ func (h *MessageHandler) SendAudio(c *fiber.Ctx) error {
 // @Failure 500 {object} object "Internal server error"
 // @Router /sessions/{sessionId}/messages/send/video [post]
 func (h *MessageHandler) SendVideo(c *fiber.Ctx) error {
-	sessionIdentifier := c.Params("sessionId")
-	if sessionIdentifier == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
-	}
-
-	var videoReq message.VideoMessageRequest
-	if err := c.BodyParser(&videoReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid video message format"))
-	}
-
-	if videoReq.RemoteJID == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
-	}
-
-	if videoReq.File == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'file' field is required"))
-	}
-
-	if videoReq.ContextInfo != nil {
-		if videoReq.ContextInfo.StanzaID == "" {
-			return c.Status(400).JSON(common.NewErrorResponse("'contextInfo.stanzaId' is required when replying"))
-		}
-	}
-
-	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
-	if err != nil {
-		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
-	}
-
-	// Convert to SendMessageRequest for compatibility
-	req := message.SendMessageRequest{
-		RemoteJID:   videoReq.RemoteJID,
-		Type:        "video",
-		File:        videoReq.File,
-		Caption:     videoReq.Caption,
-		MimeType:    videoReq.MimeType,
-		Filename:    videoReq.Filename,
-		ContextInfo: videoReq.ContextInfo,
-	}
-
-	ctx := c.Context()
-	response, err := h.messageUC.SendMessage(ctx, sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"to":         videoReq.RemoteJID,
-			"has_reply":  videoReq.ContextInfo != nil,
-			"error":      err.Error(),
+	return h.handleMediaMessage(c, "video", func(c *fiber.Ctx) (*message.SendMessageRequest, *fiber.Error) {
+		return parseMediaRequest(c, "video", func(c *fiber.Ctx) (string, string, string, string, string, *message.ContextInfo, error) {
+			var videoReq message.VideoMessageRequest
+			if err := c.BodyParser(&videoReq); err != nil {
+				return "", "", "", "", "", nil, err
+			}
+			return videoReq.RemoteJID, videoReq.File, videoReq.Caption, videoReq.MimeType, videoReq.Filename, videoReq.ContextInfo, nil
 		})
-
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send video message"))
-	}
-
-	return c.JSON(common.NewSuccessResponse(response, "Video message sent successfully"))
+	})
 }
 
 // @Summary Send document message

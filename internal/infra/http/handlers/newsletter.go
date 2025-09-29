@@ -47,6 +47,60 @@ func (h *NewsletterHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session
 	return sess, nil
 }
 
+// handleNewsletterAction handles common newsletter action logic
+func (h *NewsletterHandler) handleNewsletterAction(
+	c *fiber.Ctx,
+	actionName string,
+	parseFunc func(*fiber.Ctx) (interface{}, error),
+	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	req, err := parseFunc(c)
+	if err != nil {
+		h.logger.WarnWithFields(fmt.Sprintf("Failed to parse %s request", actionName), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return fiber.NewError(400, "Invalid request body")
+	}
+
+	// Extract NewsletterJID for logging if available
+	var newsletterJID string
+	if reqWithJID, ok := req.(interface{ GetNewsletterJID() string }); ok {
+		newsletterJID = reqWithJID.GetNewsletterJID()
+	}
+
+	h.logger.InfoWithFields(actionName, map[string]interface{}{
+		"session_id":     sess.ID.String(),
+		"newsletter_jid": newsletterJID,
+	})
+
+	response, err := actionFunc(c.Context(), sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
+			"session_id":     sess.ID.String(),
+			"newsletter_jid": newsletterJID,
+			"error":          err.Error(),
+		})
+
+		if err.Error() == "session is not connected" {
+			return fiber.NewError(400, "Session is not connected")
+		}
+
+		if err.Error() == "validation failed" {
+			return fiber.NewError(400, "Invalid request data")
+		}
+
+		return fiber.NewError(500, err.Error())
+	}
+
+	return c.JSON(response)
+}
+
 // CreateNewsletter creates a new WhatsApp newsletter/channel
 // POST /sessions/:sessionId/newsletters/create
 func (h *NewsletterHandler) CreateNewsletter(c *fiber.Ctx) error {

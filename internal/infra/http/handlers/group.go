@@ -44,12 +44,13 @@ func (h *GroupHandler) resolveSession(c *fiber.Ctx) (*domainSession.Session, *fi
 	return sess, nil
 }
 
-// handleGroupAction handles common group action logic
-func (h *GroupHandler) handleGroupAction(
+// handleGroupActionWithJID handles common group action logic for requests with GroupJID
+func (h *GroupHandler) handleGroupActionWithJID(
 	c *fiber.Ctx,
 	actionName string,
 	parseFunc func(*fiber.Ctx) (interface{}, error),
 	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+	extractJID func(interface{}) string,
 ) error {
 	sess, fiberErr := h.resolveSession(c)
 	if fiberErr != nil {
@@ -65,16 +66,12 @@ func (h *GroupHandler) handleGroupAction(
 		return fiber.NewError(400, "Invalid request body")
 	}
 
-	// Extract GroupJID for logging if available
-	var groupJID string
-	if reqWithJID, ok := req.(interface{ GetGroupJID() string }); ok {
-		groupJID = reqWithJID.GetGroupJID()
-		if groupJID == "" {
-			return fiber.NewError(400, "Group JID is required in request body")
-		}
+	groupJID := extractJID(req)
+	if groupJID == "" {
+		return fiber.NewError(400, "Group JID is required in request body")
 	}
 
-	h.logger.InfoWithFields(fmt.Sprintf("%s", actionName), map[string]interface{}{
+	h.logger.InfoWithFields(actionName, map[string]interface{}{
 		"session_id": sess.ID.String(),
 		"group_jid":  groupJID,
 	})
@@ -227,124 +224,65 @@ func (h *GroupHandler) UpdateGroupParticipants(c *fiber.Ctx) error {
 
 // SetGroupName updates the group name
 func (h *GroupHandler) SetGroupName(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req group.SetGroupNameRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	if req.GroupJID == "" {
-		return fiber.NewError(400, "Group JID is required in request body")
-	}
-
-	groupJID := req.GroupJID
-
-	h.logger.InfoWithFields("Setting group name", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"group_jid":  groupJID,
-		"name":       req.Name,
-	})
-
-	response, err := h.groupUC.SetGroupName(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to set group name", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
-			"error":      err.Error(),
-		})
-		return fiber.NewError(500, err.Error())
-	}
-
-	return c.JSON(response)
+	return h.handleGroupActionWithJID(
+		c,
+		"Setting group name",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req group.SetGroupNameRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.groupUC.SetGroupName(ctx, sessionID, req.(*group.SetGroupNameRequest))
+		},
+		func(req interface{}) string {
+			return req.(*group.SetGroupNameRequest).GroupJID
+		},
+	)
 }
 
 // SetGroupDescription updates the group description
 func (h *GroupHandler) SetGroupDescription(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req group.SetGroupDescriptionRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	if req.GroupJID == "" {
-		return fiber.NewError(400, "Group JID is required in request body")
-	}
-
-	groupJID := req.GroupJID
-
-	h.logger.InfoWithFields("Setting group description", map[string]interface{}{
-		"session_id":  sess.ID.String(),
-		"group_jid":   groupJID,
-		"description": req.Description,
-	})
-
-	response, err := h.groupUC.SetGroupDescription(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to set group description", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
-			"error":      err.Error(),
-		})
-		return fiber.NewError(500, err.Error())
-	}
-
-	return c.JSON(response)
+	return h.handleGroupActionWithJID(
+		c,
+		"Setting group description",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req group.SetGroupDescriptionRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.groupUC.SetGroupDescription(ctx, sessionID, req.(*group.SetGroupDescriptionRequest))
+		},
+		func(req interface{}) string {
+			return req.(*group.SetGroupDescriptionRequest).GroupJID
+		},
+	)
 }
 
 // SetGroupPhoto updates the group photo
 func (h *GroupHandler) SetGroupPhoto(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req group.SetGroupPhotoRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	if req.GroupJID == "" {
-		return fiber.NewError(400, "Group JID is required in request body")
-	}
-
-	groupJID := req.GroupJID
-
-	h.logger.InfoWithFields("Setting group photo", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"group_jid":  groupJID,
-	})
-
-	response, err := h.groupUC.SetGroupPhoto(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to set group photo", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
-			"error":      err.Error(),
-		})
-		return fiber.NewError(500, err.Error())
-	}
-
-	return c.JSON(response)
+	return h.handleGroupActionWithJID(
+		c,
+		"Setting group photo",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req group.SetGroupPhotoRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.groupUC.SetGroupPhoto(ctx, sessionID, req.(*group.SetGroupPhotoRequest))
+		},
+		func(req interface{}) string {
+			return req.(*group.SetGroupPhotoRequest).GroupJID
+		},
+	)
 }
 
 // GetGroupInviteLink retrieves or generates a group invite link
@@ -419,42 +357,23 @@ func (h *GroupHandler) JoinGroup(c *fiber.Ctx) error {
 
 // LeaveGroup leaves a group
 func (h *GroupHandler) LeaveGroup(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req group.LeaveGroupRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Invalid request body", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	if req.GroupJID == "" {
-		return fiber.NewError(400, "Group JID is required in request body")
-	}
-
-	groupJID := req.GroupJID
-
-	h.logger.InfoWithFields("Leaving group", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"group_jid":  groupJID,
-	})
-
-	response, err := h.groupUC.LeaveGroup(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to leave group", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"group_jid":  groupJID,
-			"error":      err.Error(),
-		})
-		return fiber.NewError(500, err.Error())
-	}
-
-	return c.JSON(response)
+	return h.handleGroupActionWithJID(
+		c,
+		"Leaving group",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req group.LeaveGroupRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.groupUC.LeaveGroup(ctx, sessionID, req.(*group.LeaveGroupRequest))
+		},
+		func(req interface{}) string {
+			return req.(*group.LeaveGroupRequest).GroupJID
+		},
+	)
 }
 
 // UpdateGroupSettings updates group settings (announce, locked)

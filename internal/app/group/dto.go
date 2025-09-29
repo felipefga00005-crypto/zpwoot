@@ -92,6 +92,11 @@ type SetGroupNameRequest struct {
 	Name     string `json:"name" validate:"required,min=1,max=25" example:"New Group Name"`
 } //@name SetGroupNameRequest
 
+// GetGroupJID returns the group JID for interface compliance
+func (r *SetGroupNameRequest) GetGroupJID() string {
+	return r.GroupJID
+}
+
 // SetGroupDescriptionRequest represents the request to set group description
 type SetGroupDescriptionRequest struct {
 	GroupJID    string `json:"groupJid" validate:"required" example:"120363123456789012@g.us"`
