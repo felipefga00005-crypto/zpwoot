@@ -11,7 +11,7 @@ import (
 func APIKeyAuth(cfg *config.Config, logger *logger.Logger) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		path := c.Path()
-		if strings.HasPrefix(path, "/health") || strings.HasPrefix(path, "/swagger") {
+		if strings.HasPrefix(path, "/health") || strings.HasPrefix(path, "/swagger") || strings.Contains(path, "/chatwoot/webhook") {
 			return c.Next()
 		}
 

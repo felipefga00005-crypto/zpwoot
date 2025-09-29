@@ -48,11 +48,12 @@ var (
 
 // Domain DTOs - used by domain service
 type CreateChatwootConfigRequest struct {
-	URL       string  `json:"url" validate:"required,url"`
-	Token     string  `json:"token" validate:"required"`
-	AccountID string  `json:"accountId" validate:"required"`
-	InboxID   *string `json:"inboxId,omitempty"`
-	Enabled   *bool   `json:"enabled,omitempty"`
+	SessionID uuid.UUID `json:"sessionId" validate:"required"`
+	URL       string    `json:"url" validate:"required,url"`
+	Token     string    `json:"token" validate:"required"`
+	AccountID string    `json:"accountId" validate:"required"`
+	InboxID   *string   `json:"inboxId,omitempty"`
+	Enabled   *bool     `json:"enabled,omitempty"`
 
 	// Advanced configuration
 	InboxName      *string  `json:"inboxName,omitempty"`
@@ -69,6 +70,10 @@ type CreateChatwootConfigRequest struct {
 	Logo           *string  `json:"logo,omitempty"`
 	Number         *string  `json:"number,omitempty"`
 	IgnoreJids     []string `json:"ignoreJids,omitempty"`
+}
+
+type GetChatwootConfigBySessionRequest struct {
+	SessionID string `json:"sessionId" validate:"required"`
 }
 
 type UpdateChatwootConfigRequest struct {

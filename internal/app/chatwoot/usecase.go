@@ -2,19 +2,23 @@ package chatwoot
 
 import (
 	"context"
+	"fmt"
+
 	"zpwoot/internal/domain/chatwoot"
+	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
 	"zpwoot/internal/ports"
+	"zpwoot/platform/logger"
 )
 
 type UseCase interface {
-	CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*CreateChatwootConfigResponse, error)
+	CreateConfig(ctx context.Context, sessionID string, req *CreateChatwootConfigRequest) (*CreateChatwootConfigResponse, error)
 	GetConfig(ctx context.Context) (*ChatwootConfigResponse, error)
 	UpdateConfig(ctx context.Context, req *UpdateChatwootConfigRequest) (*ChatwootConfigResponse, error)
 	DeleteConfig(ctx context.Context) error
 	SyncContact(ctx context.Context, req *SyncContactRequest) (*SyncContactResponse, error)
 	SyncConversation(ctx context.Context, req *SyncConversationRequest) (*SyncConversationResponse, error)
 	SendMessageToChatwoot(ctx context.Context, req *SendMessageToChatwootRequest) (*SendMessageToChatwootResponse, error)
-	ProcessWebhook(ctx context.Context, payload *ChatwootWebhookPayload) error
+	ProcessWebhook(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error
 	TestConnection(ctx context.Context) (*TestChatwootConnectionResponse, error)
 	GetStats(ctx context.Context) (*ChatwootStatsResponse, error)
 	AutoCreateInbox(ctx context.Context, sessionID, inboxName, webhookURL string) error
@@ -24,22 +28,28 @@ type useCaseImpl struct {
 	chatwootRepo        ports.ChatwootRepository
 	chatwootIntegration ports.ChatwootIntegration
 	chatwootService     *chatwoot.Service
+	logger              *logger.Logger
 }
 
 func NewUseCase(
 	chatwootRepo ports.ChatwootRepository,
 	chatwootIntegration ports.ChatwootIntegration,
 	chatwootService *chatwoot.Service,
+	logger *logger.Logger,
 ) UseCase {
 	return &useCaseImpl{
 		chatwootRepo:        chatwootRepo,
 		chatwootIntegration: chatwootIntegration,
 		chatwootService:     chatwootService,
+		logger:              logger,
 	}
 }
 
-func (uc *useCaseImpl) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*CreateChatwootConfigResponse, error) {
-	domainReq := req.ToCreateChatwootConfigRequest()
+func (uc *useCaseImpl) CreateConfig(ctx context.Context, sessionID string, req *CreateChatwootConfigRequest) (*CreateChatwootConfigResponse, error) {
+	domainReq, err := req.ToCreateChatwootConfigRequest(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
 
 	config, err := uc.chatwootService.CreateConfig(ctx, domainReq)
 	if err != nil {
@@ -162,7 +172,7 @@ func (uc *useCaseImpl) SendMessageToChatwoot(ctx context.Context, req *SendMessa
 	return response, nil
 }
 
-func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, payload *ChatwootWebhookPayload) error {
+func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
 	domainPayload := &chatwoot.ChatwootWebhookPayload{
 		Event: payload.Event,
 		Account: chatwoot.ChatwootAccount{
@@ -171,7 +181,7 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, payload *ChatwootWebh
 		},
 	}
 
-	return uc.chatwootService.ProcessWebhook(ctx, domainPayload)
+	return uc.chatwootService.ProcessWebhook(ctx, sessionID, domainPayload)
 }
 
 func (uc *useCaseImpl) TestConnection(ctx context.Context) (*TestChatwootConnectionResponse, error) {
@@ -225,13 +235,31 @@ func convertAttachments(attachments []ChatwootAttachment) []chatwoot.ChatwootAtt
 }
 
 func (uc *useCaseImpl) AutoCreateInbox(ctx context.Context, sessionID, inboxName, webhookURL string) error {
-	// TODO: Implement auto-creation logic when ChatwootManager is available
-	// For now, just log the attempt
+	// Get existing Chatwoot configuration for this session
+	config, err := uc.chatwootService.GetConfigBySessionID(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("chatwoot not configured for session %s: %w", sessionID, err)
+	}
 
-	// This will be implemented when we have:
-	// 1. ChatwootManager with CreateInbox method
-	// 2. Proper session-based configuration
-	// 3. Integration with Chatwoot API client
+	// Create Chatwoot client
+	client := chatwootIntegration.NewClient(config.URL, config.Token, config.AccountID, uc.logger)
+
+	// Create inbox in Chatwoot
+	inbox, err := client.CreateInbox(inboxName, webhookURL)
+	if err != nil {
+		return fmt.Errorf("failed to create inbox in Chatwoot: %w", err)
+	}
+
+	// Update configuration with the new inbox ID
+	inboxIDStr := fmt.Sprintf("%d", inbox.ID)
+	updateReq := &chatwoot.UpdateChatwootConfigRequest{
+		InboxID: &inboxIDStr,
+	}
+
+	_, err = uc.chatwootService.UpdateConfig(ctx, updateReq)
+	if err != nil {
+		return fmt.Errorf("failed to update config with inbox ID: %w", err)
+	}
 
 	return nil
 }

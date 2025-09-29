@@ -14,11 +14,11 @@ import (
 // MessageMapper handles mapping between WhatsApp and Chatwoot message IDs
 type MessageMapper struct {
 	logger     *logger.Logger
-	repository ports.MessageRepository
+	repository ports.ChatwootMessageRepository
 }
 
 // NewMessageMapper creates a new message mapper
-func NewMessageMapper(logger *logger.Logger, repository ports.MessageRepository) *MessageMapper {
+func NewMessageMapper(logger *logger.Logger, repository ports.ChatwootMessageRepository) *MessageMapper {
 	return &MessageMapper{
 		logger:     logger,
 		repository: repository,
@@ -26,16 +26,24 @@ func NewMessageMapper(logger *logger.Logger, repository ports.MessageRepository)
 }
 
 // CreateMapping creates a new mapping between WhatsApp and Chatwoot message IDs
-func (mm *MessageMapper) CreateMapping(ctx context.Context, sessionID, zpMessageID string) (*ports.ZpMessage, error) {
+func (mm *MessageMapper) CreateMapping(ctx context.Context, sessionID, zpMessageID, zpSender, zpChat, zpType, content string, zpTimestamp time.Time, zpFromMe bool) (*ports.ZpMessage, error) {
 	mm.logger.InfoWithFields("Creating message mapping", map[string]interface{}{
 		"session_id":    sessionID,
 		"zp_message_id": zpMessageID,
+		"zp_sender":     zpSender,
+		"zp_type":       zpType,
 	})
 
 	mapping := &ports.ZpMessage{
 		ID:          uuid.New().String(),
 		SessionID:   sessionID,
 		ZpMessageID: zpMessageID,
+		ZpSender:    zpSender,
+		ZpChat:      zpChat,
+		ZpTimestamp: zpTimestamp,
+		ZpFromMe:    zpFromMe,
+		ZpType:      zpType,
+		Content:     content,
 		SyncStatus:  "pending",
 		CreatedAt:   time.Now(),
 		UpdatedAt:   time.Now(),

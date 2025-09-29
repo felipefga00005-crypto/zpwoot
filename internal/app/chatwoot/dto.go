@@ -1,8 +1,12 @@
 package chatwoot
 
 import (
+	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 	"zpwoot/internal/domain/chatwoot"
+	"zpwoot/internal/ports"
 )
 
 type CreateChatwootConfigRequest struct {
@@ -283,8 +287,14 @@ type ImportHistoryRequest struct {
 	DaysLimit int `json:"daysLimit" validate:"min=1,max=365" example:"60"`
 } //@name ImportHistoryRequest
 
-func (r *CreateChatwootConfigRequest) ToCreateChatwootConfigRequest() *chatwoot.CreateChatwootConfigRequest {
+func (r *CreateChatwootConfigRequest) ToCreateChatwootConfigRequest(sessionID string) (*chatwoot.CreateChatwootConfigRequest, error) {
+	sessionUUID, err := uuid.Parse(sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session ID: %w", err)
+	}
+
 	return &chatwoot.CreateChatwootConfigRequest{
+		SessionID:      sessionUUID,
 		URL:            r.URL,
 		Token:          r.Token,
 		AccountID:      r.AccountID,
@@ -304,7 +314,7 @@ func (r *CreateChatwootConfigRequest) ToCreateChatwootConfigRequest() *chatwoot.
 		Logo:           r.Logo,
 		Number:         r.Number,
 		IgnoreJids:     r.IgnoreJids,
-	}
+	}, nil
 }
 
 func (r *UpdateChatwootConfigRequest) ToUpdateChatwootConfigRequest() *chatwoot.UpdateChatwootConfigRequest {
@@ -331,7 +341,7 @@ func (r *UpdateChatwootConfigRequest) ToUpdateChatwootConfigRequest() *chatwoot.
 	}
 }
 
-func FromChatwootConfig(c *chatwoot.ChatwootConfig) *ChatwootConfigResponse {
+func FromChatwootConfig(c *ports.ChatwootConfig) *ChatwootConfigResponse {
 	return &ChatwootConfigResponse{
 		ID:        c.ID.String(),
 		URL:       c.URL,

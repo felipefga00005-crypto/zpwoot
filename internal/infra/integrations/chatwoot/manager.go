@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sync"
 
-	"zpwoot/internal/domain/chatwoot"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -15,7 +14,7 @@ type Manager struct {
 	logger     *logger.Logger
 	repository ports.ChatwootRepository
 	clients    map[string]*Client
-	configs    map[string]*chatwoot.ChatwootConfig
+	configs    map[string]*ports.ChatwootConfig
 	mu         sync.RWMutex
 }
 
@@ -25,7 +24,7 @@ func NewManager(logger *logger.Logger, repository ports.ChatwootRepository) *Man
 		logger:     logger,
 		repository: repository,
 		clients:    make(map[string]*Client),
-		configs:    make(map[string]*chatwoot.ChatwootConfig),
+		configs:    make(map[string]*ports.ChatwootConfig),
 	}
 }
 
@@ -141,7 +140,7 @@ func (m *Manager) InitInstanceChatwoot(sessionID, inboxName, webhookURL string, 
 }
 
 // SetConfig sets the Chatwoot configuration for a session
-func (m *Manager) SetConfig(sessionID string, config *chatwoot.ChatwootConfig) error {
+func (m *Manager) SetConfig(sessionID string, config *ports.ChatwootConfig) error {
 	m.logger.InfoWithFields("Setting Chatwoot config", map[string]interface{}{
 		"session_id": sessionID,
 		"config_id":  config.ID.String(),
@@ -165,7 +164,7 @@ func (m *Manager) SetConfig(sessionID string, config *chatwoot.ChatwootConfig) e
 }
 
 // GetConfig gets the Chatwoot configuration for a session
-func (m *Manager) GetConfig(sessionID string) (*chatwoot.ChatwootConfig, error) {
+func (m *Manager) GetConfig(sessionID string) (*ports.ChatwootConfig, error) {
 	m.mu.RLock()
 	config, exists := m.configs[sessionID]
 	m.mu.RUnlock()

@@ -45,9 +45,10 @@ type Manager struct {
 	sessionStats map[string]*SessionStats
 	statsMutex   sync.RWMutex
 
-	eventHandlers  map[string]map[string]*EventHandlerInfo // sessionID -> handlerID -> handler
-	handlersMutex  sync.RWMutex
-	webhookHandler WebhookEventHandler // Global webhook handler for all sessions
+	eventHandlers   map[string]map[string]*EventHandlerInfo // sessionID -> handlerID -> handler
+	handlersMutex   sync.RWMutex
+	webhookHandler  WebhookEventHandler // Global webhook handler for all sessions
+	chatwootManager ChatwootManager     // Global Chatwoot manager for all sessions
 }
 
 func NewManager(
@@ -1519,6 +1520,11 @@ func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string)
 		eventHandler.SetWebhookHandler(m.webhookHandler)
 	}
 
+	// Set Chatwoot manager if available
+	if m.chatwootManager != nil {
+		eventHandler.SetChatwootManager(m.chatwootManager)
+	}
+
 	client.AddEventHandler(func(evt interface{}) {
 		eventHandler.HandleEvent(evt, sessionID)
 	})
@@ -1528,6 +1534,12 @@ func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string)
 func (m *Manager) SetWebhookHandler(handler WebhookEventHandler) {
 	m.webhookHandler = handler
 	m.logger.Info("Webhook handler configured for wameow manager")
+}
+
+// SetChatwootManager sets the global Chatwoot manager for all sessions
+func (m *Manager) SetChatwootManager(manager ChatwootManager) {
+	m.chatwootManager = manager
+	m.logger.Info("Chatwoot manager configured for wameow manager")
 }
 
 // convertToPortsGroupInfo converts whatsmeow GroupInfo to ports GroupInfo

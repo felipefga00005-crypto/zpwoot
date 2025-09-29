@@ -73,6 +73,7 @@ func NewContainer(config *ContainerConfig) *Container {
 
 	chatwootService := domainChatwoot.NewService(
 		config.Logger,
+		config.ChatwootRepo,
 	)
 
 	// Create JID validator for group service
@@ -113,6 +114,7 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.ChatwootRepo,
 		config.ChatwootIntegration,
 		chatwootService,
+		config.Logger,
 	)
 
 	messageUseCase := message.NewUseCase(

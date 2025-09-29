@@ -8,8 +8,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/lib/pq"
 
-	chatwootdomain "zpwoot/internal/domain/chatwoot"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -27,18 +27,32 @@ func NewChatwootRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootRep
 }
 
 type chatwootConfigModel struct {
-	ID        string         `db:"id"`
-	SessionID string         `db:"sessionId"`
-	URL       string         `db:"url"`
-	Token     string         `db:"token"`
-	AccountID string         `db:"accountId"`
-	InboxID   sql.NullString `db:"inboxId"`
-	Enabled   bool           `db:"enabled"`
-	CreatedAt time.Time      `db:"createdAt"`
-	UpdatedAt time.Time      `db:"updatedAt"`
+	ID             string         `db:"id"`
+	SessionID      string         `db:"sessionId"`
+	URL            string         `db:"url"`
+	Token          string         `db:"token"`
+	AccountID      string         `db:"accountId"`
+	InboxID        sql.NullString `db:"inboxId"`
+	Enabled        bool           `db:"enabled"`
+	InboxName      sql.NullString `db:"inboxName"`
+	AutoCreate     bool           `db:"autoCreate"`
+	SignMsg        bool           `db:"signMsg"`
+	SignDelimiter  string         `db:"signDelimiter"`
+	ReopenConv     bool           `db:"reopenConv"`
+	ConvPending    bool           `db:"convPending"`
+	ImportContacts bool           `db:"importContacts"`
+	ImportMessages bool           `db:"importMessages"`
+	ImportDays     int            `db:"importDays"`
+	MergeBrazil    bool           `db:"mergeBrazil"`
+	Organization   sql.NullString `db:"organization"`
+	Logo           sql.NullString `db:"logo"`
+	Number         sql.NullString `db:"number"`
+	IgnoreJids     pq.StringArray `db:"ignoreJids"`
+	CreatedAt      time.Time      `db:"createdAt"`
+	UpdatedAt      time.Time      `db:"updatedAt"`
 }
 
-func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootdomain.ChatwootConfig) error {
+func (r *chatwootRepository) CreateConfig(ctx context.Context, config *ports.ChatwootConfig) error {
 	r.logger.InfoWithFields("Creating chatwoot config", map[string]interface{}{
 		"config_id": config.ID.String(),
 		"url":       config.URL,
@@ -47,8 +61,19 @@ func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootd
 	model := r.configToModel(config)
 
 	query := `
-		INSERT INTO "zpChatwoot" (id, "sessionId", url, token, "accountId", "inboxId", enabled, "createdAt", "updatedAt")
-		VALUES (:id, :sessionId, :url, :token, :accountId, :inboxId, :enabled, :createdAt, :updatedAt)
+		INSERT INTO "zpChatwoot" (
+			id, "sessionId", url, token, "accountId", "inboxId", enabled,
+			"inboxName", "autoCreate", "signMsg", "signDelimiter", "reopenConv",
+			"convPending", "importContacts", "importMessages", "importDays",
+			"mergeBrazil", organization, logo, number, "ignoreJids",
+			"createdAt", "updatedAt"
+		) VALUES (
+			:id, :sessionId, :url, :token, :accountId, :inboxId, :enabled,
+			:inboxName, :autoCreate, :signMsg, :signDelimiter, :reopenConv,
+			:convPending, :importContacts, :importMessages, :importDays,
+			:mergeBrazil, :organization, :logo, :number, :ignoreJids,
+			:createdAt, :updatedAt
+		)
 	`
 
 	_, err := r.db.NamedExecContext(ctx, query, model)
@@ -63,7 +88,7 @@ func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootd
 	return nil
 }
 
-func (r *chatwootRepository) GetConfig(ctx context.Context) (*chatwootdomain.ChatwootConfig, error) {
+func (r *chatwootRepository) GetConfig(ctx context.Context) (*ports.ChatwootConfig, error) {
 	r.logger.Info("Getting chatwoot config")
 
 	var model chatwootConfigModel
@@ -72,7 +97,7 @@ func (r *chatwootRepository) GetConfig(ctx context.Context) (*chatwootdomain.Cha
 	err := r.db.GetContext(ctx, &model, query)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, chatwootdomain.ErrConfigNotFound
+			return nil, ports.ErrConfigNotFound
 		}
 		r.logger.ErrorWithFields("Failed to get chatwoot config", map[string]interface{}{
 			"error": err.Error(),
@@ -88,7 +113,35 @@ func (r *chatwootRepository) GetConfig(ctx context.Context) (*chatwootdomain.Cha
 	return config, nil
 }
 
-func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *chatwootdomain.ChatwootConfig) error {
+func (r *chatwootRepository) GetConfigBySessionID(ctx context.Context, sessionID string) (*ports.ChatwootConfig, error) {
+	r.logger.InfoWithFields("Getting chatwoot config by session ID", map[string]interface{}{
+		"session_id": sessionID,
+	})
+
+	var model chatwootConfigModel
+	query := `SELECT * FROM "zpChatwoot" WHERE "sessionId" = $1 ORDER BY "createdAt" DESC LIMIT 1`
+
+	err := r.db.GetContext(ctx, &model, query, sessionID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ports.ErrConfigNotFound
+		}
+		r.logger.ErrorWithFields("Failed to get chatwoot config by session ID", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		return nil, fmt.Errorf("failed to get chatwoot config: %w", err)
+	}
+
+	config, err := r.configFromModel(&model)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert model to domain: %w", err)
+	}
+
+	return config, nil
+}
+
+func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *ports.ChatwootConfig) error {
 	r.logger.InfoWithFields("Updating chatwoot config", map[string]interface{}{
 		"config_id": config.ID.String(),
 	})
@@ -118,7 +171,7 @@ func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *chatwootd
 	}
 
 	if rowsAffected == 0 {
-		return chatwootdomain.ErrConfigNotFound
+		return ports.ErrConfigNotFound
 	}
 
 	return nil
@@ -140,7 +193,7 @@ func (r *chatwootRepository) DeleteConfig(ctx context.Context) error {
 	return nil
 }
 
-func (r *chatwootRepository) CreateContact(ctx context.Context, contact *chatwootdomain.ChatwootContact) error {
+func (r *chatwootRepository) CreateContact(ctx context.Context, contact *ports.ChatwootContact) error {
 	r.logger.InfoWithFields("Contact operations handled via Chatwoot API", map[string]interface{}{
 		"chatwoot_id":  contact.ID,
 		"phone_number": contact.PhoneNumber,
@@ -149,23 +202,23 @@ func (r *chatwootRepository) CreateContact(ctx context.Context, contact *chatwoo
 	return nil
 }
 
-func (r *chatwootRepository) GetContactByID(ctx context.Context, id int) (*chatwootdomain.ChatwootContact, error) {
+func (r *chatwootRepository) GetContactByID(ctx context.Context, id int) (*ports.ChatwootContact, error) {
 	r.logger.InfoWithFields("Getting contact via Chatwoot API", map[string]interface{}{
 		"contact_id": id,
 	})
 
-	return nil, chatwootdomain.ErrContactNotFound
+	return nil, ports.ErrContactNotFound
 }
 
-func (r *chatwootRepository) GetContactByPhone(ctx context.Context, phoneNumber string) (*chatwootdomain.ChatwootContact, error) {
+func (r *chatwootRepository) GetContactByPhone(ctx context.Context, phoneNumber string) (*ports.ChatwootContact, error) {
 	r.logger.InfoWithFields("Getting contact by phone via Chatwoot API", map[string]interface{}{
 		"phone_number": phoneNumber,
 	})
 
-	return nil, chatwootdomain.ErrContactNotFound
+	return nil, ports.ErrContactNotFound
 }
 
-func (r *chatwootRepository) UpdateContact(ctx context.Context, contact *chatwootdomain.ChatwootContact) error {
+func (r *chatwootRepository) UpdateContact(ctx context.Context, contact *ports.ChatwootContact) error {
 	r.logger.InfoWithFields("Updating contact via Chatwoot API", map[string]interface{}{
 		"contact_id": contact.ID,
 	})
@@ -181,13 +234,13 @@ func (r *chatwootRepository) DeleteContact(ctx context.Context, id int) error {
 	return nil
 }
 
-func (r *chatwootRepository) ListContacts(ctx context.Context, limit, offset int) ([]*chatwootdomain.ChatwootContact, int, error) {
+func (r *chatwootRepository) ListContacts(ctx context.Context, limit, offset int) ([]*ports.ChatwootContact, int, error) {
 	r.logger.InfoWithFields("Listing contacts via Chatwoot API", map[string]interface{}{
 		"limit":  limit,
 		"offset": offset,
 	})
 
-	return []*chatwootdomain.ChatwootContact{}, 0, nil
+	return []*ports.ChatwootContact{}, 0, nil
 }
 
 func (r *chatwootRepository) GetContactCount(ctx context.Context) (int, error) {
@@ -233,23 +286,23 @@ func (r *chatwootRepository) GetStatsForPeriod(ctx context.Context, from, to int
 	return stats, nil
 }
 
-func (r *chatwootRepository) CreateConversation(ctx context.Context, conversation *chatwootdomain.ChatwootConversation) error {
+func (r *chatwootRepository) CreateConversation(ctx context.Context, conversation *ports.ChatwootConversation) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetConversationByID(ctx context.Context, id int) (*chatwootdomain.ChatwootConversation, error) {
+func (r *chatwootRepository) GetConversationByID(ctx context.Context, id int) (*ports.ChatwootConversation, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetConversationByContactID(ctx context.Context, contactID int) (*chatwootdomain.ChatwootConversation, error) {
+func (r *chatwootRepository) GetConversationByContactID(ctx context.Context, contactID int) (*ports.ChatwootConversation, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetConversationBySessionID(ctx context.Context, sessionID string) (*chatwootdomain.ChatwootConversation, error) {
+func (r *chatwootRepository) GetConversationBySessionID(ctx context.Context, sessionID string) (*ports.ChatwootConversation, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) UpdateConversation(ctx context.Context, conversation *chatwootdomain.ChatwootConversation) error {
+func (r *chatwootRepository) UpdateConversation(ctx context.Context, conversation *ports.ChatwootConversation) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -257,27 +310,27 @@ func (r *chatwootRepository) DeleteConversation(ctx context.Context, id int) err
 	return fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) ListConversations(ctx context.Context, limit, offset int) ([]*chatwootdomain.ChatwootConversation, int, error) {
+func (r *chatwootRepository) ListConversations(ctx context.Context, limit, offset int) ([]*ports.ChatwootConversation, int, error) {
 	return nil, 0, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetActiveConversations(ctx context.Context) ([]*chatwootdomain.ChatwootConversation, error) {
+func (r *chatwootRepository) GetActiveConversations(ctx context.Context) ([]*ports.ChatwootConversation, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) CreateMessage(ctx context.Context, message *chatwootdomain.ChatwootMessage) error {
+func (r *chatwootRepository) CreateMessage(ctx context.Context, message *ports.ChatwootMessage) error {
 	return fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetMessageByID(ctx context.Context, id int) (*chatwootdomain.ChatwootMessage, error) {
+func (r *chatwootRepository) GetMessageByID(ctx context.Context, id int) (*ports.ChatwootMessage, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) GetMessagesByConversationID(ctx context.Context, conversationID int, limit, offset int) ([]*chatwootdomain.ChatwootMessage, error) {
+func (r *chatwootRepository) GetMessagesByConversationID(ctx context.Context, conversationID int, limit, offset int) ([]*ports.ChatwootMessage, error) {
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) UpdateMessage(ctx context.Context, message *chatwootdomain.ChatwootMessage) error {
+func (r *chatwootRepository) UpdateMessage(ctx context.Context, message *ports.ChatwootMessage) error {
 	return fmt.Errorf("not implemented")
 }
 
@@ -305,26 +358,52 @@ func (r *chatwootRepository) GetSyncRecordsBySession(ctx context.Context, sessio
 	return nil, fmt.Errorf("not implemented")
 }
 
-func (r *chatwootRepository) configToModel(config *chatwootdomain.ChatwootConfig) *chatwootConfigModel {
+func (r *chatwootRepository) configToModel(config *ports.ChatwootConfig) *chatwootConfigModel {
 	model := &chatwootConfigModel{
-		ID:        config.ID.String(),
-		SessionID: config.SessionID.String(),
-		URL:       config.URL,
-		Token:     config.Token,
-		AccountID: config.AccountID,
-		Enabled:   config.Enabled,
-		CreatedAt: config.CreatedAt,
-		UpdatedAt: config.UpdatedAt,
+		ID:             config.ID.String(),
+		SessionID:      config.SessionID.String(),
+		URL:            config.URL,
+		Token:          config.Token,
+		AccountID:      config.AccountID,
+		Enabled:        config.Enabled,
+		AutoCreate:     config.AutoCreate,
+		SignMsg:        config.SignMsg,
+		SignDelimiter:  config.SignDelimiter,
+		ReopenConv:     config.ReopenConv,
+		ConvPending:    config.ConvPending,
+		ImportContacts: config.ImportContacts,
+		ImportMessages: config.ImportMessages,
+		ImportDays:     config.ImportDays,
+		MergeBrazil:    config.MergeBrazil,
+		IgnoreJids:     pq.StringArray(config.IgnoreJids),
+		CreatedAt:      config.CreatedAt,
+		UpdatedAt:      config.UpdatedAt,
 	}
 
 	if config.InboxID != nil {
 		model.InboxID = sql.NullString{String: *config.InboxID, Valid: true}
 	}
 
+	if config.InboxName != nil {
+		model.InboxName = sql.NullString{String: *config.InboxName, Valid: true}
+	}
+
+	if config.Organization != nil {
+		model.Organization = sql.NullString{String: *config.Organization, Valid: true}
+	}
+
+	if config.Logo != nil {
+		model.Logo = sql.NullString{String: *config.Logo, Valid: true}
+	}
+
+	if config.Number != nil {
+		model.Number = sql.NullString{String: *config.Number, Valid: true}
+	}
+
 	return model
 }
 
-func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatwootdomain.ChatwootConfig, error) {
+func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*ports.ChatwootConfig, error) {
 	id, err := uuid.Parse(model.ID)
 	if err != nil {
 		return nil, fmt.Errorf("invalid config ID: %w", err)
@@ -335,19 +414,45 @@ func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatw
 		return nil, fmt.Errorf("invalid session ID: %w", err)
 	}
 
-	config := &chatwootdomain.ChatwootConfig{
-		ID:        id,
-		SessionID: sessionID,
-		URL:       model.URL,
-		Token:     model.Token,
-		AccountID: model.AccountID,
-		Enabled:   model.Enabled,
-		CreatedAt: model.CreatedAt,
-		UpdatedAt: model.UpdatedAt,
+	config := &ports.ChatwootConfig{
+		ID:             id,
+		SessionID:      sessionID,
+		URL:            model.URL,
+		Token:          model.Token,
+		AccountID:      model.AccountID,
+		Enabled:        model.Enabled,
+		AutoCreate:     model.AutoCreate,
+		SignMsg:        model.SignMsg,
+		SignDelimiter:  model.SignDelimiter,
+		ReopenConv:     model.ReopenConv,
+		ConvPending:    model.ConvPending,
+		ImportContacts: model.ImportContacts,
+		ImportMessages: model.ImportMessages,
+		ImportDays:     model.ImportDays,
+		MergeBrazil:    model.MergeBrazil,
+		IgnoreJids:     []string(model.IgnoreJids),
+		CreatedAt:      model.CreatedAt,
+		UpdatedAt:      model.UpdatedAt,
 	}
 
 	if model.InboxID.Valid {
 		config.InboxID = &model.InboxID.String
+	}
+
+	if model.InboxName.Valid {
+		config.InboxName = &model.InboxName.String
+	}
+
+	if model.Organization.Valid {
+		config.Organization = &model.Organization.String
+	}
+
+	if model.Logo.Valid {
+		config.Logo = &model.Logo.String
+	}
+
+	if model.Number.Valid {
+		config.Number = &model.Number.String
 	}
 
 	return config, nil

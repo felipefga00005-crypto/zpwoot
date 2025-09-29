@@ -2,37 +2,36 @@ package ports
 
 import (
 	"context"
-
-	"zpwoot/internal/domain/chatwoot"
 )
 
 // ChatwootRepository defines the interface for Chatwoot data operations
 type ChatwootRepository interface {
-	CreateConfig(ctx context.Context, config *chatwoot.ChatwootConfig) error
-	GetConfig(ctx context.Context) (*chatwoot.ChatwootConfig, error)
-	UpdateConfig(ctx context.Context, config *chatwoot.ChatwootConfig) error
+	CreateConfig(ctx context.Context, config *ChatwootConfig) error
+	GetConfig(ctx context.Context) (*ChatwootConfig, error)
+	GetConfigBySessionID(ctx context.Context, sessionID string) (*ChatwootConfig, error)
+	UpdateConfig(ctx context.Context, config *ChatwootConfig) error
 	DeleteConfig(ctx context.Context) error
 
-	CreateContact(ctx context.Context, contact *chatwoot.ChatwootContact) error
-	GetContactByID(ctx context.Context, id int) (*chatwoot.ChatwootContact, error)
-	GetContactByPhone(ctx context.Context, phoneNumber string) (*chatwoot.ChatwootContact, error)
-	UpdateContact(ctx context.Context, contact *chatwoot.ChatwootContact) error
+	CreateContact(ctx context.Context, contact *ChatwootContact) error
+	GetContactByID(ctx context.Context, id int) (*ChatwootContact, error)
+	GetContactByPhone(ctx context.Context, phoneNumber string) (*ChatwootContact, error)
+	UpdateContact(ctx context.Context, contact *ChatwootContact) error
 	DeleteContact(ctx context.Context, id int) error
-	ListContacts(ctx context.Context, limit, offset int) ([]*chatwoot.ChatwootContact, int, error)
+	ListContacts(ctx context.Context, limit, offset int) ([]*ChatwootContact, int, error)
 
-	CreateConversation(ctx context.Context, conversation *chatwoot.ChatwootConversation) error
-	GetConversationByID(ctx context.Context, id int) (*chatwoot.ChatwootConversation, error)
-	GetConversationByContactID(ctx context.Context, contactID int) (*chatwoot.ChatwootConversation, error)
-	GetConversationBySessionID(ctx context.Context, sessionID string) (*chatwoot.ChatwootConversation, error)
-	UpdateConversation(ctx context.Context, conversation *chatwoot.ChatwootConversation) error
+	CreateConversation(ctx context.Context, conversation *ChatwootConversation) error
+	GetConversationByID(ctx context.Context, id int) (*ChatwootConversation, error)
+	GetConversationByContactID(ctx context.Context, contactID int) (*ChatwootConversation, error)
+	GetConversationBySessionID(ctx context.Context, sessionID string) (*ChatwootConversation, error)
+	UpdateConversation(ctx context.Context, conversation *ChatwootConversation) error
 	DeleteConversation(ctx context.Context, id int) error
-	ListConversations(ctx context.Context, limit, offset int) ([]*chatwoot.ChatwootConversation, int, error)
-	GetActiveConversations(ctx context.Context) ([]*chatwoot.ChatwootConversation, error)
+	ListConversations(ctx context.Context, limit, offset int) ([]*ChatwootConversation, int, error)
+	GetActiveConversations(ctx context.Context) ([]*ChatwootConversation, error)
 
-	CreateMessage(ctx context.Context, message *chatwoot.ChatwootMessage) error
-	GetMessageByID(ctx context.Context, id int) (*chatwoot.ChatwootMessage, error)
-	GetMessagesByConversationID(ctx context.Context, conversationID int, limit, offset int) ([]*chatwoot.ChatwootMessage, error)
-	UpdateMessage(ctx context.Context, message *chatwoot.ChatwootMessage) error
+	CreateMessage(ctx context.Context, message *ChatwootMessage) error
+	GetMessageByID(ctx context.Context, id int) (*ChatwootMessage, error)
+	GetMessagesByConversationID(ctx context.Context, conversationID int, limit, offset int) ([]*ChatwootMessage, error)
+	UpdateMessage(ctx context.Context, message *ChatwootMessage) error
 	DeleteMessage(ctx context.Context, id int) error
 
 	CreateSyncRecord(ctx context.Context, record *SyncRecord) error

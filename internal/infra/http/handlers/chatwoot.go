@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"zpwoot/internal/app/chatwoot"
 	domainChatwoot "zpwoot/internal/domain/chatwoot"
@@ -48,6 +49,13 @@ func NewChatwootHandler(chatwootUC chatwoot.UseCase, logger *logger.Logger) *Cha
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/chatwoot/set [post]
 func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+	if sessionID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Session ID is required",
+		})
+	}
+
 	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -55,7 +63,29 @@ func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
 		})
 	}
 
-	config, err := h.chatwootUC.CreateConfig(c.Context(), &req)
+	// Check if auto-create is requested
+	if req.AutoCreate != nil && *req.AutoCreate {
+		// Generate webhook URL dynamically
+		baseURL := h.getBaseURL(c)
+		webhookURL := fmt.Sprintf("%s/chatwoot/webhook/%s", baseURL, sessionID)
+
+		inboxName := "WhatsApp zpwoot"
+		if req.InboxName != nil && *req.InboxName != "" {
+			inboxName = *req.InboxName
+		}
+
+		// Try to auto-create inbox
+		err := h.chatwootUC.AutoCreateInbox(c.Context(), sessionID, inboxName, webhookURL)
+		if err != nil {
+			h.logger.WarnWithFields("Failed to auto-create inbox", map[string]interface{}{
+				"session_id": sessionID,
+				"error":      err.Error(),
+			})
+			// Don't fail the request, just log the warning
+		}
+	}
+
+	config, err := h.chatwootUC.CreateConfig(c.Context(), sessionID, &req)
 	if err != nil {
 		if appErr := errors.GetAppError(err); appErr != nil {
 			return c.Status(appErr.Code).JSON(fiber.Map{
@@ -70,6 +100,7 @@ func (h *ChatwootHandler) CreateConfig(c *fiber.Ctx) error {
 
 	return c.Status(201).JSON(fiber.Map{
 		"success": true,
+		"message": "Chatwoot configuration created successfully",
 		"data":    config,
 	})
 }
@@ -194,13 +225,33 @@ func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
 }
 
 func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
+
+	h.logger.InfoWithFields("Received Chatwoot webhook", map[string]interface{}{
+		"session_id": sessionID,
+		"ip":         c.IP(),
+		"user_agent": c.Get("User-Agent"),
+	})
+
+	// Validate sessionID format
+	if _, err := uuid.Parse(sessionID); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Invalid session ID format",
+		})
+	}
+
 	var payload chatwoot.ChatwootWebhookPayload
 	if err := c.BodyParser(&payload); err != nil {
+		h.logger.WarnWithFields("Failed to parse webhook payload", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid webhook payload",
 		})
 	}
 
+	// Validate event type
 	if !domainChatwoot.IsValidChatwootEvent(payload.Event) {
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid event type",
@@ -208,8 +259,15 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		})
 	}
 
-	err := h.chatwootUC.ProcessWebhook(c.Context(), &payload)
+	// Process webhook with sessionID (like Evolution API)
+	err := h.chatwootUC.ProcessWebhook(c.Context(), sessionID, &payload)
 	if err != nil {
+		h.logger.ErrorWithFields("Failed to process webhook", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+			"error":      err.Error(),
+		})
+
 		if appErr := errors.GetAppError(err); appErr != nil {
 			return c.Status(appErr.Code).JSON(fiber.Map{
 				"error":   appErr.Message,
@@ -220,6 +278,11 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 			"error": "Internal server error",
 		})
 	}
+
+	h.logger.InfoWithFields("Webhook processed successfully", map[string]interface{}{
+		"session_id": sessionID,
+		"event":      payload.Event,
+	})
 
 	return c.JSON(fiber.Map{
 		"success": true,
@@ -281,8 +344,6 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/chatwoot/set [post]
 func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
-	sessionID := c.Params("sessionId")
-
 	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{
@@ -297,7 +358,8 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 	_, err := h.chatwootUC.GetConfig(ctx)
 
 	if err != nil {
-		result, createErr := h.chatwootUC.CreateConfig(ctx, &req)
+		sessionID := c.Params("sessionId")
+		result, createErr := h.chatwootUC.CreateConfig(ctx, sessionID, &req)
 		if createErr != nil {
 			return c.Status(500).JSON(fiber.Map{
 				"success": false,
@@ -356,6 +418,34 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 		})
 	}
 
+	// Auto-create inbox if requested (also for updates)
+	if req.AutoCreate != nil && *req.AutoCreate {
+		sessionID := c.Params("sessionId")
+		h.logger.InfoWithFields("Auto-creating Chatwoot inbox", map[string]interface{}{
+			"session_id":  sessionID,
+			"auto_create": true,
+		})
+
+		// Generate inbox name (use provided name or default to session name)
+		inboxName := "WhatsApp zpwoot"
+		if req.InboxName != nil && *req.InboxName != "" {
+			inboxName = *req.InboxName
+		}
+
+		// Generate webhook URL automatically
+		webhookURL := fmt.Sprintf("http://localhost:8080/chatwoot/webhook/%s", sessionID)
+
+		// Call auto-creation logic
+		autoCreateErr := h.chatwootUC.AutoCreateInbox(ctx, sessionID, inboxName, webhookURL)
+		if autoCreateErr != nil {
+			h.logger.WarnWithFields("Failed to auto-create inbox", map[string]interface{}{
+				"session_id": sessionID,
+				"error":      autoCreateErr.Error(),
+			})
+			// Don't fail the entire request, just log the warning
+		}
+	}
+
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Chatwoot configuration updated successfully",
@@ -392,4 +482,19 @@ func (h *ChatwootHandler) FindConfig(c *fiber.Ctx) error {
 		"message": "Chatwoot configuration found",
 		"data":    config,
 	})
+}
+
+// getBaseURL extracts the base URL from the request
+func (h *ChatwootHandler) getBaseURL(c *fiber.Ctx) string {
+	scheme := "http"
+	if c.Protocol() == "https" {
+		scheme = "https"
+	}
+
+	host := c.Get("Host")
+	if host == "" {
+		host = "localhost:8080" // fallback
+	}
+
+	return fmt.Sprintf("%s://%s", scheme, host)
 }

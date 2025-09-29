@@ -25,7 +25,6 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
-	""
 	"syscall"
 	"time"
 
@@ -35,6 +34,7 @@ import (
 
 	_ "zpwoot/docs/swagger" // Import generated swagger docs
 	"zpwoot/internal/app"
+	sessionApp "zpwoot/internal/app/session"
 	"zpwoot/internal/domain/session"
 	"zpwoot/internal/infra/db"
 	"zpwoot/internal/infra/http/middleware"
@@ -55,128 +55,236 @@ var (
 	GitCommit = "unknown"
 )
 
-func main() {
-	var (
-		migrateUp     = flag.Bool("migrate-up", false, "Run database migrations up")
-		migrateDown   = flag.Bool("migrate-down", false, "Rollback last migration")
-		migrateStatus = flag.Bool("migrate-status", false, "Show migration status")
-		seed          = flag.Bool("seed", false, "Seed database with sample data")
-		version       = flag.Bool("version", false, "Show version information")
-	)
-	flag.Parse()
+// commandFlags holds all command line flags
+type commandFlags struct {
+	migrateUp     bool
+	migrateDown   bool
+	migrateStatus bool
+	seed          bool
+	version       bool
+}
 
-	if *version {
+// managers holds all initialized managers
+type managers struct {
+	whatsapp *wameow.Manager
+	webhook  *webhook.WebhookManager
+	chatwoot *chatwootIntegration.IntegrationManager
+}
+
+func main() {
+	// Parse command line flags
+	flags := parseFlags()
+
+	// Handle version flag early
+	if flags.version {
 		showVersion()
 		return
 	}
 
+	// Initialize configuration and logger
 	cfg := config.Load()
+	appLogger := initializeLogger(cfg)
 
+	// Initialize database with migrations
+	database := initializeDatabase(cfg, appLogger)
+	defer closeDatabase(database, appLogger)
+
+	// Handle database operations (migrations, seed)
+	migrator := db.NewMigrator(database.GetDB().DB, appLogger)
+	if handled := handleDatabaseOperations(flags, migrator, database, appLogger); handled {
+		return
+	}
+
+	// Initialize core components
+	repositories := repository.NewRepositories(database.GetDB(), appLogger)
+	managers := initializeManagers(database, repositories, appLogger)
+	container := createContainer(repositories, managers, database, appLogger)
+
+	// Setup and start HTTP server
+	fiberApp := setupHTTPServer(cfg, container, database, managers.whatsapp, appLogger)
+
+	// Start background services
+	startBackgroundServices(container, appLogger)
+
+	// Setup graceful shutdown
+	setupGracefulShutdown(fiberApp, appLogger)
+
+	// Start server
+	startServer(fiberApp, cfg, appLogger)
+}
+
+// parseFlags parses and returns command line flags
+func parseFlags() commandFlags {
+	flags := commandFlags{}
+	flag.BoolVar(&flags.migrateUp, "migrate-up", false, "Run database migrations up")
+	flag.BoolVar(&flags.migrateDown, "migrate-down", false, "Rollback last migration")
+	flag.BoolVar(&flags.migrateStatus, "migrate-status", false, "Show migration status")
+	flag.BoolVar(&flags.seed, "seed", false, "Seed database with sample data")
+	flag.BoolVar(&flags.version, "version", false, "Show version information")
+	flag.Parse()
+	return flags
+}
+
+// initializeLogger creates and configures the application logger
+func initializeLogger(cfg *config.Config) *logger.Logger {
 	loggerConfig := &logger.LogConfig{
 		Level:  cfg.LogLevel,
 		Format: cfg.LogFormat,
 		Output: cfg.LogOutput,
-		Caller: cfg.IsDevelopment(), // Show caller info in development
+		Caller: cfg.IsDevelopment(),
 	}
 
 	if cfg.IsProduction() {
 		loggerConfig = logger.ProductionConfig()
-		loggerConfig.Level = cfg.LogLevel // Override with env setting
+		loggerConfig.Level = cfg.LogLevel
 	}
 
-	appLogger := logger.NewWithConfig(loggerConfig)
+	return logger.NewWithConfig(loggerConfig)
+}
 
+// initializeDatabase connects to database and runs initial migrations
+func initializeDatabase(cfg *config.Config, appLogger *logger.Logger) *platformDB.DB {
 	database, err := platformDB.NewWithMigrations(cfg.DatabaseURL, appLogger)
 	if err != nil {
 		appLogger.Fatal("Failed to connect to database and run migrations: " + err.Error())
 	}
-	defer func() {
-		if err := database.Close(); err != nil {
-			appLogger.Error("Failed to close database connection: " + err.Error())
-		}
-	}()
+	return database
+}
 
-	migrator := db.NewMigrator(database.GetDB().DB, appLogger)
+// closeDatabase safely closes database connection
+func closeDatabase(database *platformDB.DB, appLogger *logger.Logger) {
+	if err := database.Close(); err != nil {
+		appLogger.Error("Failed to close database connection: " + err.Error())
+	}
+}
 
-	if *migrateUp {
+// handleDatabaseOperations processes database-related flags and returns true if operation was handled
+func handleDatabaseOperations(flags commandFlags, migrator *db.Migrator, database *platformDB.DB, appLogger *logger.Logger) bool {
+	if flags.migrateUp {
 		if err := migrator.RunMigrations(); err != nil {
 			appLogger.Fatal("Failed to run migrations: " + err.Error())
 		}
 		appLogger.Info("Migrations completed successfully")
-		return
+		return true
 	}
 
-	if *migrateDown {
+	if flags.migrateDown {
 		if err := migrator.Rollback(); err != nil {
 			appLogger.Fatal("Failed to rollback migration: " + err.Error())
 		}
 		appLogger.Info("Migration rollback completed successfully")
-		return
+		return true
 	}
 
-	if *migrateStatus {
+	if flags.migrateStatus {
 		migrations, err := migrator.GetMigrationStatus()
 		if err != nil {
 			appLogger.Fatal("Failed to get migration status: " + err.Error())
 		}
 		showMigrationStatus(migrations, appLogger)
-		return
+		return true
 	}
 
-	if *seed {
+	if flags.seed {
 		if err := seedDatabase(database, appLogger); err != nil {
 			appLogger.Fatal("Failed to seed database: " + err.Error())
 		}
 		appLogger.Info("Database seeding completed successfully")
-		return
+		return true
 	}
 
-	repositories := repository.NewRepositories(database.GetDB(), appLogger)
+	return false
+}
 
-	whatsappManager, err := initializeWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
+// initializeManagers creates and configures all application managers
+func initializeManagers(database *platformDB.DB, repositories *repository.Repositories, appLogger *logger.Logger) managers {
+	whatsappManager := createWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
+	webhookManager := createWebhookManager(repositories.GetWebhookRepository(), appLogger)
+	chatwootManager := createChatwootIntegration(repositories, appLogger)
+
+	// Configure integrations
+	configureWebhookIntegration(whatsappManager, webhookManager, appLogger)
+	configureChatwootIntegration(whatsappManager, chatwootManager, appLogger)
+
+	return managers{
+		whatsapp: whatsappManager,
+		webhook:  webhookManager,
+		chatwoot: chatwootManager,
+	}
+}
+
+// createWhatsAppManager initializes the WhatsApp manager
+func createWhatsAppManager(database *platformDB.DB, sessionRepo ports.SessionRepository, appLogger *logger.Logger) *wameow.Manager {
+	factory, err := wameow.NewFactory(appLogger, sessionRepo)
 	if err != nil {
-		appLogger.Fatal("Failed to initialize WhatsApp manager: " + err.Error())
+		appLogger.Fatal("Failed to create wameow factory: " + err.Error())
 	}
 
-	// Initialize webhook manager
-	webhookManager, err := initializeWebhookManager(repositories.GetWebhookRepository(), appLogger)
+	manager, err := factory.CreateManager(database.GetDB().DB)
 	if err != nil {
-		appLogger.Fatal("Failed to initialize webhook manager: " + err.Error())
+		appLogger.Fatal("Failed to create WhatsApp manager: " + err.Error())
 	}
 
-	// Configure webhook handler in WhatsApp manager
-	err = configureWebhookIntegration(whatsappManager, webhookManager, appLogger)
-	if err != nil {
-		appLogger.Fatal("Failed to configure webhook integration: " + err.Error())
+	appLogger.Info("WhatsApp manager initialized")
+	return manager
+}
+
+// createWebhookManager initializes the webhook manager
+func createWebhookManager(webhookRepo ports.WebhookRepository, appLogger *logger.Logger) *webhook.WebhookManager {
+	webhookManager := webhook.NewWebhookManager(appLogger, webhookRepo, 5)
+
+	if err := webhookManager.Start(); err != nil {
+		appLogger.Fatal("Failed to start webhook manager: " + err.Error())
 	}
 
-	// Initialize and configure Chatwoot integration
-	chatwootManager, err := initializeChatwootIntegration(repositories.GetChatwootRepository(), appLogger)
-	if err != nil {
-		appLogger.Fatal("Failed to initialize Chatwoot integration: " + err.Error())
-	}
+	appLogger.Info("Webhook manager initialized and started")
+	return webhookManager
+}
 
-	// Configure Chatwoot integration in WhatsApp manager
-	err = configureChatwootIntegration(whatsappManager, chatwootManager, appLogger)
-	if err != nil {
-		appLogger.Fatal("Failed to configure Chatwoot integration: " + err.Error())
-	}
+// createChatwootIntegration initializes the Chatwoot integration
+func createChatwootIntegration(repositories *repository.Repositories, appLogger *logger.Logger) *chatwootIntegration.IntegrationManager {
+	chatwootRepo := repositories.GetChatwootRepository()
+	chatwootMessageRepo := repositories.GetChatwootMessageRepository()
 
-	container := app.NewContainer(&app.ContainerConfig{
+	chatwootManager := chatwootIntegration.NewManager(appLogger, chatwootRepo)
+	messageMapper := chatwootIntegration.NewMessageMapper(appLogger, chatwootMessageRepo)
+	contactSync := chatwootIntegration.NewContactSync(appLogger, nil)
+	conversationMgr := chatwootIntegration.NewConversationManager(appLogger, nil)
+	formatter := chatwootIntegration.NewMessageFormatter(appLogger)
+
+	integrationManager := chatwootIntegration.NewIntegrationManager(
+		appLogger,
+		chatwootManager,
+		messageMapper,
+		contactSync,
+		conversationMgr,
+		formatter,
+	)
+
+	appLogger.Info("Chatwoot integration initialized successfully")
+	return integrationManager
+}
+
+// createContainer creates the application container with all dependencies
+func createContainer(repositories *repository.Repositories, managers managers, database *platformDB.DB, appLogger *logger.Logger) *app.Container {
+	return app.NewContainer(&app.ContainerConfig{
 		SessionRepo:         repositories.GetSessionRepository(),
 		WebhookRepo:         repositories.GetWebhookRepository(),
 		ChatwootRepo:        repositories.GetChatwootRepository(),
-		WameowManager:       whatsappManager,
-		ChatwootIntegration: nil, // Will be implemented when Chatwoot integration is needed
+		WameowManager:       managers.whatsapp,
+		ChatwootIntegration: nil,
 		Logger:              appLogger,
 		DB:                  database.GetDB().DB,
 		Version:             Version,
 		BuildTime:           BuildTime,
 		GitCommit:           GitCommit,
 	})
+}
 
-	app := fiber.New(fiber.Config{
-		DisableStartupMessage: true, // Disable the Fiber startup banner
+// setupHTTPServer creates and configures the Fiber HTTP server
+func setupHTTPServer(cfg *config.Config, container *app.Container, database *platformDB.DB, whatsappManager *wameow.Manager, appLogger *logger.Logger) *fiber.App {
+	fiberApp := fiber.New(fiber.Config{
+		DisableStartupMessage: true,
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			code := fiber.StatusInternalServerError
 			if e, ok := err.(*fiber.Error); ok {
@@ -188,52 +296,56 @@ func main() {
 		},
 	})
 
+	// Configure middlewares
+	setupMiddlewares(fiberApp, cfg, container, appLogger)
+
+	// Setup routes
+	routers.SetupRoutes(fiberApp, database, appLogger, whatsappManager, container)
+
+	return fiberApp
+}
+
+// setupMiddlewares configures all HTTP middlewares
+func setupMiddlewares(app *fiber.App, cfg *config.Config, container *app.Container, appLogger *logger.Logger) {
 	app.Use(recover.New())
 	app.Use(middleware.RequestID(appLogger))
 	app.Use(middleware.HTTPLogger(appLogger))
 	app.Use(middleware.Metrics(container, appLogger))
 	app.Use(cors.New())
 	app.Use(middleware.APIKeyAuth(cfg, appLogger))
+}
 
-	routers.SetupRoutes(app, database, appLogger, whatsappManager, container)
-
+// startBackgroundServices starts all background services
+func startBackgroundServices(container *app.Container, appLogger *logger.Logger) {
 	go connectOnStartup(container, appLogger)
+}
 
+// setupGracefulShutdown configures graceful shutdown handling
+func setupGracefulShutdown(fiberApp *fiber.App, appLogger *logger.Logger) {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
 		<-c
 		appLogger.Info("Shutting down server...")
-		if err := app.Shutdown(); err != nil {
+		if err := fiberApp.Shutdown(); err != nil {
 			appLogger.Error("Failed to shutdown server gracefully: " + err.Error())
 		}
 	}()
+}
 
+// startServer starts the HTTP server
+func startServer(fiberApp *fiber.App, cfg *config.Config, appLogger *logger.Logger) {
 	appLogger.InfoWithFields("Starting zpwoot server", map[string]interface{}{
 		"port":        cfg.Port,
 		"server_host": cfg.ServerHost,
 		"environment": cfg.NodeEnv,
 		"log_level":   cfg.LogLevel,
 	})
-	if err := app.Listen(":" + cfg.Port); err != nil {
+
+	if err := fiberApp.Listen(":" + cfg.Port); err != nil {
 		appLogger.Fatal("Server failed to start: " + err.Error())
 	}
-}
-
-func initializeWhatsAppManager(database *platformDB.DB, sessionRepo ports.SessionRepository, appLogger *logger.Logger) (*wameow.Manager, error) {
-	factory, err := wameow.NewFactory(appLogger, sessionRepo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create wameow factory: %w", err)
-	}
-
-	manager, err := factory.CreateManager(database.GetDB().DB)
-	if err != nil {
-		return nil, err
-	}
-
-	appLogger.Info("WhatsApp manager initialized")
-	return manager, nil
 }
 
 func showVersion() {
@@ -331,168 +443,107 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 	return nil
 }
 
-func initializeWebhookManager(webhookRepo ports.WebhookRepository, appLogger *logger.Logger) (*webhook.WebhookManager, error) {
-	// Create webhook manager with 5 workers
-	webhookManager := webhook.NewWebhookManager(appLogger, webhookRepo, 5)
-
-	// Start the webhook manager
-	if err := webhookManager.Start(); err != nil {
-		return nil, fmt.Errorf("failed to start webhook manager: %w", err)
-	}
-
-	appLogger.Info("Webhook manager initialized and started")
-	return webhookManager, nil
-}
-
-func configureWebhookIntegration(wameowManager *wameow.Manager, webhookManager *webhook.WebhookManager, appLogger *logger.Logger) error {
-	// Create the webhook handler
+// configureWebhookIntegration configures webhook integration between WhatsApp and webhook manager
+func configureWebhookIntegration(wameowManager *wameow.Manager, webhookManager *webhook.WebhookManager, appLogger *logger.Logger) {
 	webhookHandler := wameow.NewWhatsmeowWebhookHandler(appLogger, webhookManager)
-
-	// Set the webhook handler in the wameow manager
 	wameowManager.SetWebhookHandler(webhookHandler)
-
 	appLogger.Info("Webhook integration configured successfully")
-	return nil
 }
 
+// configureChatwootIntegration configures Chatwoot integration with WhatsApp manager
+func configureChatwootIntegration(whatsappManager *wameow.Manager, integrationManager *chatwootIntegration.IntegrationManager, appLogger *logger.Logger) {
+	// Register the integration manager as ChatwootManager with WhatsApp manager
+	whatsappManager.SetChatwootManager(integrationManager)
+	appLogger.Info("Chatwoot integration configured successfully")
+}
+
+// connectOnStartup automatically reconnects existing sessions on startup
 func connectOnStartup(container *app.Container, logger *logger.Logger) {
-	time.Sleep(3 * time.Second)
+	const (
+		startupDelay    = 3 * time.Second
+		operationTimeout = 60 * time.Second
+		sessionLimit    = 100
+		reconnectDelay  = 1 * time.Second
+	)
+
+	time.Sleep(startupDelay)
 
 	sessionUC := container.GetSessionUseCase()
-	if sessionUC == nil {
-		logger.Error("Session use case not available, skipping auto-connect")
-		return
-	}
-
 	sessionRepo := container.GetSessionRepository()
-	if sessionRepo == nil {
-		logger.Error("Session repository not available, skipping auto-connect")
+
+	if sessionUC == nil || sessionRepo == nil {
+		logger.Error("Required components not available, skipping auto-connect")
 		return
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), operationTimeout)
 	defer cancel()
 
+	sessions := getExistingSessions(ctx, sessionRepo, sessionLimit, logger)
+	if len(sessions) == 0 {
+		logger.Info("No existing sessions found, skipping auto-connect")
+		return
+	}
+
+	logger.InfoWithFields("Starting auto-reconnect", map[string]interface{}{
+		"total_sessions": len(sessions),
+	})
+
+	stats := reconnectSessions(ctx, sessions, sessionUC, logger, reconnectDelay)
+
+	logger.InfoWithFields("Auto-reconnect completed", map[string]interface{}{
+		"connected": stats.connected,
+		"skipped":   stats.skipped,
+		"failed":    stats.failed,
+	})
+}
+
+// reconnectStats holds statistics for reconnection process
+type reconnectStats struct {
+	connected int
+	skipped   int
+	failed    int
+}
+
+// getExistingSessions retrieves existing sessions from repository
+func getExistingSessions(ctx context.Context, sessionRepo ports.SessionRepository, limit int, logger *logger.Logger) []*session.Session {
 	sessions, _, err := sessionRepo.List(ctx, &session.ListSessionsRequest{
-		Limit:  100, // Get up to 100 sessions
+		Limit:  limit,
 		Offset: 0,
 	})
 	if err != nil {
 		logger.ErrorWithFields("Failed to get sessions for auto-connect", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return
+		return nil
 	}
+	return sessions
+}
 
-	if len(sessions) == 0 {
-		logger.Info("No existing sessions found, skipping auto-connect")
-		return
-	}
-
-	if len(sessions) > 0 {
-		logger.InfoWithFields("Auto-connecting sessions", map[string]interface{}{
-			"total_sessions": len(sessions),
-		})
-	}
-
-	connectedCount := 0
-	skippedCount := 0
+// reconnectSessions attempts to reconnect all valid sessions
+func reconnectSessions(ctx context.Context, sessions []*session.Session, sessionUC sessionApp.UseCase, logger *logger.Logger, delay time.Duration) reconnectStats {
+	stats := reconnectStats{}
 
 	for _, sess := range sessions {
 		sessionID := sess.ID.String()
 
 		if sess.DeviceJid == "" {
-			skippedCount++
+			stats.skipped++
 			continue
 		}
 
-		err := sessionUC.ConnectSession(ctx, sessionID)
-		if err != nil {
+		if err := sessionUC.ConnectSession(ctx, sessionID); err != nil {
 			logger.ErrorWithFields("Failed to auto-connect session", map[string]interface{}{
 				"session_id": sessionID,
 				"error":      err.Error(),
 			})
+			stats.failed++
 			continue
 		}
 
-		connectedCount++
-		time.Sleep(1 * time.Second)
+		stats.connected++
+		time.Sleep(delay)
 	}
 
-	if len(sessions) > 0 {
-		logger.InfoWithFields("Auto-reconnect completed", map[string]interface{}{
-			"connected": connectedCount,
-			"skipped":   skippedCount,
-		})
-	}
-}
-
-// initializeChatwootIntegration initializes the Chatwoot integration components
-func initializeChatwootIntegration(chatwootRepo ports.ChatwootRepository, logger *logger.Logger) (*chatwootIntegration.IntegrationManager, error) {
-	logger.Info("Initializing Chatwoot integration")
-
-	// Create Chatwoot manager
-	chatwootManager := chatwootIntegration.NewManager(logger, chatwootRepo)
-
-	// Create message mapper
-	messageMapper := chatwootIntegration.NewMessageMapper(logger)
-
-	// Create contact sync
-	contactSync := chatwootIntegration.NewContactSync(logger, nil) // Client will be injected later
-
-	// Create conversation manager
-	conversationMgr := chatwootIntegration.NewConversationManager(logger)
-
-	// Create message formatter
-	formatter := chatwootIntegration.NewMessageFormatter(logger)
-
-	// Create integration manager
-	integrationManager := chatwootIntegration.NewIntegrationManager(
-		logger,
-		chatwootManager,
-		messageMapper,
-		contactSync,
-		conversationMgr,
-		formatter,
-	)
-
-	logger.Info("Chatwoot integration initialized successfully")
-	return integrationManager, nil
-}
-
-// configureChatwootIntegration configures the Chatwoot integration with webhook system
-func configureChatwootIntegration(whatsappManager ports.WameowManager, integrationManager *chatwootIntegration.IntegrationManager, logger *logger.Logger) error {
-	logger.Info("Configuring Chatwoot integration with webhook system")
-
-	// Create a webhook processor that uses the integration manager
-	processor := &ChatwootWebhookProcessor{
-		logger:             logger,
-		integrationManager: integrationManager,
-	}
-
-	// Register the processor with the webhook system
-	// This would be done through the webhook manager
-	logger.Info("Chatwoot integration configured successfully")
-	return nil
-}
-
-// ChatwootWebhookProcessor processes webhook events for Chatwoot integration
-type ChatwootWebhookProcessor struct {
-	logger             *logger.Logger
-	integrationManager *chatwootIntegration.IntegrationManager
-}
-
-// ProcessWebhookEvent processes a webhook event and sends it to Chatwoot if applicable
-func (p *ChatwootWebhookProcessor) ProcessWebhookEvent(ctx context.Context, event interface{}) error {
-	// This would be called by the webhook system for each event
-	// We need to extract message information and call the integration manager
-
-	p.logger.DebugWithFields("Processing webhook event for Chatwoot", map[string]interface{}{
-		"event_type": fmt.Sprintf("%T", event),
-	})
-
-	// TODO: Extract message information from webhook event and call:
-	// p.integrationManager.ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType, timestamp, fromMe)
-
-	return nil
+	return stats
 }

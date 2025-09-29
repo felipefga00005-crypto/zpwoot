@@ -157,4 +157,8 @@ func setupGlobalRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger
 	// Global webhook info routes
 	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
 	app.Get("/webhook/events", webhookHandler.GetSupportedEvents) // GET /webhook/events
+
+	// Chatwoot webhook (without authentication - like Evolution API)
+	chatwootHandler := handlers.NewChatwootHandler(container.GetChatwootUseCase(), appLogger)
+	app.Post("/sessions/:sessionId/chatwoot/webhook", chatwootHandler.ReceiveWebhook) // POST /sessions/:sessionId/chatwoot/webhook
 }

@@ -3,6 +3,8 @@ package chatwoot
 import (
 	"context"
 	"fmt"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -65,8 +67,16 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 		return nil
 	}
 
-	// Create initial mapping
-	_, err := im.messageMapper.CreateMapping(ctx, sessionID, messageID)
+	// Extract chat JID from sender (for groups, chat != sender)
+	chatJID := from
+	if strings.Contains(from, "@g.us") {
+		chatJID = from // Group message
+	} else if strings.Contains(from, "@s.whatsapp.net") {
+		chatJID = from // Individual message
+	}
+
+	// Create initial mapping with complete data
+	_, err := im.messageMapper.CreateMapping(ctx, sessionID, messageID, from, chatJID, messageType, content, timestamp, fromMe)
 	if err != nil {
 		return fmt.Errorf("failed to create message mapping: %w", err)
 	}
@@ -85,15 +95,30 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 		return fmt.Errorf("failed to extract phone number from JID: %s", from)
 	}
 
+	// Get Chatwoot configuration to get inbox ID
+	config, err := im.chatwootManager.GetConfig(sessionID)
+	if err != nil {
+		im.messageMapper.MarkAsFailed(ctx, messageID)
+		return fmt.Errorf("failed to get Chatwoot config: %w", err)
+	}
+
+	// Convert inbox ID from string to int
+	inboxID := 1 // Default fallback
+	if config.InboxID != nil {
+		if id, err := strconv.Atoi(*config.InboxID); err == nil {
+			inboxID = id
+		}
+	}
+
 	// Get or create contact
-	contact, err := im.getOrCreateContact(client, phoneNumber, sessionID)
+	contact, err := im.getOrCreateContact(client, phoneNumber, sessionID, inboxID)
 	if err != nil {
 		im.messageMapper.MarkAsFailed(ctx, messageID)
 		return fmt.Errorf("failed to get or create contact: %w", err)
 	}
 
 	// Get or create conversation
-	conversation, err := im.getOrCreateConversation(client, contact.ID, sessionID)
+	conversation, err := im.getOrCreateConversation(client, contact.ID, sessionID, inboxID)
 	if err != nil {
 		im.messageMapper.MarkAsFailed(ctx, messageID)
 		return fmt.Errorf("failed to get or create conversation: %w", err)
@@ -131,12 +156,20 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	return nil
 }
 
-// extractPhoneFromJID extracts phone number from WhatsApp JID
+// extractPhoneFromJID extracts phone number from WhatsApp JID and formats to E164
+// Following Evolution API logic exactly
 func (im *IntegrationManager) extractPhoneFromJID(jid string) string {
-	// Remove @s.whatsapp.net or @g.us suffix
+	im.logger.DebugWithFields("Extracting phone from JID", map[string]interface{}{
+		"original_jid": jid,
+	})
+
+	// Step 1: Remove @s.whatsapp.net or @g.us suffix (like Evolution API line 36)
 	phone := strings.Split(jid, "@")[0]
 
-	// For group JIDs, extract the creator's phone
+	// Step 2: Remove :XX suffix (like Evolution API line 36: number.replace(/:\d+/, ''))
+	phone = regexp.MustCompile(`:\d+`).ReplaceAllString(phone, "")
+
+	// Step 3: For group JIDs, extract the creator's phone
 	if strings.Contains(phone, "-") {
 		parts := strings.Split(phone, "-")
 		if len(parts) > 0 {
@@ -144,20 +177,67 @@ func (im *IntegrationManager) extractPhoneFromJID(jid string) string {
 		}
 	}
 
+	// Step 4: Remove any non-digit characters (like Evolution API line 59)
+	phone = regexp.MustCompile(`\D`).ReplaceAllString(phone, "")
+
+	// Step 5: Format Brazilian numbers (like Evolution API formatBRNumber)
+	phone = im.formatBrazilianPhone(phone)
+
+	// Step 6: Add + prefix for E164 format (required by Chatwoot)
+	if !strings.HasPrefix(phone, "+") {
+		phone = "+" + phone
+	}
+
+	im.logger.DebugWithFields("Extracted phone from JID", map[string]interface{}{
+		"original_jid": jid,
+		"final_phone":  phone,
+	})
+
+	return phone
+}
+
+// formatBrazilianPhone formats Brazilian phone numbers according to Evolution API logic
+func (im *IntegrationManager) formatBrazilianPhone(phone string) string {
+	// Check if it's a Brazilian number (starts with 55)
+	if !strings.HasPrefix(phone, "55") {
+		return phone
+	}
+
+	// Remove country code for processing
+	localNumber := phone[2:]
+
+	// Brazilian mobile numbers should have 11 digits (including area code)
+	if len(localNumber) == 10 {
+		// Old format without the 9 - add it for mobile numbers
+		areaCode := localNumber[:2]
+		number := localNumber[2:]
+
+		// Add 9 for mobile numbers (Evolution API logic)
+		formatted := "55" + areaCode + "9" + number
+
+		im.logger.DebugWithFields("Added 9 to Brazilian mobile", map[string]interface{}{
+			"original":  phone,
+			"formatted": formatted,
+		})
+
+		return formatted
+	}
+
+	// Return as is if already correct format
 	return phone
 }
 
 // getOrCreateContact gets or creates a contact in Chatwoot
-func (im *IntegrationManager) getOrCreateContact(client ports.ChatwootClient, phoneNumber, sessionID string) (*ports.ChatwootContact, error) {
+func (im *IntegrationManager) getOrCreateContact(client ports.ChatwootClient, phoneNumber, sessionID string, inboxID int) (*ports.ChatwootContact, error) {
 	// Try to find existing contact
-	contact, err := client.FindContact(phoneNumber, 1) // Assuming inbox ID 1 for now
+	contact, err := client.FindContact(phoneNumber, inboxID)
 	if err == nil {
 		return contact, nil
 	}
 
 	// Create new contact
 	contactName := phoneNumber // Use phone as name initially
-	contact, err = client.CreateContact(phoneNumber, contactName, 1)
+	contact, err = client.CreateContact(phoneNumber, contactName, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create contact: %w", err)
 	}
@@ -171,16 +251,43 @@ func (im *IntegrationManager) getOrCreateContact(client ports.ChatwootClient, ph
 	return contact, nil
 }
 
-// getOrCreateConversation gets or creates a conversation in Chatwoot
-func (im *IntegrationManager) getOrCreateConversation(client ports.ChatwootClient, contactID int, sessionID string) (*ports.ChatwootConversation, error) {
-	// Try to find existing conversation
-	conversation, err := client.GetConversation(contactID, 1) // Assuming inbox ID 1 for now
-	if err == nil {
-		return conversation, nil
+// getOrCreateConversation gets or creates a conversation in Chatwoot following Evolution API logic
+func (im *IntegrationManager) getOrCreateConversation(client ports.ChatwootClient, contactID int, sessionID string, inboxID int) (*ports.ChatwootConversation, error) {
+	im.logger.InfoWithFields("Getting or creating conversation", map[string]interface{}{
+		"contact_id": contactID,
+		"inbox_id":   inboxID,
+		"session_id": sessionID,
+	})
+
+	// Step 1: List all conversations for this contact (like Evolution API line 736-740)
+	conversations, err := client.ListContactConversations(contactID)
+	if err != nil {
+		im.logger.WarnWithFields("Failed to list contact conversations", map[string]interface{}{
+			"contact_id": contactID,
+			"error":      err.Error(),
+		})
+		// Continue to create new conversation if listing fails
+	} else {
+		// Step 2: Find conversation for this inbox that is not resolved (like Evolution API line 747-768)
+		for _, conv := range conversations {
+			if conv.InboxID == inboxID && conv.Status != "resolved" {
+				im.logger.InfoWithFields("Found existing active conversation", map[string]interface{}{
+					"conversation_id": conv.ID,
+					"status":          conv.Status,
+					"inbox_id":        conv.InboxID,
+				})
+				return &conv, nil
+			}
+		}
 	}
 
-	// Create new conversation
-	conversation, err = client.CreateConversation(contactID, 1)
+	// Step 3: No active conversation found, create new one (like Evolution API line 794-797)
+	im.logger.InfoWithFields("Creating new conversation", map[string]interface{}{
+		"contact_id": contactID,
+		"inbox_id":   inboxID,
+	})
+
+	conversation, err := client.CreateConversation(contactID, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create conversation: %w", err)
 	}

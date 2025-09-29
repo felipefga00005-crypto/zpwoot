@@ -19,20 +19,32 @@ type MessageRepository struct {
 }
 
 // NewMessageRepository creates a new zpMessage repository
-func NewMessageRepository(db *sqlx.DB, logger *logger.Logger) *MessageRepository {
+func NewMessageRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootMessageRepository {
 	return &MessageRepository{
 		db:     db,
 		logger: logger,
 	}
 }
 
-// zpMessageModel represents the simplified database model for zpMessage table (mapping only)
+// zpMessageModel represents the complete database model for zpMessage table
 type zpMessageModel struct {
 	ID               string        `db:"id"`
 	SessionID        string        `db:"sessionId"`
+
+	// WhatsApp Message Data
 	ZpMessageID      string        `db:"zpMessageId"`
+	ZpSender         string        `db:"zpSender"`
+	ZpChat           string        `db:"zpChat"`
+	ZpTimestamp      time.Time     `db:"zpTimestamp"`
+	ZpFromMe         bool          `db:"zpFromMe"`
+	ZpType           string        `db:"zpType"`
+	Content          string        `db:"content"`
+
+	// Chatwoot Message Data
 	CwMessageID      sql.NullInt64 `db:"cwMessageId"`
 	CwConversationID sql.NullInt64 `db:"cwConversationId"`
+
+	// Sync Status
 	SyncStatus       string        `db:"syncStatus"`
 	CreatedAt        time.Time     `db:"createdAt"`
 	UpdatedAt        time.Time     `db:"updatedAt"`
@@ -51,10 +63,12 @@ func (r *MessageRepository) CreateMessage(ctx context.Context, message *ports.Zp
 
 	query := `
 		INSERT INTO "zpMessage" (
-			id, "sessionId", "zpMessageId", "cwMessageId", "cwConversationId",
+			id, "sessionId", "zpMessageId", "zpSender", "zpChat", "zpTimestamp",
+			"zpFromMe", "zpType", "content", "cwMessageId", "cwConversationId",
 			"syncStatus", "createdAt", "updatedAt", "syncedAt"
 		) VALUES (
-			:id, :sessionId, :zpMessageId, :cwMessageId, :cwConversationId,
+			:id, :sessionId, :zpMessageId, :zpSender, :zpChat, :zpTimestamp,
+			:zpFromMe, :zpType, :content, :cwMessageId, :cwConversationId,
 			:syncStatus, :createdAt, :updatedAt, :syncedAt
 		)
 	`
@@ -347,6 +361,12 @@ func (r *MessageRepository) messageToModel(message *ports.ZpMessage) *zpMessageM
 		ID:          message.ID,
 		SessionID:   message.SessionID,
 		ZpMessageID: message.ZpMessageID,
+		ZpSender:    message.ZpSender,
+		ZpChat:      message.ZpChat,
+		ZpTimestamp: message.ZpTimestamp,
+		ZpFromMe:    message.ZpFromMe,
+		ZpType:      message.ZpType,
+		Content:     message.Content,
 		SyncStatus:  message.SyncStatus,
 		CreatedAt:   message.CreatedAt,
 		UpdatedAt:   message.UpdatedAt,
@@ -373,6 +393,12 @@ func (r *MessageRepository) messageFromModel(model *zpMessageModel) (*ports.ZpMe
 		ID:          model.ID,
 		SessionID:   model.SessionID,
 		ZpMessageID: model.ZpMessageID,
+		ZpSender:    model.ZpSender,
+		ZpChat:      model.ZpChat,
+		ZpTimestamp: model.ZpTimestamp,
+		ZpFromMe:    model.ZpFromMe,
+		ZpType:      model.ZpType,
+		Content:     model.Content,
 		SyncStatus:  model.SyncStatus,
 		CreatedAt:   model.CreatedAt,
 		UpdatedAt:   model.UpdatedAt,

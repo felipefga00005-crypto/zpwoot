@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"time"
 
 	"zpwoot/internal/ports"
@@ -42,9 +43,11 @@ func (c *Client) CreateInbox(name, webhookURL string) (*ports.ChatwootInbox, err
 	})
 
 	payload := map[string]interface{}{
-		"name":         name,
-		"channel_type": "api",
-		"webhook_url":  webhookURL,
+		"name": name,
+		"channel": map[string]interface{}{
+			"type":        "api",
+			"webhook_url": webhookURL,
+		},
 	}
 
 	var inbox ports.ChatwootInbox
@@ -150,16 +153,60 @@ func (c *Client) FindContact(phone string, inboxID int) (*ports.ChatwootContact,
 		Payload []ports.ChatwootContact `json:"payload"`
 	}
 
-	err := c.makeRequest("GET", fmt.Sprintf("/contacts/search?q=%s", phone), nil, &response)
+	// URL encode the phone number to handle + and other special characters
+	encodedPhone := url.QueryEscape(phone)
+	err := c.makeRequest("GET", fmt.Sprintf("/contacts/search?q=%s", encodedPhone), nil, &response)
 	if err != nil {
+		c.logger.ErrorWithFields("Failed to search contact", map[string]interface{}{
+			"phone":         phone,
+			"encoded_phone": encodedPhone,
+			"error":         err.Error(),
+		})
 		return nil, fmt.Errorf("failed to find contact: %w", err)
 	}
+
+	c.logger.InfoWithFields("Contact search response", map[string]interface{}{
+		"phone":         phone,
+		"encoded_phone": encodedPhone,
+		"payload_count": len(response.Payload),
+		"response":      response,
+	})
 
 	if len(response.Payload) == 0 {
 		return nil, fmt.Errorf("contact not found")
 	}
 
-	return &response.Payload[0], nil
+	contact := &response.Payload[0]
+	c.logger.InfoWithFields("Contact found", map[string]interface{}{
+		"contact_id": contact.ID,
+		"phone":      contact.PhoneNumber,
+		"name":       contact.Name,
+	})
+
+	return contact, nil
+}
+
+// ListContactConversations lists all conversations for a contact (following Evolution API logic)
+func (c *Client) ListContactConversations(contactID int) ([]ports.ChatwootConversation, error) {
+	c.logger.InfoWithFields("Listing contact conversations", map[string]interface{}{
+		"contact_id": contactID,
+	})
+
+	var response struct {
+		Payload []ports.ChatwootConversation `json:"payload"`
+	}
+
+	err := c.makeRequest("GET", fmt.Sprintf("/contacts/%d/conversations", contactID), nil, &response)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list contact conversations: %w", err)
+	}
+
+	c.logger.InfoWithFields("Contact conversations listed", map[string]interface{}{
+		"contact_id":         contactID,
+		"conversations_count": len(response.Payload),
+	})
+
+	return response.Payload, nil
 }
 
 // GetContact gets a contact by ID
@@ -283,7 +330,7 @@ func (c *Client) SendMessage(conversationID int, content string) (*ports.Chatwoo
 
 	payload := map[string]interface{}{
 		"content":      content,
-		"message_type": "outgoing",
+		"message_type": "incoming",  // Messages from WhatsApp are incoming to Chatwoot
 	}
 
 	var message ports.ChatwootMessage
