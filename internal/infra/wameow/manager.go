@@ -1383,7 +1383,13 @@ func (m *Manager) SendContactListBusiness(sessionID, to string, contacts []Conta
 	return result, nil
 }
 
-func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
+// sendSingleContactGeneric is a generic helper for sending single contact messages
+func (m *Manager) sendSingleContactGeneric(
+	sessionID, to string,
+	contact ContactInfo,
+	sendFunc func(context.Context, string, ContactInfo) (*whatsmeow.SendResponse, error),
+	errorMsg string,
+) (*ContactListResult, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
 		return nil, fmt.Errorf("client not found for session %s", sessionID)
@@ -1393,7 +1399,7 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 		return nil, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
-	resp, err := client.SendSingleContactMessage(context.Background(), to, ContactInfo{
+	resp, err := sendFunc(context.Background(), to, ContactInfo{
 		Name:         contact.Name,
 		Phone:        contact.Phone,
 		Email:        contact.Email,
@@ -1403,7 +1409,7 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 		Address:      contact.Address,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to send single contact: %w", err)
+		return nil, fmt.Errorf("%s: %w", errorMsg, err)
 	}
 
 	result := &ContactListResult{
@@ -1421,6 +1427,14 @@ func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (
 	}
 
 	return result, nil
+}
+
+func (m *Manager) SendSingleContact(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
+	client := m.getClient(sessionID)
+	if client == nil {
+		return nil, fmt.Errorf("client not found for session %s", sessionID)
+	}
+	return m.sendSingleContactGeneric(sessionID, to, contact, client.SendSingleContactMessage, "failed to send single contact")
 }
 
 func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
@@ -1428,39 +1442,7 @@ func (m *Manager) SendSingleContactBusiness(sessionID, to string, contact Contac
 	if client == nil {
 		return nil, fmt.Errorf("client not found for session %s", sessionID)
 	}
-
-	if !client.IsConnected() {
-		return nil, fmt.Errorf("session %s is not connected", sessionID)
-	}
-
-	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
-		Name:         contact.Name,
-		Phone:        contact.Phone,
-		Email:        contact.Email,
-		Organization: contact.Organization,
-		Title:        contact.Title,
-		Website:      contact.Website,
-		Address:      contact.Address,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to send Business single contact: %w", err)
-	}
-
-	result := &ContactListResult{
-		TotalContacts: 1,
-		SuccessCount:  1,
-		FailureCount:  0,
-		Results:       make([]ContactResult, 1),
-		Timestamp:     time.Now(),
-	}
-
-	result.Results[0] = ContactResult{
-		ContactName: contact.Name,
-		MessageID:   resp.ID,
-		Status:      "sent",
-	}
-
-	return result, nil
+	return m.sendSingleContactGeneric(sessionID, to, contact, client.SendSingleContactMessageBusiness, "failed to send Business single contact")
 }
 
 func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact ContactInfo) (*ContactListResult, error) {
@@ -1468,39 +1450,7 @@ func (m *Manager) SendSingleContactBusinessFormat(sessionID, to string, contact 
 	if client == nil {
 		return nil, fmt.Errorf("client not found for session %s", sessionID)
 	}
-
-	if !client.IsConnected() {
-		return nil, fmt.Errorf("session %s is not connected", sessionID)
-	}
-
-	resp, err := client.SendSingleContactMessageBusiness(context.Background(), to, ContactInfo{
-		Name:         contact.Name,
-		Phone:        contact.Phone,
-		Email:        contact.Email,
-		Organization: contact.Organization,
-		Title:        contact.Title,
-		Website:      contact.Website,
-		Address:      contact.Address,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to send WhatsApp Business single contact: %w", err)
-	}
-
-	result := &ContactListResult{
-		TotalContacts: 1,
-		SuccessCount:  1,
-		FailureCount:  0,
-		Results:       make([]ContactResult, 1),
-		Timestamp:     time.Now(),
-	}
-
-	result.Results[0] = ContactResult{
-		ContactName: contact.Name,
-		MessageID:   resp.ID,
-		Status:      "sent",
-	}
-
-	return result, nil
+	return m.sendSingleContactGeneric(sessionID, to, contact, client.SendSingleContactMessageBusiness, "failed to send WhatsApp Business single contact")
 }
 
 // IsOnWhatsApp checks if phone numbers are registered on WhatsApp

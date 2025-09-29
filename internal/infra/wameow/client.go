@@ -1031,8 +1031,16 @@ func (c *WameowClient) createContextInfo(contextInfo *appMessage.ContextInfo) *w
 	return waContextInfo
 }
 
-// SendImageMessageWithContext sends an image message with optional context info for replies
-func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+// sendMediaMessageWithContext is a generic helper for sending media messages with context
+func (c *WameowClient) sendMediaMessageWithContext(
+	ctx context.Context,
+	to, filePath, caption string,
+	contextInfo *appMessage.ContextInfo,
+	mediaType whatsmeow.MediaType,
+	defaultMimetype string,
+	messageType string,
+	createMessage func(uploaded whatsmeow.UploadResponse, mimetype, caption string, contextInfo *waE2E.ContextInfo) *waE2E.Message,
+) (*whatsmeow.SendResponse, error) {
 	if !c.client.IsLoggedIn() {
 		return nil, fmt.Errorf("client is not logged in")
 	}
@@ -1044,30 +1052,17 @@ func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, file
 
 	data, err := os.ReadFile(filePath)
 	if err != nil {
-		return nil, fmt.Errorf("failed to read image file: %w", err)
+		return nil, fmt.Errorf("failed to read %s file: %w", messageType, err)
 	}
 
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaImage)
+	uploaded, err := c.client.Upload(ctx, data, mediaType)
 	if err != nil {
-		return nil, fmt.Errorf("failed to upload image: %w", err)
+		return nil, fmt.Errorf("failed to upload %s: %w", messageType, err)
 	}
 
-	mimetype := "image/jpeg" // Default mimetype
-	message := &waE2E.Message{
-		ImageMessage: &waE2E.ImageMessage{
-			Caption:       &caption,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-			ContextInfo:   c.createContextInfo(contextInfo),
-		},
-	}
+	message := createMessage(uploaded, defaultMimetype, caption, c.createContextInfo(contextInfo))
 
-	c.logger.InfoWithFields("Sending image message with context", map[string]interface{}{
+	c.logger.InfoWithFields(fmt.Sprintf("Sending %s message with context", messageType), map[string]interface{}{
 		"session_id": c.sessionID,
 		"to":         to,
 		"file_size":  len(data),
@@ -1077,7 +1072,7 @@ func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, file
 
 	resp, err := c.client.SendMessage(ctx, jid, message)
 	if err != nil {
-		c.logger.ErrorWithFields("Failed to send image message", map[string]interface{}{
+		c.logger.ErrorWithFields(fmt.Sprintf("Failed to send %s message", messageType), map[string]interface{}{
 			"session_id": c.sessionID,
 			"to":         to,
 			"error":      err.Error(),
@@ -1085,13 +1080,38 @@ func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, file
 		return nil, err
 	}
 
-	c.logger.InfoWithFields("Image message sent successfully", map[string]interface{}{
+	c.logger.InfoWithFields(fmt.Sprintf("%s message sent successfully", strings.Title(messageType)), map[string]interface{}{
 		"session_id": c.sessionID,
 		"to":         to,
 		"message_id": resp.ID,
 	})
 
 	return &resp, nil
+}
+
+// SendImageMessageWithContext sends an image message with optional context info for replies
+func (c *WameowClient) SendImageMessageWithContext(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
+	return c.sendMediaMessageWithContext(
+		ctx, to, filePath, caption, contextInfo,
+		whatsmeow.MediaImage,
+		"image/jpeg",
+		"image",
+		func(uploaded whatsmeow.UploadResponse, mimetype, caption string, contextInfo *waE2E.ContextInfo) *waE2E.Message {
+			return &waE2E.Message{
+				ImageMessage: &waE2E.ImageMessage{
+					Caption:       &caption,
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					MediaKey:      uploaded.MediaKey,
+					Mimetype:      &mimetype,
+					FileEncSHA256: uploaded.FileEncSHA256,
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					ContextInfo:   contextInfo,
+				},
+			}
+		},
+	)
 }
 
 // SendAudioMessageWithContext sends an audio message with optional context info for replies
@@ -1157,65 +1177,27 @@ func (c *WameowClient) SendAudioMessageWithContext(ctx context.Context, to, file
 
 // SendVideoMessageWithContext sends a video message with optional context info for replies
 func (c *WameowClient) SendVideoMessageWithContext(ctx context.Context, to, filePath, caption string, contextInfo *appMessage.ContextInfo) (*whatsmeow.SendResponse, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
-	}
-
-	jid, err := c.parseJID(to)
-	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
-	}
-
-	data, err := os.ReadFile(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read video file: %w", err)
-	}
-
-	uploaded, err := c.client.Upload(ctx, data, whatsmeow.MediaVideo)
-	if err != nil {
-		return nil, fmt.Errorf("failed to upload video: %w", err)
-	}
-
-	mimetype := "video/mp4" // Default mimetype
-	message := &waE2E.Message{
-		VideoMessage: &waE2E.VideoMessage{
-			Caption:       &caption,
-			URL:           &uploaded.URL,
-			DirectPath:    &uploaded.DirectPath,
-			MediaKey:      uploaded.MediaKey,
-			Mimetype:      &mimetype,
-			FileEncSHA256: uploaded.FileEncSHA256,
-			FileSHA256:    uploaded.FileSHA256,
-			FileLength:    &uploaded.FileLength,
-			ContextInfo:   c.createContextInfo(contextInfo),
+	return c.sendMediaMessageWithContext(
+		ctx, to, filePath, caption, contextInfo,
+		whatsmeow.MediaVideo,
+		"video/mp4",
+		"video",
+		func(uploaded whatsmeow.UploadResponse, mimetype, caption string, contextInfo *waE2E.ContextInfo) *waE2E.Message {
+			return &waE2E.Message{
+				VideoMessage: &waE2E.VideoMessage{
+					Caption:       &caption,
+					URL:           &uploaded.URL,
+					DirectPath:    &uploaded.DirectPath,
+					MediaKey:      uploaded.MediaKey,
+					Mimetype:      &mimetype,
+					FileEncSHA256: uploaded.FileEncSHA256,
+					FileSHA256:    uploaded.FileSHA256,
+					FileLength:    &uploaded.FileLength,
+					ContextInfo:   contextInfo,
+				},
+			}
 		},
-	}
-
-	c.logger.InfoWithFields("Sending video message with context", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"file_size":  len(data),
-		"caption":    caption,
-		"has_reply":  contextInfo != nil,
-	})
-
-	resp, err := c.client.SendMessage(ctx, jid, message)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to send video message", map[string]interface{}{
-			"session_id": c.sessionID,
-			"to":         to,
-			"error":      err.Error(),
-		})
-		return nil, err
-	}
-
-	c.logger.InfoWithFields("Video message sent successfully", map[string]interface{}{
-		"session_id": c.sessionID,
-		"to":         to,
-		"message_id": resp.ID,
-	})
-
-	return &resp, nil
+	)
 }
 
 // SendDocumentMessageWithContext sends a document message with optional context info for replies
@@ -3653,8 +3635,13 @@ func (c *WameowClient) convertStringToMediaType(mediaType string) whatsmeow.Medi
 // COMMUNITY METHODS
 // ============================================================================
 
-// LinkGroup links a group to a community
-func (c *WameowClient) LinkGroup(ctx context.Context, communityJID, groupJID string) error {
+// handleCommunityAction is a generic helper for community actions that require two JIDs
+func (c *WameowClient) handleCommunityAction(
+	ctx context.Context,
+	communityJID, groupJID string,
+	actionName string,
+	actionFunc func(parsedCommunityJID, parsedGroupJID types.JID) error,
+) error {
 	if !c.client.IsLoggedIn() {
 		return fmt.Errorf("client is not logged in")
 	}
@@ -3688,185 +3675,124 @@ func (c *WameowClient) LinkGroup(ctx context.Context, communityJID, groupJID str
 		return fmt.Errorf("invalid group JID: %w", err)
 	}
 
-	c.logger.InfoWithFields("Linking group to community", map[string]interface{}{
+	c.logger.InfoWithFields(actionName, map[string]interface{}{
 		"session_id":    c.sessionID,
 		"community_jid": communityJID,
 		"group_jid":     groupJID,
 	})
 
-	// Use whatsmeow's LinkGroup method
-	err = c.client.LinkGroup(parsedCommunityJID, parsedGroupJID)
+	// Execute the action
+	err = actionFunc(parsedCommunityJID, parsedGroupJID)
 	if err != nil {
-		c.logger.ErrorWithFields("Failed to link group to community", map[string]interface{}{
+		c.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
 			"session_id":    c.sessionID,
 			"community_jid": communityJID,
 			"group_jid":     groupJID,
 			"error":         err.Error(),
 		})
-		return fmt.Errorf("failed to link group to community: %w", err)
+		return fmt.Errorf("failed to %s: %w", actionName, err)
 	}
 
-	c.logger.InfoWithFields("Group linked to community successfully", map[string]interface{}{
+	c.logger.InfoWithFields(fmt.Sprintf("%s successfully", strings.Title(actionName)), map[string]interface{}{
 		"session_id":    c.sessionID,
 		"community_jid": communityJID,
 		"group_jid":     groupJID,
 	})
 
 	return nil
+}
+
+// handleCommunityQuery is a generic helper for community queries that require one JID
+func (c *WameowClient) handleCommunityQuery(
+	ctx context.Context,
+	communityJID string,
+	actionName string,
+	queryFunc func(parsedCommunityJID types.JID) (interface{}, error),
+) (interface{}, error) {
+	if !c.client.IsLoggedIn() {
+		return nil, fmt.Errorf("client is not logged in")
+	}
+
+	if communityJID == "" {
+		return nil, fmt.Errorf("community JID cannot be empty")
+	}
+
+	// Parse and validate community JID
+	parsedCommunityJID, err := c.parseJID(communityJID)
+	if err != nil {
+		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("invalid community JID: %w", err)
+	}
+
+	c.logger.InfoWithFields(actionName, map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+	})
+
+	// Execute the query
+	result, err := queryFunc(parsedCommunityJID)
+	if err != nil {
+		c.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
+			"session_id":    c.sessionID,
+			"community_jid": communityJID,
+			"error":         err.Error(),
+		})
+		return nil, fmt.Errorf("failed to %s: %w", actionName, err)
+	}
+
+	// Log success with count if result is a slice
+	logFields := map[string]interface{}{
+		"session_id":    c.sessionID,
+		"community_jid": communityJID,
+	}
+
+	// Add count to log if result is a slice
+	switch v := result.(type) {
+	case []*types.GroupLinkTarget:
+		logFields["count"] = len(v)
+	case []types.JID:
+		logFields["count"] = len(v)
+	}
+
+	c.logger.InfoWithFields(fmt.Sprintf("%s successfully", strings.Title(actionName)), logFields)
+
+	return result, nil
+}
+
+// LinkGroup links a group to a community
+func (c *WameowClient) LinkGroup(ctx context.Context, communityJID, groupJID string) error {
+	return c.handleCommunityAction(ctx, communityJID, groupJID, "linking group to community", c.client.LinkGroup)
 }
 
 // UnlinkGroup unlinks a group from a community
 func (c *WameowClient) UnlinkGroup(ctx context.Context, communityJID, groupJID string) error {
-	if !c.client.IsLoggedIn() {
-		return fmt.Errorf("client is not logged in")
-	}
-
-	if communityJID == "" {
-		return fmt.Errorf("community JID cannot be empty")
-	}
-
-	if groupJID == "" {
-		return fmt.Errorf("group JID cannot be empty")
-	}
-
-	// Parse and validate JIDs
-	parsedCommunityJID, err := c.parseJID(communityJID)
-	if err != nil {
-		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"error":         err.Error(),
-		})
-		return fmt.Errorf("invalid community JID: %w", err)
-	}
-
-	parsedGroupJID, err := c.parseJID(groupJID)
-	if err != nil {
-		c.logger.ErrorWithFields("Invalid group JID", map[string]interface{}{
-			"session_id": c.sessionID,
-			"group_jid":  groupJID,
-			"error":      err.Error(),
-		})
-		return fmt.Errorf("invalid group JID: %w", err)
-	}
-
-	c.logger.InfoWithFields("Unlinking group from community", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
-		"group_jid":     groupJID,
-	})
-
-	// Use whatsmeow's UnlinkGroup method
-	err = c.client.UnlinkGroup(parsedCommunityJID, parsedGroupJID)
-	if err != nil {
-		c.logger.ErrorWithFields("Failed to unlink group from community", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"group_jid":     groupJID,
-			"error":         err.Error(),
-		})
-		return fmt.Errorf("failed to unlink group from community: %w", err)
-	}
-
-	c.logger.InfoWithFields("Group unlinked from community successfully", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
-		"group_jid":     groupJID,
-	})
-
-	return nil
+	return c.handleCommunityAction(ctx, communityJID, groupJID, "unlinking group from community", c.client.UnlinkGroup)
 }
 
 // GetSubGroups gets all sub-groups (linked groups) of a community
 func (c *WameowClient) GetSubGroups(ctx context.Context, communityJID string) ([]*types.GroupLinkTarget, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
-	}
-
-	if communityJID == "" {
-		return nil, fmt.Errorf("community JID cannot be empty")
-	}
-
-	// Parse and validate community JID
-	parsedCommunityJID, err := c.parseJID(communityJID)
-	if err != nil {
-		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"error":         err.Error(),
-		})
-		return nil, fmt.Errorf("invalid community JID: %w", err)
-	}
-
-	c.logger.InfoWithFields("Getting community sub-groups", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
+	result, err := c.handleCommunityQuery(ctx, communityJID, "getting community sub-groups", func(parsedCommunityJID types.JID) (interface{}, error) {
+		return c.client.GetSubGroups(parsedCommunityJID)
 	})
-
-	// Use whatsmeow's GetSubGroups method
-	subGroups, err := c.client.GetSubGroups(parsedCommunityJID)
 	if err != nil {
-		c.logger.ErrorWithFields("Failed to get community sub-groups", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"error":         err.Error(),
-		})
-		return nil, fmt.Errorf("failed to get community sub-groups: %w", err)
+		return nil, err
 	}
-
-	c.logger.InfoWithFields("Community sub-groups retrieved successfully", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
-		"count":         len(subGroups),
-	})
-
-	return subGroups, nil
+	return result.([]*types.GroupLinkTarget), nil
 }
 
 // GetLinkedGroupsParticipants gets participants from all linked groups in a community
 func (c *WameowClient) GetLinkedGroupsParticipants(ctx context.Context, communityJID string) ([]types.JID, error) {
-	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
-	}
-
-	if communityJID == "" {
-		return nil, fmt.Errorf("community JID cannot be empty")
-	}
-
-	// Parse and validate community JID
-	parsedCommunityJID, err := c.parseJID(communityJID)
-	if err != nil {
-		c.logger.ErrorWithFields("Invalid community JID", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"error":         err.Error(),
-		})
-		return nil, fmt.Errorf("invalid community JID: %w", err)
-	}
-
-	c.logger.InfoWithFields("Getting linked groups participants", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
+	result, err := c.handleCommunityQuery(ctx, communityJID, "getting linked groups participants", func(parsedCommunityJID types.JID) (interface{}, error) {
+		return c.client.GetLinkedGroupsParticipants(parsedCommunityJID)
 	})
-
-	// Use whatsmeow's GetLinkedGroupsParticipants method
-	participants, err := c.client.GetLinkedGroupsParticipants(parsedCommunityJID)
 	if err != nil {
-		c.logger.ErrorWithFields("Failed to get linked groups participants", map[string]interface{}{
-			"session_id":    c.sessionID,
-			"community_jid": communityJID,
-			"error":         err.Error(),
-		})
-		return nil, fmt.Errorf("failed to get linked groups participants: %w", err)
+		return nil, err
 	}
-
-	c.logger.InfoWithFields("Linked groups participants retrieved successfully", map[string]interface{}{
-		"session_id":    c.sessionID,
-		"community_jid": communityJID,
-		"count":         len(participants),
-	})
-
-	return participants, nil
+	return result.([]types.JID), nil
 }
 
 // ============================================================================
