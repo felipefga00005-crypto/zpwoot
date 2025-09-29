@@ -158,51 +158,17 @@ func (q *QRCodeGenerator) DisplayQRCodeInTerminal(qrCode, sessionID string) {
 		return
 	}
 
-	q.logger.InfoWithFields("Displaying compact QR code in terminal", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
-	defer func() {
-		if r := recover(); r != nil {
-			q.logger.ErrorWithFields("Panic in DisplayQRCodeInTerminal", map[string]interface{}{
-				"session_id": sessionID,
-				"panic":      r,
-			})
-		}
-		q.logger.InfoWithFields("QR code display completed", map[string]interface{}{
-			"session_id": sessionID,
-		})
-	}()
-
-	// Limpa o terminal antes de exibir o novo QR code
-	q.clearTerminal()
-
-	// Configura o qrterminal para melhor compatibilidade
-	config := qrterminal.Config{
-		Level:      qrterminal.L,
-		Writer:     os.Stdout,
-		HalfBlocks: true,
-		QuietZone:  1,
-	}
-
-	// Gera o QR code com configuração otimizada
-	qrterminal.GenerateWithConfig(qrCode, config)
-
-	// Adiciona uma linha em branco para separação visual
-	fmt.Fprintln(os.Stdout)
+	// Render the QR code here
+	// e.g. qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
+	// or just manually `echo 2@... | qrencode -t ansiutf8` in a terminal
+	fmt.Println("QR code:", qrCode)
+	qrterminal.GenerateHalfBlock(qrCode, qrterminal.L, os.Stdout)
 
 	// Armazena o QR code atual para evitar duplicatas
 	q.lastQRCode = qrCode
 }
 
-// clearTerminal limpa a tela do terminal de forma compatível
-func (q *QRCodeGenerator) clearTerminal() {
-	// Adiciona algumas linhas em branco para "empurrar" o conteúdo anterior para cima
-	// Isso é mais compatível que usar códigos ANSI de limpeza
-	for i := 0; i < 3; i++ {
-		fmt.Fprintln(os.Stdout)
-	}
-}
+
 
 // sessionManager implements SessionUpdater interface
 type sessionManager struct {

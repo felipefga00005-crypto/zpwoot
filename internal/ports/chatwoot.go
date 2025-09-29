@@ -20,16 +20,19 @@ type ChatwootClient interface {
 	FindContact(phone string, inboxID int) (*ChatwootContact, error)
 	GetContact(contactID int) (*ChatwootContact, error)
 	UpdateContactAttributes(contactID int, attributes map[string]interface{}) error
+	MergeContacts(baseContactID, mergeContactID int) error
 
 	// Conversation operations
 	CreateConversation(contactID, inboxID int) (*ChatwootConversation, error)
 	GetConversation(contactID, inboxID int) (*ChatwootConversation, error)
 	GetConversationByID(conversationID int) (*ChatwootConversation, error)
+	GetConversationSenderPhone(conversationID int) (string, error)
 	ListContactConversations(contactID int) ([]ChatwootConversation, error)
 	UpdateConversationStatus(conversationID int, status string) error
 
 	// Message operations
 	SendMessage(conversationID int, content string) (*ChatwootMessage, error)
+	SendMessageWithType(conversationID int, content string, messageType string) (*ChatwootMessage, error)
 	SendMediaMessage(conversationID int, content string, attachment io.Reader, filename string) (*ChatwootMessage, error)
 	GetMessages(conversationID int, before int) ([]ChatwootMessage, error)
 
@@ -267,6 +270,16 @@ type ChatwootMessageRepository interface {
 	GetMessagesByChat(ctx context.Context, sessionID, chatJID string, limit, offset int) ([]*ZpMessage, error)
 	GetPendingSyncMessages(ctx context.Context, sessionID string, limit int) ([]*ZpMessage, error)
 	DeleteMessage(ctx context.Context, id string) error
+}
+
+// ChatwootMessageMapper defines the interface for message mapping operations
+type ChatwootMessageMapper interface {
+	CreateMapping(ctx context.Context, sessionID, zpMessageID, zpSender, zpChat, zpType, content string, zpTimestamp time.Time, zpFromMe bool) (*ZpMessage, error)
+	UpdateMapping(ctx context.Context, sessionID, zpMessageID string, cwMessageID, cwConversationID int) error
+	GetMappingByZpID(ctx context.Context, sessionID, zpMessageID string) (*ZpMessage, error)
+	GetMappingByCwID(ctx context.Context, cwMessageID int) (*ZpMessage, error)
+	IsMessageMapped(ctx context.Context, sessionID, zpMessageID string) bool
+	MarkAsFailed(ctx context.Context, sessionID, zpMessageID string) error
 }
 
 // ChatwootWebhookPayload represents the payload structure for Chatwoot webhooks

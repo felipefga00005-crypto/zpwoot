@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -295,6 +296,112 @@ func NormalizeJID(jid string) string {
 // ParseJID parses a JID (backward compatibility)
 func ParseJID(jid string) (waTypes.JID, error) {
 	return defaultValidator.Parse(jid)
+}
+
+// GetBrazilianAlternativeNumber returns the alternative format for Brazilian numbers
+// Based on Evolution API logic for handling WhatsApp ID inconsistency in Brazil
+func GetBrazilianAlternativeNumber(phoneNumber string) string {
+	// Remove + and clean the number
+	cleaned := strings.ReplaceAll(phoneNumber, "+", "")
+	cleaned = strings.ReplaceAll(cleaned, " ", "")
+	cleaned = strings.ReplaceAll(cleaned, "-", "")
+	cleaned = strings.ReplaceAll(cleaned, "(", "")
+	cleaned = strings.ReplaceAll(cleaned, ")", "")
+
+	// Check if it matches Brazilian pattern: 55 + 2 digits (DDD) + 1 digit + 8 digits
+	// Regex equivalent: /^(\d{2})(\d{2})\d{1}(\d{8})$/
+	if len(cleaned) == 13 && strings.HasPrefix(cleaned, "55") {
+		countryCode := cleaned[:2]  // "55"
+		ddd := cleaned[2:4]         // Area code (DDD)
+		joker := cleaned[4:5]       // The "joker" digit (usually 9)
+		number := cleaned[5:]       // The 8-digit number
+
+		if countryCode == "55" {
+			// Convert DDD to int for comparison
+			dddInt := 0
+			if len(ddd) == 2 {
+				if d, err := strconv.Atoi(ddd); err == nil {
+					dddInt = d
+				}
+			}
+
+			// Convert joker to int for comparison
+			jokerInt := 0
+			if len(joker) == 1 {
+				if j, err := strconv.Atoi(joker); err == nil {
+					jokerInt = j
+				}
+			}
+
+			// Evolution API logic: if (joker < 7 || ddd < 31)
+			// This means: remove the 9 for certain area codes or joker digits
+			if jokerInt < 7 || dddInt < 31 {
+				// Return without the joker digit (8-digit format)
+				return "+" + countryCode + ddd + number
+			}
+		}
+	}
+
+	// Check if it's a 12-digit Brazilian number (without the 9)
+	if len(cleaned) == 12 && strings.HasPrefix(cleaned, "55") {
+		countryCode := cleaned[:2]  // "55"
+		ddd := cleaned[2:4]         // Area code (DDD)
+		number := cleaned[4:]       // The 8-digit number
+
+		// Add the 9 to create the 13-digit format
+		return "+" + countryCode + ddd + "9" + number
+	}
+
+	return ""
+}
+
+// ParseJIDWithBrazilianFallback tries to parse a JID and if it's a Brazilian number,
+// also tries the alternative format (with/without the 9th digit)
+func ParseJIDWithBrazilianFallback(phoneNumber string) ([]waTypes.JID, error) {
+	var jids []waTypes.JID
+
+	// Try the original number first
+	jid, err := defaultValidator.Parse(phoneNumber)
+	if err == nil {
+		jids = append(jids, jid)
+	}
+
+	// Check if it's a Brazilian mobile number (+55)
+	if strings.HasPrefix(phoneNumber, "+55") {
+		// Extract the area code and number
+		cleaned := strings.ReplaceAll(phoneNumber, "+55", "")
+		cleaned = strings.ReplaceAll(cleaned, " ", "")
+		cleaned = strings.ReplaceAll(cleaned, "-", "")
+
+		if len(cleaned) >= 10 {
+			areaCode := cleaned[:2]
+			number := cleaned[2:]
+
+			var alternativeNumber string
+
+			// If it has 9 digits (mobile with 9), try without the 9
+			if len(number) == 9 && strings.HasPrefix(number, "9") {
+				alternativeNumber = "+55" + areaCode + number[1:] // Remove the 9
+			}
+			// If it has 8 digits (mobile without 9), try with the 9
+			if len(number) == 8 {
+				alternativeNumber = "+55" + areaCode + "9" + number // Add the 9
+			}
+
+			if alternativeNumber != "" && alternativeNumber != phoneNumber {
+				altJid, altErr := defaultValidator.Parse(alternativeNumber)
+				if altErr == nil {
+					jids = append(jids, altJid)
+				}
+			}
+		}
+	}
+
+	if len(jids) == 0 {
+		return nil, fmt.Errorf("failed to parse JID for %s: %w", phoneNumber, err)
+	}
+
+	return jids, nil
 }
 
 func FormatJID(jid waTypes.JID) string {

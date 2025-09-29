@@ -1126,6 +1126,16 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		return nil, fmt.Errorf("invalid recipient JID: %w", err)
 	}
 
+	// Debug logging for Brazilian numbers
+	m.logger.InfoWithFields("Sending text message - JID details", map[string]interface{}{
+		"session_id":    sessionID,
+		"original_to":   to,
+		"parsed_jid":    recipientJID.String(),
+		"jid_user":      recipientJID.User,
+		"jid_server":    recipientJID.Server,
+		"text":          text,
+	})
+
 	messageID := client.GetClient().GenerateMessageID()
 
 	msg := &waE2E.Message{
@@ -1152,7 +1162,38 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 
 	resp, err := client.GetClient().SendMessage(context.Background(), recipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
 	if err != nil {
-		return nil, fmt.Errorf("failed to send text message: %w", err)
+		// If it's a Brazilian number and sending failed, try the alternative format
+		alternativeNumber := GetBrazilianAlternativeNumber(to)
+		if alternativeNumber != "" {
+			m.logger.InfoWithFields("Trying Brazilian alternative number format", map[string]interface{}{
+				"session_id":         sessionID,
+				"original_number":    to,
+				"alternative_number": alternativeNumber,
+				"original_error":     err.Error(),
+			})
+
+			// Try parsing the alternative number
+			altRecipientJID, altErr := ParseJID(alternativeNumber)
+			if altErr == nil {
+				// Try sending with the alternative number
+				resp, err = client.GetClient().SendMessage(context.Background(), altRecipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
+				if err == nil {
+					m.logger.InfoWithFields("Message sent successfully with alternative Brazilian format", map[string]interface{}{
+						"session_id":         sessionID,
+						"original_number":    to,
+						"alternative_number": alternativeNumber,
+						"used_jid":          altRecipientJID.String(),
+					})
+					// Update the recipient JID for logging
+					recipientJID = altRecipientJID
+				}
+			}
+		}
+
+		// If still failed, return the error
+		if err != nil {
+			return nil, fmt.Errorf("failed to send text message: %w", err)
+		}
 	}
 
 	m.logger.InfoWithFields("Text message sent", map[string]interface{}{

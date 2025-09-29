@@ -170,7 +170,7 @@ func (h *EventHandler) handleQR(evt *events.QR, sessionID string) {
 		qrImage := h.qrGen.GenerateQRCodeImage(qrCode)
 		h.updateSessionQRCode(sessionID, qrImage)
 
-		// Exibe o QR code no terminal (isso é redundante com o client, mas mantemos para compatibilidade)
+		// Exibe o QR code no terminal
 		h.qrGen.DisplayQRCodeInTerminal(qrCode, sessionID)
 	}
 }
@@ -304,8 +304,35 @@ func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID
 	// Extract message information
 	messageID := evt.Info.ID
 	from := evt.Info.Sender.String()
+	chat := evt.Info.Chat.String()  // This is the actual recipient/chat
 	timestamp := evt.Info.Timestamp
 	fromMe := evt.Info.IsFromMe
+
+	// For from_me=true messages, we need to use the Chat (recipient) instead of Sender
+	// The Sender is always our session number, but Chat is who we sent the message to
+	contactNumber := from
+	if fromMe {
+		contactNumber = chat  // Use the recipient (who we sent the message to)
+	}
+
+	// For messages sent by us (from_me=true), we need to distinguish:
+	// 1. Messages sent from Chatwoot → WhatsApp (should be skipped to avoid loop)
+	// 2. Messages sent from phone/other devices → WhatsApp (should be processed for history sync)
+	//
+	// We can identify Chatwoot-originated messages by checking if they're already mapped
+	// in our message mapping system (they would have been mapped when sent from Chatwoot)
+	if fromMe {
+		// Check if this message was already processed/mapped (came from Chatwoot)
+		// We'll let the Chatwoot integration manager handle this check
+		h.logger.DebugWithFields("Processing from_me message (could be from phone or Chatwoot)", map[string]interface{}{
+			"session_id":     sessionID,
+			"message_id":     messageID,
+			"from":           from,
+			"chat":           chat,
+			"contact_number": contactNumber,
+			"from_me":        fromMe,
+		})
+	}
 
 	// Determine message type and content
 	messageType := "text"
@@ -357,7 +384,8 @@ func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID
 	}
 
 	// Process the message with Chatwoot
-	err := h.chatwootManager.ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType, timestamp, fromMe)
+	// Use contactNumber which is the correct contact (sender for incoming, recipient for outgoing)
+	err := h.chatwootManager.ProcessWhatsAppMessage(sessionID, messageID, contactNumber, content, messageType, timestamp, fromMe)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to process message for Chatwoot", map[string]interface{}{
 			"session_id": sessionID,

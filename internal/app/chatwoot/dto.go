@@ -161,14 +161,32 @@ type Sender struct {
 	AvatarURL     string `json:"avatar_url"`
 	Type          string `json:"type"` // contact, user, agent_bot
 	Email         string `json:"email,omitempty"`
+	PhoneNumber   string `json:"phone_number,omitempty"`
 } //@name Sender
 
 type ChatwootWebhookPayload struct {
 	Event        string                 `json:"event" example:"message_created"`
-	Data         map[string]interface{} `json:"data"`
 	Account      ChatwootAccount        `json:"account"`
 	Conversation ChatwootConversation   `json:"conversation,omitempty"`
-	Message      ChatwootMessage        `json:"message,omitempty"`
+
+	// Real Chatwoot webhook fields (top-level)
+	ID          int                    `json:"id,omitempty"`
+	Content     string                 `json:"content,omitempty"`
+	ContentType string                 `json:"content_type,omitempty"`
+	MessageType string                 `json:"message_type,omitempty"`
+	Private     bool                   `json:"private,omitempty"`
+	SourceID    *string                `json:"source_id,omitempty"`
+	Sender      Sender                 `json:"sender,omitempty"`
+	Inbox       map[string]interface{} `json:"inbox,omitempty"`
+
+	// Legacy/nested message (some deployments send under "message")
+	Message ChatwootMessage `json:"message,omitempty"`
+
+	// Optional/extra attributes
+	ContentAttributes    map[string]interface{} `json:"content_attributes,omitempty"`
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`
+	CreatedAt            interface{}            `json:"created_at,omitempty"`
+	Data                 map[string]interface{} `json:"data,omitempty"`
 }
 
 type ChatwootAccount struct {

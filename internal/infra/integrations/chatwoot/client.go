@@ -298,8 +298,28 @@ func (c *Client) GetConversationByID(conversationID int) (*ports.ChatwootConvers
 	if err != nil {
 		return nil, fmt.Errorf("failed to get conversation: %w", err)
 	}
-
 	return &conversation, nil
+}
+
+// GetConversationSenderPhone tries to read meta.sender.phone_number from a conversation
+func (c *Client) GetConversationSenderPhone(conversationID int) (string, error) {
+	c.logger.InfoWithFields("Getting conversation sender phone", map[string]interface{}{
+		"conversation_id": conversationID,
+	})
+
+	var resp struct {
+		Meta struct {
+			Sender struct {
+				PhoneNumber string `json:"phone_number"`
+			} `json:"sender"`
+		} `json:"meta"`
+	}
+
+	err := c.makeRequest("GET", fmt.Sprintf("/conversations/%d", conversationID), nil, &resp)
+	if err != nil {
+		return "", fmt.Errorf("failed to get conversation meta: %w", err)
+	}
+	return resp.Meta.Sender.PhoneNumber, nil
 }
 
 // UpdateConversationStatus updates conversation status
@@ -323,14 +343,20 @@ func (c *Client) UpdateConversationStatus(conversationID int, status string) err
 
 // SendMessage sends a message to a conversation
 func (c *Client) SendMessage(conversationID int, content string) (*ports.ChatwootMessage, error) {
+	return c.SendMessageWithType(conversationID, content, "incoming")
+}
+
+// SendMessageWithType sends a message to a conversation with specified message type
+func (c *Client) SendMessageWithType(conversationID int, content string, messageType string) (*ports.ChatwootMessage, error) {
 	c.logger.InfoWithFields("Sending message to Chatwoot", map[string]interface{}{
 		"conversation_id": conversationID,
 		"content":         content,
+		"message_type":    messageType,
 	})
 
 	payload := map[string]interface{}{
 		"content":      content,
-		"message_type": "incoming", // Messages from WhatsApp are incoming to Chatwoot
+		"message_type": messageType, // incoming (from client) or outgoing (from agent)
 	}
 
 	var message ports.ChatwootMessage
@@ -442,6 +468,40 @@ func (c *Client) makeRequest(method, endpoint string, payload interface{}, resul
 			return fmt.Errorf("failed to decode response: %w", err)
 		}
 	}
+
+	return nil
+}
+
+// MergeContacts merges two contacts in Chatwoot (like Evolution API)
+func (c *Client) MergeContacts(baseContactID, mergeContactID int) error {
+	c.logger.InfoWithFields("Merging Chatwoot contacts", map[string]interface{}{
+		"base_contact_id":  baseContactID,
+		"merge_contact_id": mergeContactID,
+	})
+
+	// Prepare the merge request body (same as Evolution API)
+	requestBody := map[string]interface{}{
+		"base_contact_id":  baseContactID,
+		"mergee_contact_id": mergeContactID,
+	}
+
+	// Make the merge request to Chatwoot API (same endpoint as Evolution API)
+	url := fmt.Sprintf("/api/v1/accounts/%d/actions/contact_merge", c.accountID)
+
+	err := c.makeRequest("POST", url, requestBody, nil)
+	if err != nil {
+		c.logger.ErrorWithFields("Failed to merge contacts", map[string]interface{}{
+			"base_contact_id":  baseContactID,
+			"merge_contact_id": mergeContactID,
+			"error":           err.Error(),
+		})
+		return fmt.Errorf("failed to merge contacts: %w", err)
+	}
+
+	c.logger.InfoWithFields("Successfully merged contacts", map[string]interface{}{
+		"base_contact_id":  baseContactID,
+		"merge_contact_id": mergeContactID,
+	})
 
 	return nil
 }

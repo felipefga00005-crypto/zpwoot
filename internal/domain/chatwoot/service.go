@@ -15,6 +15,7 @@ type Service struct {
 	logger        *logger.Logger
 	repository    ports.ChatwootRepository
 	wameowManager ports.WameowManager
+	messageMapper ports.ChatwootMessageMapper // Optional - for storing outgoing messages
 }
 
 func NewService(logger *logger.Logger, repository ports.ChatwootRepository, wameowManager ports.WameowManager) *Service {
@@ -23,6 +24,11 @@ func NewService(logger *logger.Logger, repository ports.ChatwootRepository, wame
 		repository:    repository,
 		wameowManager: wameowManager,
 	}
+}
+
+// SetMessageMapper sets the message mapper for storing outgoing messages
+func (s *Service) SetMessageMapper(messageMapper ports.ChatwootMessageMapper) {
+	s.messageMapper = messageMapper
 }
 
 func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
@@ -351,70 +357,227 @@ func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload 
 		return nil
 	}
 
+	// Handle typing events (ignore them as they don't require action)
+	if payload.Event == "conversation_typing_on" || payload.Event == "conversation_typing_off" {
+		s.logger.DebugWithFields("Ignoring typing event", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+		})
+		return nil
+	}
+
 	// Process new messages (main functionality)
 	if payload.Event == "message_created" {
 		return s.handleMessageCreated(ctx, sessionID, payload)
 	}
+
+	// Log unhandled events for debugging
+	s.logger.DebugWithFields("Unhandled Chatwoot event", map[string]interface{}{
+		"session_id": sessionID,
+		"event":      payload.Event,
+	})
 
 	return nil
 }
 
 // handleMessageCreated processes new messages from Chatwoot
 func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
-	if payload.Message == nil {
-		return fmt.Errorf("message is nil in webhook payload")
+	// Extract message details from webhook payload
+	// O Chatwoot envia os dados da mensagem diretamente no payload, não em um campo "message"
+	var content, messageType string
+	var messageID int
+	var isPrivate bool
+
+	if payload.Message != nil {
+		// Formato antigo (se ainda existir)
+		content = payload.Message.Content
+		messageType = payload.Message.MessageType
+		messageID = payload.Message.ID
+		isPrivate = payload.Message.Private
+	} else {
+		// Formato atual do Chatwoot (baseado nos logs do Sidekiq)
+		content = payload.Content
+		messageType = payload.MessageType
+		messageID = payload.ID
+		isPrivate = payload.Private
 	}
 
-	// Skip incoming messages (only process outgoing messages from agents)
-	if payload.Message.MessageType != "outgoing" {
-		s.logger.DebugWithFields("Skipping incoming message", map[string]interface{}{
+	// Se o conteúdo estiver vazio, tentar extrair de outros campos possíveis
+	if content == "" {
+		// Verificar se há conteúdo em content_attributes ou outros campos
+		if payload.ContentAttributes != nil {
+			if textContent, ok := payload.ContentAttributes["text"].(string); ok {
+				content = textContent
+			}
+		}
+		// Verificar se há mensagens na conversa
+		if len(payload.Conversation.Messages) > 0 {
+			lastMessage := payload.Conversation.Messages[len(payload.Conversation.Messages)-1]
+			if lastMessage.Content != "" {
+				content = lastMessage.Content
+				messageType = lastMessage.MessageType
+				messageID = lastMessage.ID
+			}
+		}
+	}
+
+	// Log message details for debugging
+	s.logger.InfoWithFields("Processing Chatwoot webhook message", map[string]interface{}{
+		"session_id":   sessionID,
+		"message_type": messageType,
+		"message_id":   messageID,
+		"content":      content,
+		"is_private":   isPrivate,
+		"event":        "message_created",
+		"has_content":  content != "",
+	})
+
+	// Se não há conteúdo e é uma mensagem outgoing, pode ser um problema
+	if content == "" && messageType == "outgoing" {
+		s.logger.WarnWithFields("Outgoing message with empty content", map[string]interface{}{
 			"session_id":   sessionID,
-			"message_id":   payload.Message.ID,
-			"message_type": payload.Message.MessageType,
+			"message_type": messageType,
+			"message_id":   messageID,
+			"payload":      payload,
+		})
+		// Não retornar erro, apenas logar para investigação
+	}
+
+	// Process both incoming and outgoing messages
+	// - outgoing: mensagens do agente para WhatsApp (enviar para WhatsApp)
+	// - incoming: mensagens do WhatsApp para agente (IGNORAR - já processadas)
+	if messageType == "incoming" {
+		s.logger.DebugWithFields("Ignoring incoming message webhook (already processed from WhatsApp)", map[string]interface{}{
+			"session_id":   sessionID,
+			"message_type": messageType,
+			"message_id":   messageID,
+			"content":      content,
+		})
+		// Mensagens incoming são aquelas que vieram do WhatsApp e já foram processadas
+		// Não precisamos reprocessá-las
+		return nil
+	}
+
+	// Para mensagens outgoing, verificar se há conteúdo para enviar
+	if messageType == "outgoing" && content == "" {
+		s.logger.WarnWithFields("Outgoing message has no content to send to WhatsApp", map[string]interface{}{
+			"session_id":   sessionID,
+			"message_type": messageType,
+			"message_id":   messageID,
+		})
+		// Não enviar mensagem vazia para WhatsApp, mas não falhar
+		return nil
+	}
+
+	// Skip private messages
+	if isPrivate {
+		s.logger.DebugWithFields("Skipping private message", map[string]interface{}{
+			"session_id": sessionID,
+			"message_id": messageID,
 		})
 		return nil
 	}
 
 	// Skip bot messages or messages from source_id starting with WAID:
-	if payload.Message.SourceID != "" && len(payload.Message.SourceID) >= 5 && payload.Message.SourceID[:5] == "WAID:" {
+	var sourceID string
+	if payload.Message != nil {
+		sourceID = payload.Message.SourceID
+	} else if payload.SourceID != nil {
+		sourceID = *payload.SourceID
+	}
+
+	if sourceID != "" && len(sourceID) >= 5 && sourceID[:5] == "WAID:" {
 		s.logger.DebugWithFields("Skipping bot message", map[string]interface{}{
 			"session_id": sessionID,
-			"message_id": payload.Message.ID,
-			"source_id":  payload.Message.SourceID,
+			"message_id": messageID,
+			"source_id":  sourceID,
 		})
 		return nil
 	}
 
-	return s.sendToWhatsApp(ctx, sessionID, payload)
+	return s.sendToWhatsApp(ctx, sessionID, payload, content)
 }
 
 // sendToWhatsApp sends a message from Chatwoot to WhatsApp
-func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
-	// Extract phone number from contact
-	phoneNumber := payload.Contact.PhoneNumber
+func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload, content string) error {
+	// Determine the correct recipient based on message type (like WhatsApp logic)
+	// For outgoing messages: recipient = Contact (client)
+	// For incoming messages: recipient = Sender (client) - but we don't process incoming here
+	var phoneNumber string
+
+	// Check message type to determine recipient
+	messageType := "outgoing" // Default assumption for messages sent to WhatsApp
+	if payload.Message != nil {
+		messageType = payload.Message.MessageType
+	}
+
+	if messageType == "outgoing" {
+		// Outgoing: agent → client, so recipient is Contact
+		if payload.Contact.PhoneNumber != "" {
+			phoneNumber = payload.Contact.PhoneNumber
+		}
+	} else {
+		// Incoming: client → agent, so recipient would be Sender (but we shouldn't process these)
+		if payload.Sender.PhoneNumber != "" {
+			phoneNumber = payload.Sender.PhoneNumber
+		}
+	}
+
+	// If still no phone number, this is an error
 	if phoneNumber == "" {
+		s.logger.ErrorWithFields("No valid recipient phone number found", map[string]interface{}{
+			"session_id":    sessionID,
+			"message_type":  messageType,
+			"sender_phone":  payload.Sender.PhoneNumber,
+			"contact_phone": payload.Contact.PhoneNumber,
+		})
+		return fmt.Errorf("no valid recipient phone number found for %s message", messageType)
+	}
+
+	s.logger.InfoWithFields("Extracting phone number from webhook", map[string]interface{}{
+		"session_id":           sessionID,
+		"sender_phone":         payload.Sender.PhoneNumber,
+		"contact_phone":        payload.Contact.PhoneNumber,
+		"extracted_phone":      phoneNumber,
+		"sender_name":          payload.Sender.Name,
+		"sender_id":            payload.Sender.ID,
+	})
+
+	if phoneNumber == "" {
+		s.logger.ErrorWithFields("No phone number found in webhook payload", map[string]interface{}{
+			"session_id": sessionID,
+			"payload":    payload,
+		})
 		return fmt.Errorf("contact phone number is empty")
 	}
 
 	// Format content for WhatsApp (convert Chatwoot markdown to WhatsApp format)
-	content := s.formatContentForWhatsApp(payload.Message.Content)
+	formattedContent := s.formatContentForWhatsApp(content)
+
+	// Extract message ID for logging
+	var messageID int
+	if payload.Message != nil {
+		messageID = payload.Message.ID
+	} else {
+		messageID = payload.ID
+	}
 
 	s.logger.InfoWithFields("Sending message to WhatsApp", map[string]interface{}{
 		"session_id":      sessionID,
 		"to":              phoneNumber,
-		"content":         content,
-		"message_id":      payload.Message.ID,
+		"content":         formattedContent,
+		"message_id":      messageID,
 		"conversation_id": payload.Conversation.ID,
 	})
 
 	// Send message to WhatsApp using wameowManager
-	result, err := s.wameowManager.SendTextMessage(sessionID, phoneNumber, content, nil)
+	result, err := s.wameowManager.SendMessage(sessionID, phoneNumber, "text", formattedContent, "", "", "", 0, 0, "", "", nil)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to send message to WhatsApp", map[string]interface{}{
 			"session_id":      sessionID,
 			"to":              phoneNumber,
-			"content":         content,
-			"message_id":      payload.Message.ID,
+			"content":         formattedContent,
+			"message_id":      messageID,
 			"conversation_id": payload.Conversation.ID,
 			"error":           err.Error(),
 		})
@@ -424,11 +587,57 @@ func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload 
 	s.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
 		"session_id":      sessionID,
 		"to":              phoneNumber,
-		"content":         content,
+		"content":         formattedContent,
 		"whatsapp_msg_id": result.MessageID,
-		"chatwoot_msg_id": payload.Message.ID,
+		"chatwoot_msg_id": messageID,
 		"conversation_id": payload.Conversation.ID,
 		"timestamp":       result.Timestamp,
+	})
+
+	// Store the outgoing message in zpMessage table for tracking
+	err = s.storeOutgoingMessage(ctx, sessionID, result.MessageID, phoneNumber, formattedContent, result.Timestamp, messageID, payload.Conversation.ID)
+	if err != nil {
+		s.logger.ErrorWithFields("Failed to store outgoing message in zpMessage table", map[string]interface{}{
+			"session_id":      sessionID,
+			"whatsapp_msg_id": result.MessageID,
+			"chatwoot_msg_id": messageID,
+			"error":           err.Error(),
+		})
+		// Don't fail the whole operation, just log the error
+	}
+
+	return nil
+}
+
+// storeOutgoingMessage stores an outgoing message in the zpMessage table
+func (s *Service) storeOutgoingMessage(ctx context.Context, sessionID, whatsappMessageID, phoneNumber, content string, timestamp time.Time, chatwootMessageID, chatwootConversationID int) error {
+	// Check if we have a message mapper available
+	if s.messageMapper == nil {
+		s.logger.WarnWithFields("Message mapper not available, cannot store outgoing message", map[string]interface{}{
+			"session_id":      sessionID,
+			"whatsapp_msg_id": whatsappMessageID,
+		})
+		return nil
+	}
+
+	// Create mapping for outgoing message
+	mapping, err := s.messageMapper.CreateMapping(ctx, sessionID, whatsappMessageID, phoneNumber, phoneNumber, "text", content, timestamp, true)
+	if err != nil {
+		return fmt.Errorf("failed to create mapping for outgoing message: %w", err)
+	}
+
+	// Update mapping with Chatwoot IDs
+	err = s.messageMapper.UpdateMapping(ctx, sessionID, whatsappMessageID, chatwootMessageID, chatwootConversationID)
+	if err != nil {
+		return fmt.Errorf("failed to update mapping with Chatwoot IDs: %w", err)
+	}
+
+	s.logger.InfoWithFields("Outgoing message stored in zpMessage table", map[string]interface{}{
+		"session_id":               sessionID,
+		"whatsapp_msg_id":          whatsappMessageID,
+		"chatwoot_msg_id":          chatwootMessageID,
+		"chatwoot_conversation_id": chatwootConversationID,
+		"mapping_id":               mapping.ID,
 	})
 
 	return nil

@@ -22,6 +22,7 @@ import (
 	domainNewsletter "zpwoot/internal/domain/newsletter"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
+	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
 	"zpwoot/internal/infra/wameow"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
@@ -44,10 +45,11 @@ type Container struct {
 }
 
 type ContainerConfig struct {
-	SessionRepo  ports.SessionRepository
-	WebhookRepo  ports.WebhookRepository
-	ChatwootRepo ports.ChatwootRepository
-	MediaRepo    ports.MediaRepository
+	SessionRepo         ports.SessionRepository
+	WebhookRepo         ports.WebhookRepository
+	ChatwootRepo        ports.ChatwootRepository
+	ChatwootMessageRepo ports.ChatwootMessageRepository
+	MediaRepo           ports.MediaRepository
 
 	WameowManager       ports.WameowManager
 	ChatwootIntegration ports.ChatwootIntegration
@@ -76,6 +78,12 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.ChatwootRepo,
 		config.WameowManager,
 	)
+
+	// Create and inject MessageMapper if available
+	if config.ChatwootMessageRepo != nil {
+		messageMapper := createMessageMapper(config.Logger, config.ChatwootMessageRepo)
+		chatwootService.SetMessageMapper(messageMapper)
+	}
 
 	// Create JID validator for group service
 	jidValidator := wameow.NewJIDValidatorAdapter()
@@ -235,4 +243,9 @@ func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowMan
 	return func(sessionID string) (ports.WameowManager, error) {
 		return nil, fmt.Errorf("session resolver not properly implemented")
 	}
+}
+
+// createMessageMapper creates a new MessageMapper instance
+func createMessageMapper(logger *logger.Logger, repository ports.ChatwootMessageRepository) ports.ChatwootMessageMapper {
+	return chatwootIntegration.NewMessageMapper(logger, repository)
 }

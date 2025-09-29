@@ -113,11 +113,12 @@ type ChatwootContact struct {
 }
 
 type ChatwootConversation struct {
-	ID        int       `json:"id"`
-	ContactID int       `json:"contact_id"`
-	InboxID   int       `json:"inbox_id"`
-	Status    string    `json:"status"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int                `json:"id"`
+	ContactID int                `json:"contact_id"`
+	InboxID   int                `json:"inbox_id"`
+	Status    string             `json:"status"`
+	Messages  []ChatwootMessage  `json:"messages,omitempty"`
+	CreatedAt time.Time          `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -153,13 +154,49 @@ type ChatwootSender struct {
 	Email         string `json:"email,omitempty"`
 }
 
+// ChatwootWebhookPayload representa o payload REAL enviado pelo Chatwoot
+// Baseado na análise dos logs do Sidekiq
 type ChatwootWebhookPayload struct {
-	Event        string                 `json:"event"`
-	Account      ChatwootAccount        `json:"account"`
-	Conversation ChatwootConversation   `json:"conversation"`
-	Contact      ChatwootContact        `json:"contact"`
-	Message      *ChatwootMessage       `json:"message,omitempty"`
-	Metadata     map[string]interface{} `json:"metadata"`
+	// Metadados do evento
+	Event   string          `json:"event"`
+	Account ChatwootAccount `json:"account"`
+
+	// Dados da conversa
+	Conversation ChatwootConversation `json:"conversation"`
+
+	// Dados do remetente (estrutura complexa do Chatwoot)
+	Sender struct {
+		Account              ChatwootAccount        `json:"account"`
+		AdditionalAttributes map[string]interface{} `json:"additional_attributes"`
+		Avatar               string                 `json:"avatar"`
+		CustomAttributes     map[string]interface{} `json:"custom_attributes"`
+		Email                *string                `json:"email"`
+		ID                   int                    `json:"id"`
+		Identifier           *string                `json:"identifier"`
+		Name                 string                 `json:"name"`
+		PhoneNumber          string                 `json:"phone_number"`
+		Thumbnail            string                 `json:"thumbnail"`
+		Blocked              bool                   `json:"blocked"`
+	} `json:"sender"`
+
+	// Dados da mensagem (campos diretos no payload)
+	ID                   int                    `json:"id"`
+	Content              string                 `json:"content"`
+	ContentType          string                 `json:"content_type"`
+	MessageType          string                 `json:"message_type"`
+	Private              bool                   `json:"private"`
+	SourceID             *string                `json:"source_id"`
+	CreatedAt            interface{}            `json:"created_at"`
+
+	// Campos adicionais do Chatwoot
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes"`
+	ContentAttributes    map[string]interface{} `json:"content_attributes"`
+	Inbox                map[string]interface{} `json:"inbox"`
+
+	// Campos legados para compatibilidade
+	Contact  ChatwootContact        `json:"contact,omitempty"`
+	Message  *ChatwootMessage       `json:"message,omitempty"`
+	Metadata map[string]interface{} `json:"metadata,omitempty"`
 }
 
 type ChatwootAccount struct {
@@ -239,6 +276,19 @@ const (
 	ChatwootEventContactCreated            ChatwootEventType = "contact_created"
 	ChatwootEventContactUpdated            ChatwootEventType = "contact_updated"
 	ChatwootEventConversationStatusChanged ChatwootEventType = "conversation_status_changed"
+	// Additional events that Chatwoot might send
+	ChatwootEventConversationOpened        ChatwootEventType = "conversation_opened"
+	ChatwootEventConversationReopened      ChatwootEventType = "conversation_reopened"
+	ChatwootEventConversationSnoozed       ChatwootEventType = "conversation_snoozed"
+	ChatwootEventConversationUnsnoozed     ChatwootEventType = "conversation_unsnoozed"
+	ChatwootEventConversationAssigned      ChatwootEventType = "conversation_assigned"
+	ChatwootEventConversationUnassigned    ChatwootEventType = "conversation_unassigned"
+	ChatwootEventMessageDeleted            ChatwootEventType = "message_deleted"
+	ChatwootEventContactMerged             ChatwootEventType = "contact_merged"
+	ChatwootEventContactDeleted            ChatwootEventType = "contact_deleted"
+	// Typing events
+	ChatwootEventConversationTypingOn      ChatwootEventType = "conversation_typing_on"
+	ChatwootEventConversationTypingOff     ChatwootEventType = "conversation_typing_off"
 )
 
 func IsValidChatwootEvent(eventType string) bool {
@@ -250,7 +300,18 @@ func IsValidChatwootEvent(eventType string) bool {
 		ChatwootEventMessageUpdated,
 		ChatwootEventContactCreated,
 		ChatwootEventContactUpdated,
-		ChatwootEventConversationStatusChanged:
+		ChatwootEventConversationStatusChanged,
+		ChatwootEventConversationOpened,
+		ChatwootEventConversationReopened,
+		ChatwootEventConversationSnoozed,
+		ChatwootEventConversationUnsnoozed,
+		ChatwootEventConversationAssigned,
+		ChatwootEventConversationUnassigned,
+		ChatwootEventMessageDeleted,
+		ChatwootEventContactMerged,
+		ChatwootEventContactDeleted,
+		ChatwootEventConversationTypingOn,
+		ChatwootEventConversationTypingOff:
 		return true
 	default:
 		return false

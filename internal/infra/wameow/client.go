@@ -448,9 +448,6 @@ func (c *WameowClient) updateQRCode(code string) {
 
 func (c *WameowClient) displayQRCode(code string) {
 	c.qrGenerator.DisplayQRCodeInTerminal(code, c.sessionID)
-	c.logger.InfoWithFields("QR code generated", map[string]interface{}{
-		"session_id": c.sessionID,
-	})
 }
 
 func (c *WameowClient) clearQRCode() {

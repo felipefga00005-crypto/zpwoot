@@ -271,8 +271,9 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 		SessionRepo:         repositories.GetSessionRepository(),
 		WebhookRepo:         repositories.GetWebhookRepository(),
 		ChatwootRepo:        repositories.GetChatwootRepository(),
+		ChatwootMessageRepo: repositories.GetChatwootMessageRepository(),
 		WameowManager:       managers.whatsapp,
-		ChatwootIntegration: nil,
+		ChatwootIntegration: nil, // IntegrationManager doesn't implement this interface
 		Logger:              appLogger,
 		DB:                  database.GetDB().DB,
 		Version:             Version,

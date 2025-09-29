@@ -58,13 +58,24 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 		"from_me":      fromMe,
 	})
 
-	// Skip if message is already mapped
+	// Skip if message is already mapped (this means it came from Chatwoot originally)
 	if im.messageMapper.IsMessageMapped(ctx, sessionID, messageID) {
-		im.logger.DebugWithFields("Message already mapped, skipping", map[string]interface{}{
+		im.logger.DebugWithFields("Message already mapped (originated from Chatwoot), skipping to avoid loop", map[string]interface{}{
 			"session_id": sessionID,
 			"message_id": messageID,
+			"from_me":    fromMe,
 		})
 		return nil
+	}
+
+	// For from_me=true messages that are NOT already mapped, these are messages sent
+	// from phone/other devices that should be synced to Chatwoot for history consistency
+	if fromMe {
+		im.logger.InfoWithFields("Processing from_me message from phone/other device for history sync", map[string]interface{}{
+			"session_id": sessionID,
+			"message_id": messageID,
+			"from":       from,
+		})
 	}
 
 	// Extract chat JID from sender (for groups, chat != sender)
@@ -127,8 +138,16 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 	// Format content for Chatwoot
 	formattedContent := im.formatContentForChatwoot(content, messageType)
 
-	// Send message to Chatwoot
-	chatwootMessage, err := client.SendMessage(conversation.ID, formattedContent)
+	// Determine message type based on from_me flag
+	// from_me=true (sent by phone/agent) = outgoing in Chatwoot
+	// from_me=false (received from client) = incoming in Chatwoot
+	chatwootMessageType := "incoming" // default for client messages
+	if fromMe {
+		chatwootMessageType = "outgoing" // messages sent by agent/phone
+	}
+
+	// Send message to Chatwoot with correct type
+	chatwootMessage, err := client.SendMessageWithType(conversation.ID, formattedContent, chatwootMessageType)
 	if err != nil {
 		im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
 		return fmt.Errorf("failed to send message to Chatwoot: %w", err)
@@ -196,6 +215,87 @@ func (im *IntegrationManager) extractPhoneFromJID(jid string) string {
 	return phone
 }
 
+// getBrazilianNumbers returns all possible formats for a Brazilian number (like Evolution API)
+func (im *IntegrationManager) getBrazilianNumbers(query string) []string {
+	numbers := []string{query}
+
+	// Check if it's a Brazilian number with +55
+	if strings.HasPrefix(query, "+55") {
+		if len(query) == 14 { // +55 XX 9XXXXXXXX (14 digits)
+			// Create version without the 9: +55 XX XXXXXXXX (13 digits)
+			withoutNine := query[:5] + query[6:]
+			numbers = append(numbers, withoutNine)
+		} else if len(query) == 13 { // +55 XX XXXXXXXX (13 digits)
+			// Create version with the 9: +55 XX 9XXXXXXXX (14 digits)
+			withNine := query[:5] + "9" + query[5:]
+			numbers = append(numbers, withNine)
+		}
+	}
+
+	return numbers
+}
+
+// mergeBrazilianContacts merges two Brazilian contacts with different formats (like Evolution API)
+func (im *IntegrationManager) mergeBrazilianContacts(client ports.ChatwootClient, contacts []*ports.ChatwootContact, sessionID string) (*ports.ChatwootContact, error) {
+	if len(contacts) != 2 {
+		return nil, fmt.Errorf("expected exactly 2 contacts for merge, got %d", len(contacts))
+	}
+
+	// Find the contact with 14 digits (with 9) and 13 digits (without 9)
+	var contact14, contact13 *ports.ChatwootContact
+
+	for _, contact := range contacts {
+		if len(contact.PhoneNumber) == 14 { // +55 XX 9XXXXXXXX
+			contact14 = contact
+		} else if len(contact.PhoneNumber) == 13 { // +55 XX XXXXXXXX
+			contact13 = contact
+		}
+	}
+
+	// If we have both formats, merge them (keep the 14-digit as base, like Evolution API)
+	if contact14 != nil && contact13 != nil {
+		im.logger.InfoWithFields("Merging Brazilian contacts", map[string]interface{}{
+			"session_id":        sessionID,
+			"base_contact_id":   contact14.ID,
+			"base_phone":        contact14.PhoneNumber,
+			"merge_contact_id":  contact13.ID,
+			"merge_phone":       contact13.PhoneNumber,
+		})
+
+		// Use the 14-digit contact as base (Evolution API logic)
+		err := im.mergeContacts(client, contact14.ID, contact13.ID, sessionID)
+		if err != nil {
+			im.logger.ErrorWithFields("Failed to merge Brazilian contacts", map[string]interface{}{
+				"session_id": sessionID,
+				"error":      err.Error(),
+			})
+			return contact14, nil // Return base contact even if merge fails
+		}
+
+		return contact14, nil
+	}
+
+	// If we don't have both formats, return the first contact
+	return contacts[0], nil
+}
+
+// mergeContacts merges two contacts in Chatwoot (like Evolution API)
+func (im *IntegrationManager) mergeContacts(client ports.ChatwootClient, baseContactID, mergeContactID int, sessionID string) error {
+	im.logger.InfoWithFields("Merging contacts using Chatwoot API", map[string]interface{}{
+		"session_id":        sessionID,
+		"base_contact_id":   baseContactID,
+		"merge_contact_id":  mergeContactID,
+	})
+
+	// Call the actual Chatwoot merge API (same as Evolution API)
+	err := client.MergeContacts(baseContactID, mergeContactID)
+	if err != nil {
+		return fmt.Errorf("failed to merge contacts via Chatwoot API: %w", err)
+	}
+
+	return nil
+}
+
 // formatBrazilianPhone formats Brazilian phone numbers according to Evolution API logic
 func (im *IntegrationManager) formatBrazilianPhone(phone string) string {
 	// Check if it's a Brazilian number (starts with 55)
@@ -229,15 +329,42 @@ func (im *IntegrationManager) formatBrazilianPhone(phone string) string {
 
 // getOrCreateContact gets or creates a contact in Chatwoot
 func (im *IntegrationManager) getOrCreateContact(client ports.ChatwootClient, phoneNumber, sessionID string, inboxID int) (*ports.ChatwootContact, error) {
-	// Try to find existing contact
-	contact, err := client.FindContact(phoneNumber, inboxID)
-	if err == nil {
+	// Get all possible Brazilian number formats (like Evolution API)
+	phoneNumbers := im.getBrazilianNumbers(phoneNumber)
+
+	// Try to find existing contacts with all possible formats
+	var foundContacts []*ports.ChatwootContact
+	for _, phone := range phoneNumbers {
+		contact, err := client.FindContact(phone, inboxID)
+		if err == nil {
+			foundContacts = append(foundContacts, contact)
+		}
+	}
+
+	// If we found contacts, handle them according to Evolution API logic
+	if len(foundContacts) > 0 {
+		// If we found exactly 2 contacts and it's a Brazilian number, merge them (like Evolution API)
+		if len(foundContacts) == 2 && strings.HasPrefix(phoneNumber, "+55") {
+			mergedContact, err := im.mergeBrazilianContacts(client, foundContacts, sessionID)
+			if err == nil && mergedContact != nil {
+				return mergedContact, nil
+			}
+		}
+
+		// Return the first found contact
+		contact := foundContacts[0]
+		im.logger.InfoWithFields("Found existing contact", map[string]interface{}{
+			"session_id":      sessionID,
+			"original_phone":  phoneNumber,
+			"contact_id":      contact.ID,
+			"contacts_found":  len(foundContacts),
+		})
 		return contact, nil
 	}
 
-	// Create new contact
+	// Create new contact with the original phone number
 	contactName := phoneNumber // Use phone as name initially
-	contact, err = client.CreateContact(phoneNumber, contactName, inboxID)
+	contact, err := client.CreateContact(phoneNumber, contactName, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create contact: %w", err)
 	}

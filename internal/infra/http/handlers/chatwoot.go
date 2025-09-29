@@ -234,8 +234,20 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		"user_agent": c.Get("User-Agent"),
 	})
 
+	// Log raw body for debugging
+	rawBody := c.Body()
+	h.logger.DebugWithFields("Raw webhook payload", map[string]interface{}{
+		"session_id": sessionID,
+		"body":       string(rawBody),
+		"body_size":  len(rawBody),
+	})
+
 	// Validate sessionID format
 	if _, err := uuid.Parse(sessionID); err != nil {
+		h.logger.WarnWithFields("Invalid session ID format", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid session ID format",
 		})
@@ -246,14 +258,29 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		h.logger.WarnWithFields("Failed to parse webhook payload", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
+			"raw_body":   string(rawBody),
 		})
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid webhook payload",
 		})
 	}
 
+	// Log parsed payload for debugging
+	h.logger.DebugWithFields("Parsed webhook payload", map[string]interface{}{
+		"session_id": sessionID,
+		"event":      payload.Event,
+		"account_id": payload.Account.ID,
+		"conv_id":    payload.Conversation.ID,
+		"message_id": payload.ID,
+	})
+
 	// Validate event type
 	if !domainChatwoot.IsValidChatwootEvent(payload.Event) {
+		h.logger.WarnWithFields("Invalid event type", map[string]interface{}{
+			"session_id": sessionID,
+			"event":      payload.Event,
+			"raw_body":   string(rawBody),
+		})
 		return c.Status(400).JSON(fiber.Map{
 			"error": "Invalid event type",
 			"event": payload.Event,
