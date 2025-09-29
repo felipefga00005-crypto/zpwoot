@@ -41,52 +41,80 @@ func NewUseCase(mediaService media.Service, mediaRepo ports.MediaRepository, log
 
 // DownloadMedia downloads media from a WhatsApp message
 func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequest) (*DownloadMediaResponse, error) {
+	uc.logDownloadRequest(req)
+
+	// Try to serve from cache first
+	if response, served := uc.tryServeFromCache(ctx, req); served {
+		return response, nil
+	}
+
+	// Download fresh media and cache it
+	return uc.downloadAndCacheMedia(ctx, req)
+}
+
+// logDownloadRequest logs the download request
+func (uc *useCaseImpl) logDownloadRequest(req *DownloadMediaRequest) {
 	uc.logger.InfoWithFields("Downloading media", map[string]interface{}{
 		"session_id": req.SessionID,
 		"message_id": req.MessageID,
 		"media_type": req.MediaType,
 	})
+}
 
-	// Check if media is already cached
+// tryServeFromCache attempts to serve media from cache
+func (uc *useCaseImpl) tryServeFromCache(ctx context.Context, req *DownloadMediaRequest) (*DownloadMediaResponse, bool) {
 	cached, err := uc.mediaRepo.GetCachedMedia(ctx, req.SessionID, req.MessageID)
-	if err == nil && cached != nil {
-		// Check if cache is still valid
-		if time.Now().Before(cached.ExpiresAt) {
-			uc.logger.InfoWithFields("Serving media from cache", map[string]interface{}{
-				"session_id": req.SessionID,
-				"message_id": req.MessageID,
-				"file_path":  cached.FilePath,
-			})
-
-			// Update last access time
-			cached.LastAccess = time.Now()
-			if err := uc.mediaRepo.UpdateCachedMedia(ctx, cached); err != nil {
-				uc.logger.WarnWithFields("Failed to update cached media access time", map[string]interface{}{
-					"session_id": req.SessionID,
-					"message_id": req.MessageID,
-					"error":      err.Error(),
-				})
-			}
-
-			// Read cached file
-			data, err := uc.mediaService.ReadCachedFile(ctx, cached.FilePath)
-			if err != nil {
-				uc.logger.WarnWithFields("Failed to read cached file, downloading fresh", map[string]interface{}{
-					"session_id": req.SessionID,
-					"message_id": req.MessageID,
-					"error":      err.Error(),
-				})
-			} else {
-				return &DownloadMediaResponse{
-					Data:     data,
-					MimeType: cached.MimeType,
-					FileSize: cached.FileSize,
-					Filename: cached.Filename,
-				}, nil
-			}
-		}
+	if err != nil || cached == nil {
+		return nil, false
 	}
 
+	// Check if cache is still valid
+	if !time.Now().Before(cached.ExpiresAt) {
+		return nil, false
+	}
+
+	uc.logger.InfoWithFields("Serving media from cache", map[string]interface{}{
+		"session_id": req.SessionID,
+		"message_id": req.MessageID,
+		"file_path":  cached.FilePath,
+	})
+
+	// Update last access time
+	uc.updateCacheAccessTime(ctx, cached, req)
+
+	// Read cached file
+	data, err := uc.mediaService.ReadCachedFile(ctx, cached.FilePath)
+	if err != nil {
+		uc.logger.WarnWithFields("Failed to read cached file, downloading fresh", map[string]interface{}{
+			"session_id": req.SessionID,
+			"message_id": req.MessageID,
+			"error":      err.Error(),
+		})
+		return nil, false
+	}
+
+	return &DownloadMediaResponse{
+		Data:     data,
+		MimeType: cached.MimeType,
+		FileSize: cached.FileSize,
+		Filename: cached.Filename,
+	}, true
+}
+
+// updateCacheAccessTime updates the last access time for cached media
+func (uc *useCaseImpl) updateCacheAccessTime(ctx context.Context, cached *media.CachedMediaItem, req *DownloadMediaRequest) {
+	cached.LastAccess = time.Now()
+	if err := uc.mediaRepo.UpdateCachedMedia(ctx, cached); err != nil {
+		uc.logger.WarnWithFields("Failed to update cached media access time", map[string]interface{}{
+			"session_id": req.SessionID,
+			"message_id": req.MessageID,
+			"error":      err.Error(),
+		})
+	}
+}
+
+// downloadAndCacheMedia downloads fresh media and caches it
+func (uc *useCaseImpl) downloadAndCacheMedia(ctx context.Context, req *DownloadMediaRequest) (*DownloadMediaResponse, error) {
 	// Download fresh media
 	domainReq := &media.DownloadMediaRequest{
 		SessionID: req.SessionID,
@@ -105,6 +133,18 @@ func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequ
 	}
 
 	// Cache the downloaded media
+	uc.cacheDownloadedMedia(ctx, req, result)
+
+	return &DownloadMediaResponse{
+		Data:     result.Data,
+		MimeType: result.MimeType,
+		FileSize: result.FileSize,
+		Filename: result.Filename,
+	}, nil
+}
+
+// cacheDownloadedMedia caches the downloaded media
+func (uc *useCaseImpl) cacheDownloadedMedia(ctx context.Context, req *DownloadMediaRequest, result *media.DownloadMediaResponse) {
 	cacheItem := &media.CachedMediaItem{
 		SessionID:  req.SessionID,
 		MessageID:  req.MessageID,
@@ -115,7 +155,7 @@ func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequ
 		FilePath:   result.FilePath,
 		CachedAt:   time.Now(),
 		LastAccess: time.Now(),
-		ExpiresAt:  time.Now().Add(defaultCacheDuration), // Cache for 24 hours
+		ExpiresAt:  time.Now().Add(defaultCacheDuration),
 	}
 
 	if err := uc.mediaRepo.SaveCachedMedia(ctx, cacheItem); err != nil {
@@ -125,13 +165,6 @@ func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequ
 			"error":      err.Error(),
 		})
 	}
-
-	return &DownloadMediaResponse{
-		Data:     result.Data,
-		MimeType: result.MimeType,
-		FileSize: result.FileSize,
-		Filename: result.Filename,
-	}, nil
 }
 
 // GetMediaInfo gets information about media in a message without downloading it

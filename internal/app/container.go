@@ -140,85 +140,109 @@ type useCases struct {
 
 // createUseCases creates all use cases
 func createUseCases(config *ContainerConfig, services *domainServices) *useCases {
-	commonUseCase := common.NewUseCase(
-		config.Version,
-		config.BuildTime,
-		config.GitCommit,
-		config.DB,
-		config.SessionRepo,
-		config.WebhookRepo,
-	)
+	// Create core use cases
+	coreUseCases := createCoreUseCases(config, services)
 
-	sessionUseCase := session.NewUseCase(
-		config.SessionRepo,
-		config.WameowManager,
-		services.session,
-		config.Logger,
-	)
-
-	webhookUseCase := webhook.NewUseCase(
-		config.WebhookRepo,
-		services.webhook,
-	)
-
-	chatwootUseCase := chatwoot.NewUseCase(
-		config.ChatwootRepo,
-		config.ChatwootIntegration,
-		config.ChatwootManager,
-		services.chatwoot,
-		config.Logger,
-	)
-
-	messageUseCase := message.NewUseCase(
-		config.SessionRepo,
-		config.WameowManager,
-		config.Logger,
-	)
-
-	mediaUseCase := media.NewUseCase(
-		services.media,
-		config.MediaRepo,
-		config.Logger,
-	)
-
-	groupUseCase := group.NewUseCase(
-		nil, // No repository needed for groups
-		config.WameowManager,
-		services.group,
-	)
-
-	contactUseCase := contact.NewUseCase(
-		services.contact,
-		config.Logger,
-	)
-
-	// Create newsletter use case
-	newsletterUseCase := newsletter.NewUseCase(
-		config.NewsletterManager,
-		services.newsletter,
-		config.SessionRepo,
-		*config.Logger,
-	)
-
-	// Create community use case
-	communityUseCase := community.NewUseCase(
-		config.CommunityManager,
-		services.community,
-		config.SessionRepo,
-		*config.Logger,
-	)
+	// Create business use cases
+	businessUseCases := createBusinessUseCases(config, services)
 
 	return &useCases{
-		common:     commonUseCase,
-		session:    sessionUseCase,
-		webhook:    webhookUseCase,
-		chatwoot:   chatwootUseCase,
-		message:    messageUseCase,
-		media:      mediaUseCase,
-		group:      groupUseCase,
-		contact:    contactUseCase,
-		newsletter: newsletterUseCase,
-		community:  communityUseCase,
+		common:     coreUseCases.common,
+		session:    coreUseCases.session,
+		webhook:    coreUseCases.webhook,
+		chatwoot:   coreUseCases.chatwoot,
+		message:    businessUseCases.message,
+		media:      businessUseCases.media,
+		group:      businessUseCases.group,
+		contact:    businessUseCases.contact,
+		newsletter: businessUseCases.newsletter,
+		community:  businessUseCases.community,
+	}
+}
+
+// coreUseCases holds core system use cases
+type coreUseCases struct {
+	common   common.UseCase
+	session  session.UseCase
+	webhook  webhook.UseCase
+	chatwoot chatwoot.UseCase
+}
+
+// businessUseCases holds business logic use cases
+type businessUseCases struct {
+	message    message.UseCase
+	media      media.UseCase
+	group      group.UseCase
+	contact    contact.UseCase
+	newsletter newsletter.UseCase
+	community  community.UseCase
+}
+
+// createCoreUseCases creates core system use cases
+func createCoreUseCases(config *ContainerConfig, services *domainServices) *coreUseCases {
+	return &coreUseCases{
+		common: common.NewUseCase(
+			config.Version,
+			config.BuildTime,
+			config.GitCommit,
+			config.DB,
+			config.SessionRepo,
+			config.WebhookRepo,
+		),
+		session: session.NewUseCase(
+			config.SessionRepo,
+			config.WameowManager,
+			services.session,
+			config.Logger,
+		),
+		webhook: webhook.NewUseCase(
+			config.WebhookRepo,
+			services.webhook,
+		),
+		chatwoot: chatwoot.NewUseCase(
+			config.ChatwootRepo,
+			config.ChatwootIntegration,
+			config.ChatwootManager,
+			services.chatwoot,
+			config.Logger,
+		),
+	}
+}
+
+// createBusinessUseCases creates business logic use cases
+func createBusinessUseCases(config *ContainerConfig, services *domainServices) *businessUseCases {
+	return &businessUseCases{
+		message: message.NewUseCase(
+			config.SessionRepo,
+			config.WameowManager,
+			config.Logger,
+		),
+		media: media.NewUseCase(
+			services.media,
+			config.MediaRepo,
+			config.Logger,
+		),
+		group: group.NewUseCase(
+			nil, // No repository needed for groups
+			config.WameowManager,
+			services.group,
+		),
+		contact: contact.NewUseCase(
+			services.contact,
+			config.Logger,
+		),
+		newsletter: newsletter.NewUseCase(
+			config.NewsletterManager,
+			services.newsletter,
+			config.SessionRepo,
+			*config.Logger,
+		),
+		community: community.NewUseCase(
+			config.CommunityManager,
+			services.community,
+			config.SessionRepo,
+			*config.Logger,
+		),
 	}
 }
 
