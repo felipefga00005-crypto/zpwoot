@@ -603,3 +603,240 @@ func (s *Service) GetStats(ctx context.Context) (*ChatwootStats, error) {
 		MessagesReceived:    300,
 	}, nil
 }
+
+// ============================================================================
+// IMPORT VALIDATION
+// ============================================================================
+
+// ValidateImportRequest validates an import request according to business rules
+func (s *Service) ValidateImportRequest(sessionID string, daysLimit int, inboxID int) error {
+	if sessionID == "" {
+		return fmt.Errorf("session_id is required")
+	}
+
+	if daysLimit <= 0 || daysLimit > 365 {
+		return fmt.Errorf("days_limit must be between 1 and 365")
+	}
+
+	if inboxID <= 0 {
+		return fmt.Errorf("inbox_id must be positive")
+	}
+
+	return nil
+}
+
+// ValidateContactImportRequest validates a contact import request
+func (s *Service) ValidateContactImportRequest(sessionID string, inboxID int) error {
+	if sessionID == "" {
+		return fmt.Errorf("session_id is required")
+	}
+
+	if inboxID <= 0 {
+		return fmt.Errorf("inbox_id must be positive")
+	}
+
+	return nil
+}
+
+// ValidateBotContactCreation validates bot contact creation parameters
+func (s *Service) ValidateBotContactCreation(inboxID int) error {
+	if inboxID <= 0 {
+		return fmt.Errorf("inbox_id must be positive")
+	}
+
+	return nil
+}
+
+// CreateBotContactIfNeeded creates a bot contact if it doesn't exist
+// This encapsulates the business logic for bot contact creation
+func (s *Service) CreateBotContactIfNeeded(ctx context.Context, client ports.ChatwootClient, inboxID int) error {
+	// Validate parameters using domain rules
+	if err := s.ValidateBotContactCreation(inboxID); err != nil {
+		return err
+	}
+
+	// Business rules for bot contact
+	botPhone := "123456"
+	botName := "Bot"
+
+	// Try to find existing bot contact
+	_, err := client.FindContact(botPhone, inboxID)
+	if err == nil {
+		// Bot contact already exists - this is expected behavior
+		s.logger.DebugWithFields("Bot contact already exists", map[string]interface{}{
+			"phone":    botPhone,
+			"inbox_id": inboxID,
+		})
+		return nil
+	}
+
+	// Create bot contact according to business rules
+	s.logger.InfoWithFields("Creating bot contact", map[string]interface{}{
+		"phone":    botPhone,
+		"name":     botName,
+		"inbox_id": inboxID,
+	})
+
+	_, err = client.CreateContact(botPhone, botName, inboxID)
+	if err != nil {
+		return fmt.Errorf("failed to create bot contact: %w", err)
+	}
+
+	s.logger.InfoWithFields("Bot contact created successfully", map[string]interface{}{
+		"phone":    botPhone,
+		"name":     botName,
+		"inbox_id": inboxID,
+	})
+
+	return nil
+}
+
+// ============================================================================
+// INBOX MANAGEMENT
+// ============================================================================
+
+// ShouldCreateInbox determines if an inbox should be auto-created based on business rules
+func (s *Service) ShouldCreateInbox(autoCreate bool, existingInboxes []ports.ChatwootInbox, inboxName string) (bool, *ports.ChatwootInbox) {
+	if !autoCreate {
+		return false, nil
+	}
+
+	// Business rule: Check if inbox already exists
+	for _, inbox := range existingInboxes {
+		if inbox.Name == inboxName {
+			s.logger.DebugWithFields("Inbox already exists", map[string]interface{}{
+				"inbox_name": inboxName,
+				"inbox_id":   inbox.ID,
+			})
+			return false, &inbox
+		}
+	}
+
+	// Business rule: Create inbox if it doesn't exist and auto-create is enabled
+	return true, nil
+}
+
+// ValidateInboxCreation validates inbox creation parameters
+func (s *Service) ValidateInboxCreation(inboxName, webhookURL string) error {
+	if inboxName == "" {
+		return fmt.Errorf("inbox_name is required")
+	}
+
+	if webhookURL == "" {
+		return fmt.Errorf("webhook_url is required")
+	}
+
+	return nil
+}
+
+// ProcessInboxInitialization handles the business logic for inbox initialization
+func (s *Service) ProcessInboxInitialization(ctx context.Context, sessionID, inboxName, webhookURL string, autoCreate bool, client ports.ChatwootClient) (*ports.ChatwootInbox, error) {
+	// Validate parameters
+	if err := s.ValidateInboxCreation(inboxName, webhookURL); err != nil {
+		return nil, err
+	}
+
+	// Get existing inboxes
+	inboxes, err := client.ListInboxes()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list inboxes: %w", err)
+	}
+
+	// Apply business rules to determine if inbox should be created
+	shouldCreate, existingInbox := s.ShouldCreateInbox(autoCreate, inboxes, inboxName)
+
+	if existingInbox != nil {
+		// Use existing inbox
+		return existingInbox, nil
+	}
+
+	if shouldCreate {
+		// Create new inbox
+		s.logger.InfoWithFields("Creating new inbox", map[string]interface{}{
+			"inbox_name": inboxName,
+			"session_id": sessionID,
+		})
+
+		createdInbox, err := client.CreateInbox(inboxName, webhookURL)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create inbox: %w", err)
+		}
+
+		return createdInbox, nil
+	}
+
+	return nil, fmt.Errorf("inbox '%s' not found and auto-create is disabled", inboxName)
+}
+
+// UpdateConfigWithInbox updates session config with inbox information
+func (s *Service) UpdateConfigWithInbox(ctx context.Context, sessionID string, inbox *ports.ChatwootInbox) error {
+	if inbox == nil {
+		return fmt.Errorf("inbox cannot be nil")
+	}
+
+	if inbox.ID <= 0 {
+		return fmt.Errorf("invalid inbox ID: %d", inbox.ID)
+	}
+
+	// Get current config
+	config, err := s.GetConfigBySessionID(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get config: %w", err)
+	}
+
+	// Update with inbox ID
+	inboxIDStr := fmt.Sprintf("%d", inbox.ID)
+	config.InboxID = &inboxIDStr
+
+	// Save updated config
+	err = s.repository.UpdateConfig(ctx, config)
+	if err != nil {
+		return fmt.Errorf("failed to update config: %w", err)
+	}
+
+	s.logger.InfoWithFields("Config updated with inbox", map[string]interface{}{
+		"session_id": sessionID,
+		"inbox_id":   inbox.ID,
+		"inbox_name": inbox.Name,
+	})
+
+	return nil
+}
+
+// ============================================================================
+// INTEGRATION ORCHESTRATION
+// ============================================================================
+
+// InitializeChatwootIntegration orchestrates the complete Chatwoot integration setup
+func (s *Service) InitializeChatwootIntegration(ctx context.Context, sessionID, inboxName, webhookURL string, autoCreate bool, client ports.ChatwootClient) error {
+	// Process inbox initialization using business rules
+	inbox, err := s.ProcessInboxInitialization(ctx, sessionID, inboxName, webhookURL, autoCreate, client)
+	if err != nil {
+		return fmt.Errorf("failed to process inbox initialization: %w", err)
+	}
+
+	// Update config with inbox information
+	err = s.UpdateConfigWithInbox(ctx, sessionID, inbox)
+	if err != nil {
+		return fmt.Errorf("failed to update config: %w", err)
+	}
+
+	// Create bot contact if needed (business rule)
+	err = s.CreateBotContactIfNeeded(ctx, client, inbox.ID)
+	if err != nil {
+		s.logger.WarnWithFields("Failed to create bot contact", map[string]interface{}{
+			"session_id": sessionID,
+			"inbox_id":   inbox.ID,
+			"error":      err.Error(),
+		})
+		// Don't fail the entire initialization if bot contact creation fails
+	}
+
+	s.logger.InfoWithFields("Chatwoot integration initialized successfully", map[string]interface{}{
+		"session_id": sessionID,
+		"inbox_id":   inbox.ID,
+		"inbox_name": inbox.Name,
+	})
+
+	return nil
+}

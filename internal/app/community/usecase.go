@@ -49,13 +49,36 @@ func NewUseCase(
 
 // LinkGroup links a group to a community
 func (uc *useCaseImpl) LinkGroup(ctx context.Context, sessionID string, req *LinkGroupRequest) (*LinkGroupResponse, error) {
+	// Validate request and session
+	err := uc.validateLinkGroupRequest(ctx, sessionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Format JIDs and validate link request
+	communityJID, groupJID, err := uc.prepareLinkGroupData(req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute the link operation
+	linkInfo, err := uc.executeLinkGroup(ctx, sessionID, communityJID, groupJID)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewLinkGroupResponse(linkInfo), nil
+}
+
+// validateLinkGroupRequest validates the request and session
+func (uc *useCaseImpl) validateLinkGroupRequest(ctx context.Context, sessionID string, req *LinkGroupRequest) error {
 	// Validate request
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid link group request", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Validate session
@@ -65,28 +88,37 @@ func (uc *useCaseImpl) LinkGroup(ctx context.Context, sessionID string, req *Lin
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("session not found: %w", err)
+		return fmt.Errorf("session not found: %w", err)
 	}
 
 	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
+		return fmt.Errorf("session is not connected")
 	}
 
+	return nil
+}
+
+// prepareLinkGroupData validates and formats JIDs for link operation
+func (uc *useCaseImpl) prepareLinkGroupData(req *LinkGroupRequest) (string, string, error) {
 	// Validate link request using domain service
 	if err := uc.communityService.ValidateLinkRequest(req.CommunityJID, req.GroupJID); err != nil {
 		uc.logger.ErrorWithFields("Invalid link request", map[string]interface{}{
-			"session_id":    sessionID,
 			"community_jid": req.CommunityJID,
 			"group_jid":     req.GroupJID,
 			"error":         err.Error(),
 		})
-		return nil, fmt.Errorf("invalid link request: %w", err)
+		return "", "", fmt.Errorf("invalid link request: %w", err)
 	}
 
 	// Format JIDs
 	communityJID := uc.communityService.FormatCommunityJID(req.CommunityJID)
 	groupJID := uc.communityService.FormatGroupJID(req.GroupJID)
 
+	return communityJID, groupJID, nil
+}
+
+// executeLinkGroup executes the link group operation
+func (uc *useCaseImpl) executeLinkGroup(ctx context.Context, sessionID, communityJID, groupJID string) (*community.GroupLinkInfo, error) {
 	uc.logger.InfoWithFields("Linking group to community", map[string]interface{}{
 		"session_id":    sessionID,
 		"community_jid": communityJID,
@@ -94,7 +126,7 @@ func (uc *useCaseImpl) LinkGroup(ctx context.Context, sessionID string, req *Lin
 	})
 
 	// Link group via community manager
-	err = uc.communityManager.LinkGroup(ctx, sessionID, communityJID, groupJID)
+	err := uc.communityManager.LinkGroup(ctx, sessionID, communityJID, groupJID)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to link group to community", map[string]interface{}{
 			"session_id":    sessionID,
@@ -111,7 +143,7 @@ func (uc *useCaseImpl) LinkGroup(ctx context.Context, sessionID string, req *Lin
 		"group_jid":     groupJID,
 	})
 
-	// Create response
+	// Create and process link info
 	linkInfo := &community.GroupLinkInfo{
 		CommunityJID: communityJID,
 		GroupJID:     groupJID,
@@ -130,7 +162,7 @@ func (uc *useCaseImpl) LinkGroup(ctx context.Context, sessionID string, req *Lin
 		return nil, fmt.Errorf("failed to process link result: %w", err)
 	}
 
-	return NewLinkGroupResponse(linkInfo), nil
+	return linkInfo, nil
 }
 
 // UnlinkGroup unlinks a group from a community

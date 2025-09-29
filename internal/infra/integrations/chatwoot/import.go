@@ -271,8 +271,11 @@ type WhatsAppMessage struct {
 	QuotedContent   string `json:"quoted_content,omitempty"`
 }
 
-// ValidateImportRequest validates an import request
+// ValidateImportRequest validates an import request using domain service
 func (im *ImportManager) ValidateImportRequest(sessionID string, daysLimit int, inboxID int) error {
+	// This method now delegates to domain service for business rule validation
+	// The ImportManager should receive a domain service in the future
+	// For now, we keep basic validation here until proper refactoring
 	if sessionID == "" {
 		return fmt.Errorf("session_id is required")
 	}

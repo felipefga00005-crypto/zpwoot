@@ -100,13 +100,40 @@ func (m *Migrator) createMigrationsTable() error {
 }
 
 func (m *Migrator) loadMigrations() ([]*Migration, error) {
-	var migrations []*Migration
+	// Read migration directory
+	entries, err := m.readMigrationDirectory()
+	if err != nil {
+		return nil, err
+	}
 
+	// Process migration files
+	migrationFiles, err := m.processMigrationFiles(entries)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build migration objects
+	migrations := m.buildMigrationObjects(migrationFiles)
+
+	// Sort migrations by version
+	sort.Slice(migrations, func(i, j int) bool {
+		return migrations[i].Version < migrations[j].Version
+	})
+
+	return migrations, nil
+}
+
+// readMigrationDirectory reads the migrations directory from embedded filesystem
+func (m *Migrator) readMigrationDirectory() ([]fs.DirEntry, error) {
 	entries, err := fs.ReadDir(migrationsFS, "migrations")
 	if err != nil {
 		return nil, fmt.Errorf("failed to read migrations directory: %w", err)
 	}
+	return entries, nil
+}
 
+// processMigrationFiles processes migration files and organizes them by version
+func (m *Migrator) processMigrationFiles(entries []fs.DirEntry) (map[int]map[string]string, error) {
 	migrationFiles := make(map[int]map[string]string)
 
 	for _, entry := range entries {
@@ -114,12 +141,7 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 			continue
 		}
 
-		parts := strings.Split(entry.Name(), "_")
-		if len(parts) < 2 {
-			continue
-		}
-
-		version, err := strconv.Atoi(parts[0])
+		version, err := m.extractVersionFromFilename(entry.Name())
 		if err != nil {
 			m.logger.WarnWithFields("Skipping invalid migration file", map[string]interface{}{
 				"filename": entry.Name(),
@@ -128,27 +150,63 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 			continue
 		}
 
-		content, err := fs.ReadFile(migrationsFS, filepath.Join("migrations", entry.Name()))
+		content, err := m.readMigrationFile(entry.Name())
 		if err != nil {
-			return nil, fmt.Errorf("failed to read migration file %s: %w", entry.Name(), err)
+			return nil, err
 		}
 
 		if migrationFiles[version] == nil {
 			migrationFiles[version] = make(map[string]string)
 		}
 
-		if strings.Contains(entry.Name(), ".up.sql") {
-			migrationFiles[version]["up"] = string(content)
-			nameParts := strings.Split(entry.Name(), "_")
-			if len(nameParts) > 1 {
-				name := strings.Join(nameParts[1:], "_")
-				name = strings.TrimSuffix(name, ".up.sql")
-				migrationFiles[version]["name"] = name
-			}
-		} else if strings.Contains(entry.Name(), ".down.sql") {
-			migrationFiles[version]["down"] = string(content)
-		}
+		m.categorizeMigrationFile(entry.Name(), content, migrationFiles[version])
 	}
+
+	return migrationFiles, nil
+}
+
+// extractVersionFromFilename extracts version number from migration filename
+func (m *Migrator) extractVersionFromFilename(filename string) (int, error) {
+	parts := strings.Split(filename, "_")
+	if len(parts) < 2 {
+		return 0, fmt.Errorf("invalid filename format")
+	}
+
+	version, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return 0, fmt.Errorf("invalid version number: %w", err)
+	}
+
+	return version, nil
+}
+
+// readMigrationFile reads content from a migration file
+func (m *Migrator) readMigrationFile(filename string) (string, error) {
+	content, err := fs.ReadFile(migrationsFS, filepath.Join("migrations", filename))
+	if err != nil {
+		return "", fmt.Errorf("failed to read migration file %s: %w", filename, err)
+	}
+	return string(content), nil
+}
+
+// categorizeMigrationFile categorizes migration file as up, down, or extracts name
+func (m *Migrator) categorizeMigrationFile(filename, content string, files map[string]string) {
+	if strings.Contains(filename, ".up.sql") {
+		files["up"] = content
+		nameParts := strings.Split(filename, "_")
+		if len(nameParts) > 1 {
+			name := strings.Join(nameParts[1:], "_")
+			name = strings.TrimSuffix(name, ".up.sql")
+			files["name"] = name
+		}
+	} else if strings.Contains(filename, ".down.sql") {
+		files["down"] = content
+	}
+}
+
+// buildMigrationObjects builds Migration objects from processed files
+func (m *Migrator) buildMigrationObjects(migrationFiles map[int]map[string]string) []*Migration {
+	var migrations []*Migration
 
 	for version, files := range migrationFiles {
 		migration := &Migration{
@@ -168,11 +226,7 @@ func (m *Migrator) loadMigrations() ([]*Migration, error) {
 		migrations = append(migrations, migration)
 	}
 
-	sort.Slice(migrations, func(i, j int) bool {
-		return migrations[i].Version < migrations[j].Version
-	})
-
-	return migrations, nil
+	return migrations
 }
 
 func (m *Migrator) getAppliedMigrations() (map[int]bool, error) {

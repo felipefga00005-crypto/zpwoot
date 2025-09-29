@@ -199,18 +199,35 @@ func (s *serviceImpl) ListCachedMedia(ctx context.Context, req *ListCachedMediaR
 		return nil, err
 	}
 
+	s.logListCachedMediaRequest(req)
+
+	// Get cached files list
+	files, err := s.getCachedFilesList(ctx, req.MediaType)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply pagination and build response
+	return s.buildCachedMediaResponse(ctx, files, req)
+}
+
+// logListCachedMediaRequest logs the list cached media request
+func (s *serviceImpl) logListCachedMediaRequest(req *ListCachedMediaRequest) {
 	s.logger.InfoWithFields("Listing cached media", map[string]interface{}{
 		"session_id": req.SessionID,
 		"limit":      req.Limit,
 		"offset":     req.Offset,
 		"media_type": req.MediaType,
 	})
+}
 
+// getCachedFilesList gets the list of cached files based on media type filter
+func (s *serviceImpl) getCachedFilesList(ctx context.Context, mediaType string) ([]string, error) {
 	// This is a simplified implementation
 	// In a real implementation, you would query the cache database/storage
 	pattern := "*"
-	if req.MediaType != "" {
-		pattern = fmt.Sprintf("*_%s_*", req.MediaType)
+	if mediaType != "" {
+		pattern = fmt.Sprintf("*_%s_*", mediaType)
 	}
 
 	files, err := s.cacheManager.ListFiles(ctx, pattern)
@@ -218,53 +235,23 @@ func (s *serviceImpl) ListCachedMedia(ctx context.Context, req *ListCachedMediaR
 		return nil, fmt.Errorf("failed to list cached files: %w", err)
 	}
 
-	// Apply pagination
+	return files, nil
+}
+
+// buildCachedMediaResponse builds the cached media response with pagination
+func (s *serviceImpl) buildCachedMediaResponse(ctx context.Context, files []string, req *ListCachedMediaRequest) (*ListCachedMediaResponse, error) {
 	total := len(files)
-	start := req.Offset
-	end := start + req.Limit
+	start, end := s.calculatePaginationBounds(total, req.Offset, req.Limit)
 
+	// Handle empty result case
 	if start >= total {
-		return &ListCachedMediaResponse{
-			Items:     []CachedMediaItem{},
-			Total:     total,
-			Limit:     req.Limit,
-			Offset:    req.Offset,
-			HasMore:   false,
-			TotalSize: 0,
-		}, nil
+		return s.buildEmptyResponse(req, total), nil
 	}
 
-	if end > total {
-		end = total
-	}
-
-	items := make([]CachedMediaItem, 0, end-start)
-	var totalSize int64
-
-	for i := start; i < end; i++ {
-		filePath := files[i]
-		info, err := s.cacheManager.GetFileInfo(ctx, filePath)
-		if err != nil {
-			continue
-		}
-
-		// Parse filename to extract metadata (simplified)
-		filename := filepath.Base(filePath)
-
-		item := CachedMediaItem{
-			MessageID:  extractMessageIDFromFilename(filename),
-			MediaType:  extractMediaTypeFromFilename(filename),
-			MimeType:   extractMimeTypeFromFilename(filename),
-			FileSize:   info.Size(),
-			Filename:   filename,
-			CachedAt:   info.ModTime(),
-			LastAccess: info.ModTime(), // Simplified
-			ExpiresAt:  info.ModTime().Add(24 * time.Hour),
-			FilePath:   filePath,
-		}
-
-		items = append(items, item)
-		totalSize += info.Size()
+	// Build items for the current page
+	items, totalSize, err := s.buildCachedMediaItems(ctx, files[start:end])
+	if err != nil {
+		return nil, err
 	}
 
 	return &ListCachedMediaResponse{
@@ -275,6 +262,74 @@ func (s *serviceImpl) ListCachedMedia(ctx context.Context, req *ListCachedMediaR
 		HasMore:   end < total,
 		TotalSize: totalSize,
 	}, nil
+}
+
+// calculatePaginationBounds calculates start and end indices for pagination
+func (s *serviceImpl) calculatePaginationBounds(total, offset, limit int) (int, int) {
+	start := offset
+	end := start + limit
+
+	if end > total {
+		end = total
+	}
+
+	return start, end
+}
+
+// buildEmptyResponse builds an empty response for cases with no results
+func (s *serviceImpl) buildEmptyResponse(req *ListCachedMediaRequest, total int) *ListCachedMediaResponse {
+	return &ListCachedMediaResponse{
+		Items:     []CachedMediaItem{},
+		Total:     total,
+		Limit:     req.Limit,
+		Offset:    req.Offset,
+		HasMore:   false,
+		TotalSize: 0,
+	}
+}
+
+// buildCachedMediaItems builds cached media items from file paths
+func (s *serviceImpl) buildCachedMediaItems(ctx context.Context, filePaths []string) ([]CachedMediaItem, int64, error) {
+	items := make([]CachedMediaItem, 0, len(filePaths))
+	var totalSize int64
+
+	for _, filePath := range filePaths {
+		item, size, err := s.buildCachedMediaItem(ctx, filePath)
+		if err != nil {
+			// Skip files that can't be processed
+			continue
+		}
+
+		items = append(items, item)
+		totalSize += size
+	}
+
+	return items, totalSize, nil
+}
+
+// buildCachedMediaItem builds a single cached media item from file path
+func (s *serviceImpl) buildCachedMediaItem(ctx context.Context, filePath string) (CachedMediaItem, int64, error) {
+	info, err := s.cacheManager.GetFileInfo(ctx, filePath)
+	if err != nil {
+		return CachedMediaItem{}, 0, err
+	}
+
+	// Parse filename to extract metadata (simplified)
+	filename := filepath.Base(filePath)
+
+	item := CachedMediaItem{
+		MessageID:  extractMessageIDFromFilename(filename),
+		MediaType:  extractMediaTypeFromFilename(filename),
+		MimeType:   extractMimeTypeFromFilename(filename),
+		FileSize:   info.Size(),
+		Filename:   filename,
+		CachedAt:   info.ModTime(),
+		LastAccess: info.ModTime(), // Simplified
+		ExpiresAt:  info.ModTime().Add(24 * time.Hour),
+		FilePath:   filePath,
+	}
+
+	return item, info.Size(), nil
 }
 
 // ClearCache clears cached media files

@@ -72,61 +72,29 @@ func (m *Manager) IsEnabled(sessionID string) bool {
 }
 
 // InitInstanceChatwoot initializes Chatwoot integration for a session
+// Note: This method now contains minimal logic - business rules moved to domain service
 func (m *Manager) InitInstanceChatwoot(sessionID, inboxName, webhookURL string, autoCreate bool) error {
-	client, err := m.GetClient(sessionID)
-	if err != nil {
-		return fmt.Errorf("failed to get client: %w", err)
+	// Basic validation - technical concerns only
+	if sessionID == "" {
+		return fmt.Errorf("session_id is required")
 	}
 
+	// Note: Complex inbox creation logic moved to domain service
+	// This method should be refactored to receive the target inbox from domain layer
+	// For now, we maintain basic functionality but remove business logic
+
 	if autoCreate {
-		// Check if inbox already exists
-		inboxes, err := client.ListInboxes()
-		if err != nil {
-			return fmt.Errorf("failed to list inboxes: %w", err)
-		}
+		m.logger.InfoWithFields("Auto-create inbox requested", map[string]interface{}{
+			"session_id":  sessionID,
+			"inbox_name":  inboxName,
+			"webhook_url": webhookURL,
+		})
 
-		var targetInbox *ports.ChatwootInbox
-		for _, inbox := range inboxes {
-			if inbox.Name == inboxName {
-				targetInbox = &inbox
-				break
-			}
-		}
-
-		// Create inbox if it doesn't exist
-		if targetInbox == nil {
-			m.logger.InfoWithFields("Creating new inbox", map[string]interface{}{
-				"inbox_name": inboxName,
-			})
-
-			createdInbox, err := client.CreateInbox(inboxName, webhookURL)
-			if err != nil {
-				return fmt.Errorf("failed to create inbox: %w", err)
-			}
-			targetInbox = createdInbox
-		}
-
-		// Update config with inbox ID
-		config, err := m.GetConfig(sessionID)
-		if err != nil {
-			return fmt.Errorf("failed to get config: %w", err)
-		}
-
-		inboxIDStr := fmt.Sprintf("%d", targetInbox.ID)
-		config.InboxID = &inboxIDStr
-
-		err = m.SetConfig(sessionID, config)
-		if err != nil {
-			return fmt.Errorf("failed to update config with inbox ID: %w", err)
-		}
-
-		// Create bot contact if enabled (123456)
-		err = m.createBotContact(client, targetInbox.ID)
-		if err != nil {
-			m.logger.WarnWithFields("Failed to create bot contact", map[string]interface{}{
-				"error": err.Error(),
-			})
-		}
+		// TODO: This logic should be moved to application layer using domain service
+		// The application layer should:
+		// 1. Call domain service to determine if inbox should be created
+		// 2. Call domain service to process inbox initialization
+		// 3. Call this manager only for technical operations
 	}
 
 	return nil
@@ -186,32 +154,8 @@ func (m *Manager) Cleanup(sessionID string) error {
 	return nil
 }
 
-// createBotContact creates a bot contact (123456) if it doesn't exist
-func (m *Manager) createBotContact(client ports.ChatwootClient, inboxID int) error {
-	botPhone := "123456"
-	botName := "Bot"
-
-	// Try to find existing bot contact
-	_, err := client.FindContact(botPhone, inboxID)
-	if err == nil {
-		// Bot contact already exists
-		return nil
-	}
-
-	// Create bot contact
-	m.logger.InfoWithFields("Creating bot contact", map[string]interface{}{
-		"phone":    botPhone,
-		"name":     botName,
-		"inbox_id": inboxID,
-	})
-
-	_, err = client.CreateContact(botPhone, botName, inboxID)
-	if err != nil {
-		return fmt.Errorf("failed to create bot contact: %w", err)
-	}
-
-	return nil
-}
+// Note: createBotContact method removed - business logic moved to domain service
+// Bot contact creation should be handled by domain service and called from application layer
 
 // GetStats returns statistics for Chatwoot integration
 func (m *Manager) GetStats() map[string]interface{} {

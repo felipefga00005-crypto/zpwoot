@@ -36,6 +36,13 @@ import (
 	"zpwoot/internal/app"
 	sessionApp "zpwoot/internal/app/session"
 	"zpwoot/internal/domain/session"
+	domainChatwoot "zpwoot/internal/domain/chatwoot"
+	domainCommunity "zpwoot/internal/domain/community"
+	domainContact "zpwoot/internal/domain/contact"
+	domainGroup "zpwoot/internal/domain/group"
+	domainMedia "zpwoot/internal/domain/media"
+	domainNewsletter "zpwoot/internal/domain/newsletter"
+	domainWebhook "zpwoot/internal/domain/webhook"
 	"zpwoot/internal/infra/db"
 	"zpwoot/internal/infra/http/middleware"
 	"zpwoot/internal/infra/http/routers"
@@ -279,11 +286,51 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 	newsletterManager := wameow.NewNewsletterAdapter(managers.whatsapp, *appLogger)
 	communityManager := wameow.NewCommunityAdapter(managers.whatsapp, *appLogger)
 
+	// Create domain services
+	sessionService := session.NewService(
+		repositories.GetSessionRepository(),
+		managers.whatsapp,
+	)
+
+	webhookService := domainWebhook.NewService(
+		appLogger,
+		repositories.GetWebhookRepository(),
+	)
+
+	chatwootService := domainChatwoot.NewService(
+		appLogger,
+		repositories.GetChatwootRepository(),
+		managers.whatsapp,
+	)
+
+	// Set MessageMapper if available
+	if chatwootMessageMapper != nil {
+		chatwootService.SetMessageMapper(chatwootMessageMapper)
+	}
+
+	groupService := domainGroup.NewService(
+		nil, // No repository needed for groups
+		managers.whatsapp,
+		jidValidator,
+	)
+
+	contactService := domainContact.NewService(
+		managers.whatsapp, // WhatsAppClient interface
+		appLogger,
+	)
+
+	mediaService := domainMedia.NewService(nil, nil, appLogger, "/tmp/media_cache")
+	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
+	communityService := domainCommunity.NewService()
+
 	return app.NewContainer(&app.ContainerConfig{
-		SessionRepo:           repositories.GetSessionRepository(),
-		WebhookRepo:           repositories.GetWebhookRepository(),
-		ChatwootRepo:          repositories.GetChatwootRepository(),
-		ChatwootMessageRepo:   repositories.GetChatwootMessageRepository(),
+		// Repositories
+		SessionRepo:         repositories.GetSessionRepository(),
+		WebhookRepo:         repositories.GetWebhookRepository(),
+		ChatwootRepo:        repositories.GetChatwootRepository(),
+		ChatwootMessageRepo: repositories.GetChatwootMessageRepository(),
+
+		// Managers and Integrations
 		WameowManager:         managers.whatsapp,
 		ChatwootIntegration:   nil, // IntegrationManager doesn't implement this interface
 		ChatwootManager:       managers.chatwootManager,
@@ -291,11 +338,25 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 		JIDValidator:          jidValidator,
 		NewsletterManager:     newsletterManager,
 		CommunityManager:      communityManager,
-		Logger:                appLogger,
-		DB:                    database.GetDB().DB,
-		Version:               Version,
-		BuildTime:             BuildTime,
-		GitCommit:             GitCommit,
+
+		// Domain Services
+		SessionService:    sessionService,
+		WebhookService:    webhookService,
+		ChatwootService:   chatwootService,
+		GroupService:      groupService,
+		ContactService:    contactService,
+		MediaService:      mediaService,
+		NewsletterService: newsletterService,
+		CommunityService:  communityService,
+
+		// Infrastructure
+		Logger: appLogger,
+		DB:     database.GetDB().DB,
+
+		// Build Info
+		Version:   Version,
+		BuildTime: BuildTime,
+		GitCommit: GitCommit,
 	})
 }
 
