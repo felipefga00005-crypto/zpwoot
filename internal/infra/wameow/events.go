@@ -450,9 +450,8 @@ func (h *EventHandler) handleHistorySync(evt *events.HistorySync, sessionID stri
 }
 
 func (h *EventHandler) handleAppState(evt *events.AppState, sessionID string) {
-	h.logger.DebugWithFields("App state update", map[string]interface{}{
-		"session_id": sessionID,
-	})
+	// Skip AppState events to reduce spam - they're not critical for most use cases
+	// Only log at trace level to avoid log pollution
 	_ = evt // Avoid unused parameter warning
 }
 
@@ -720,13 +719,16 @@ func (h *EventHandler) deliverToWebhook(evt interface{}, sessionID string) {
 	}
 }
 
-// HandleQRCode implements the EventHandler interface for client integration
+// HandleQRCode processes QR codes from client channel (not automatic events)
+// This is the single source of truth for all QR code processing
 func (h *EventHandler) HandleQRCode(sessionID string, qrCode string) {
-	// Create a fake QR event to reuse existing logic
-	evt := &events.QR{
-		Codes: []string{qrCode},
-	}
+	h.logger.InfoWithFields("QR code received from client channel", map[string]interface{}{
+		"session_id": sessionID,
+	})
 
-	// Call the existing QR handler
-	h.handleQR(evt, sessionID)
+	// Process QR code: save to database and display in terminal
+	if qrCode != "" {
+		h.updateSessionQRCode(sessionID, qrCode)
+		h.qrGen.DisplayQRCodeInTerminal(qrCode, sessionID)
+	}
 }

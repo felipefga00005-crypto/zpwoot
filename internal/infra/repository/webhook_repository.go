@@ -97,7 +97,7 @@ func (r *webhookRepository) GetByID(ctx context.Context, id string) (*webhook.We
 }
 
 func (r *webhookRepository) GetBySessionID(ctx context.Context, sessionID string) ([]*webhook.WebhookConfig, error) {
-	r.logger.InfoWithFields("Getting webhooks by session ID", map[string]interface{}{
+	r.logger.DebugWithFields("Getting webhooks by session ID", map[string]interface{}{
 		"session_id": sessionID,
 	})
 
@@ -130,7 +130,7 @@ func (r *webhookRepository) GetBySessionID(ctx context.Context, sessionID string
 }
 
 func (r *webhookRepository) GetGlobalWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error) {
-	r.logger.Info("Getting global webhooks")
+	r.logger.Debug("Getting global webhooks")
 
 	var models []webhookModel
 	query := `SELECT * FROM "zpWebhooks" WHERE "sessionId" IS NULL ORDER BY "createdAt" DESC`

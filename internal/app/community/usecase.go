@@ -234,13 +234,30 @@ func (uc *useCaseImpl) UnlinkGroup(ctx context.Context, sessionID string, req *U
 
 // GetCommunityInfo gets community information
 func (uc *useCaseImpl) GetCommunityInfo(ctx context.Context, sessionID string, req *GetCommunityInfoRequest) (*CommunityInfoResponse, error) {
+	// Validate request and session
+	communityJID, err := uc.validateCommunityInfoRequest(ctx, sessionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve and process community info
+	communityInfo, err := uc.retrieveCommunityInfo(ctx, sessionID, communityJID)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewCommunityInfoResponse(communityInfo), nil
+}
+
+// validateCommunityInfoRequest validates the request and returns formatted community JID
+func (uc *useCaseImpl) validateCommunityInfoRequest(ctx context.Context, sessionID string, req *GetCommunityInfoRequest) (string, error) {
 	// Validate request
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid get community info request", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return "", fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Validate session
@@ -250,11 +267,11 @@ func (uc *useCaseImpl) GetCommunityInfo(ctx context.Context, sessionID string, r
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("session not found: %w", err)
+		return "", fmt.Errorf("session not found: %w", err)
 	}
 
 	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
+		return "", fmt.Errorf("session is not connected")
 	}
 
 	// Validate community JID
@@ -264,12 +281,14 @@ func (uc *useCaseImpl) GetCommunityInfo(ctx context.Context, sessionID string, r
 			"community_jid": req.CommunityJID,
 			"error":         err.Error(),
 		})
-		return nil, fmt.Errorf("invalid community JID: %w", err)
+		return "", fmt.Errorf("invalid community JID: %w", err)
 	}
 
-	// Format JID
-	communityJID := uc.communityService.FormatCommunityJID(req.CommunityJID)
+	return uc.communityService.FormatCommunityJID(req.CommunityJID), nil
+}
 
+// retrieveCommunityInfo retrieves and processes community information
+func (uc *useCaseImpl) retrieveCommunityInfo(ctx context.Context, sessionID, communityJID string) (*community.CommunityInfo, error) {
 	uc.logger.InfoWithFields("Getting community info", map[string]interface{}{
 		"session_id":    sessionID,
 		"community_jid": communityJID,
@@ -302,18 +321,35 @@ func (uc *useCaseImpl) GetCommunityInfo(ctx context.Context, sessionID string, r
 		"name":          communityInfo.Name,
 	})
 
-	return NewCommunityInfoResponse(communityInfo), nil
+	return communityInfo, nil
 }
 
 // GetSubGroups gets all sub-groups of a community
 func (uc *useCaseImpl) GetSubGroups(ctx context.Context, sessionID string, req *GetSubGroupsRequest) (*SubGroupsResponse, error) {
+	// Validate request and session
+	communityJID, err := uc.validateSubGroupsRequest(ctx, sessionID, req)
+	if err != nil {
+		return nil, err
+	}
+
+	// Retrieve and process sub-groups
+	subGroups, err := uc.retrieveSubGroups(ctx, sessionID, communityJID)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSubGroupsResponse(communityJID, subGroups), nil
+}
+
+// validateSubGroupsRequest validates the request and returns formatted community JID
+func (uc *useCaseImpl) validateSubGroupsRequest(ctx context.Context, sessionID string, req *GetSubGroupsRequest) (string, error) {
 	// Validate request
 	if err := req.Validate(); err != nil {
 		uc.logger.ErrorWithFields("Invalid get sub-groups request", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("validation failed: %w", err)
+		return "", fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Validate session
@@ -323,11 +359,11 @@ func (uc *useCaseImpl) GetSubGroups(ctx context.Context, sessionID string, req *
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("session not found: %w", err)
+		return "", fmt.Errorf("session not found: %w", err)
 	}
 
 	if !session.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
+		return "", fmt.Errorf("session is not connected")
 	}
 
 	// Validate community JID
@@ -337,12 +373,14 @@ func (uc *useCaseImpl) GetSubGroups(ctx context.Context, sessionID string, req *
 			"community_jid": req.CommunityJID,
 			"error":         err.Error(),
 		})
-		return nil, fmt.Errorf("invalid community JID: %w", err)
+		return "", fmt.Errorf("invalid community JID: %w", err)
 	}
 
-	// Format JID
-	communityJID := uc.communityService.FormatCommunityJID(req.CommunityJID)
+	return uc.communityService.FormatCommunityJID(req.CommunityJID), nil
+}
 
+// retrieveSubGroups retrieves and processes community sub-groups
+func (uc *useCaseImpl) retrieveSubGroups(ctx context.Context, sessionID, communityJID string) ([]*community.LinkedGroup, error) {
 	uc.logger.InfoWithFields("Getting community sub-groups", map[string]interface{}{
 		"session_id":    sessionID,
 		"community_jid": communityJID,
@@ -375,5 +413,5 @@ func (uc *useCaseImpl) GetSubGroups(ctx context.Context, sessionID string, req *
 		"count":         len(subGroups),
 	})
 
-	return NewSubGroupsResponse(communityJID, subGroups), nil
+	return subGroups, nil
 }

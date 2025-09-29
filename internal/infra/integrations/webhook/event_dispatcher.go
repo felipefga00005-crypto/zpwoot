@@ -32,6 +32,11 @@ func NewEventDispatcher(logger *logger.Logger, deliveryService *WebhookDeliveryS
 func (d *EventDispatcher) DispatchEvent(ctx context.Context, evt interface{}, sessionID string) error {
 	eventType := d.getEventType(evt)
 
+	// Skip AppState events to reduce webhook spam - they're too frequent and not critical
+	if eventType == "AppState" {
+		return nil
+	}
+
 	// Skip if event type is not supported
 	if !webhook.IsValidEventType(eventType) {
 		d.logger.DebugWithFields("Skipping unsupported event type", map[string]interface{}{

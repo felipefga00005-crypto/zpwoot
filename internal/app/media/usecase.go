@@ -10,6 +10,11 @@ import (
 	"zpwoot/platform/logger"
 )
 
+const (
+	// Media cache duration
+	defaultCacheDuration = 24 * time.Hour
+)
+
 // UseCase defines the interface for media use cases
 type UseCase interface {
 	DownloadMedia(ctx context.Context, req *DownloadMediaRequest) (*DownloadMediaResponse, error)
@@ -110,7 +115,7 @@ func (uc *useCaseImpl) DownloadMedia(ctx context.Context, req *DownloadMediaRequ
 		FilePath:   result.FilePath,
 		CachedAt:   time.Now(),
 		LastAccess: time.Now(),
-		ExpiresAt:  time.Now().Add(24 * time.Hour), // Cache for 24 hours
+		ExpiresAt:  time.Now().Add(defaultCacheDuration), // Cache for 24 hours
 	}
 
 	if err := uc.mediaRepo.SaveCachedMedia(ctx, cacheItem); err != nil {

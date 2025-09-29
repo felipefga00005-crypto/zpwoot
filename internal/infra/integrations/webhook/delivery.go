@@ -121,11 +121,25 @@ func (s *WebhookDeliveryService) worker(ctx context.Context, workerID int) {
 
 // DeliverEvent delivers a webhook event to all subscribed endpoints
 func (s *WebhookDeliveryService) DeliverEvent(ctx context.Context, event *webhook.WebhookEvent) error {
-	s.logger.InfoWithFields("Delivering webhook event", map[string]interface{}{
-		"event_id":   event.ID,
-		"event_type": event.Type,
-		"session_id": event.SessionID,
-	})
+	// Only log important events at INFO level, others at DEBUG
+	logLevel := "DEBUG"
+	if event.Type == "Message" || event.Type == "Connected" || event.Type == "Disconnected" {
+		logLevel = "INFO"
+	}
+
+	if logLevel == "INFO" {
+		s.logger.InfoWithFields("Delivering webhook event", map[string]interface{}{
+			"event_id":   event.ID,
+			"event_type": event.Type,
+			"session_id": event.SessionID,
+		})
+	} else {
+		s.logger.DebugWithFields("Delivering webhook event", map[string]interface{}{
+			"event_id":   event.ID,
+			"event_type": event.Type,
+			"session_id": event.SessionID,
+		})
+	}
 
 	// Process event with additional processors (like Chatwoot)
 	for _, processor := range s.processors {
@@ -184,31 +198,35 @@ func (s *WebhookDeliveryService) DeliverEvent(ctx context.Context, event *webhoo
 func (s *WebhookDeliveryService) getWebhooksForEvent(ctx context.Context, event *webhook.WebhookEvent) ([]*webhook.WebhookConfig, error) {
 	var webhooks []*webhook.WebhookConfig
 
-	// Get session-specific webhooks
-	sessionWebhooks, err := s.webhookRepo.GetBySessionID(ctx, event.SessionID)
-	if err != nil {
-		s.logger.ErrorWithFields("Failed to get session webhooks", map[string]interface{}{
-			"session_id": event.SessionID,
-			"error":      err.Error(),
-		})
-	} else {
-		for _, wh := range sessionWebhooks {
-			if wh.Enabled && wh.HasEvent(event.Type) {
-				webhooks = append(webhooks, wh)
+	// Get session-specific webhooks (only if not empty sessionID)
+	if event.SessionID != "" {
+		sessionWebhooks, err := s.webhookRepo.GetBySessionID(ctx, event.SessionID)
+		if err != nil {
+			s.logger.ErrorWithFields("Failed to get session webhooks", map[string]interface{}{
+				"session_id": event.SessionID,
+				"error":      err.Error(),
+			})
+		} else {
+			for _, wh := range sessionWebhooks {
+				if wh.Enabled && wh.HasEvent(event.Type) {
+					webhooks = append(webhooks, wh)
+				}
 			}
 		}
 	}
 
-	// Get global webhooks
-	globalWebhooks, err := s.webhookRepo.GetGlobalWebhooks(ctx)
-	if err != nil {
-		s.logger.ErrorWithFields("Failed to get global webhooks", map[string]interface{}{
-			"error": err.Error(),
-		})
-	} else {
-		for _, wh := range globalWebhooks {
-			if wh.Enabled && wh.HasEvent(event.Type) {
-				webhooks = append(webhooks, wh)
+	// Get global webhooks only if we have session webhooks or no session-specific ones
+	if len(webhooks) == 0 {
+		globalWebhooks, err := s.webhookRepo.GetGlobalWebhooks(ctx)
+		if err != nil {
+			s.logger.ErrorWithFields("Failed to get global webhooks", map[string]interface{}{
+				"error": err.Error(),
+			})
+		} else {
+			for _, wh := range globalWebhooks {
+				if wh.Enabled && wh.HasEvent(event.Type) {
+					webhooks = append(webhooks, wh)
+				}
 			}
 		}
 	}

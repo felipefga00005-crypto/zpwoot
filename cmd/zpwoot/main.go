@@ -1,6 +1,6 @@
 // @title zpwoot - WhatsApp Multi-Session API
 // @version 1.0
-// @description A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow library.
+// @description A complete REST API for managing multiple WhatsApp sessions using Go, Fiber, PostgreSQL, and whatsmeow.
 // @description
 // @description ## Authentication
 // @description All API endpoints (except /health/* and /swagger/*) require API key authentication.
@@ -167,7 +167,12 @@ func closeDatabase(database *platformDB.DB, appLogger *logger.Logger) {
 }
 
 // handleDatabaseOperations processes database-related flags and returns true if operation was handled
-func handleDatabaseOperations(flags commandFlags, migrator *db.Migrator, database *platformDB.DB, appLogger *logger.Logger) bool {
+func handleDatabaseOperations(
+	flags commandFlags,
+	migrator *db.Migrator,
+	database *platformDB.DB,
+	appLogger *logger.Logger,
+) bool {
 	if flags.migrateUp {
 		if err := migrator.RunMigrations(); err != nil {
 			appLogger.Fatal("Failed to run migrations: " + err.Error())
@@ -205,7 +210,11 @@ func handleDatabaseOperations(flags commandFlags, migrator *db.Migrator, databas
 }
 
 // initializeManagers creates and configures all application managers
-func initializeManagers(database *platformDB.DB, repositories *repository.Repositories, appLogger *logger.Logger) managers {
+func initializeManagers(
+	database *platformDB.DB,
+	repositories *repository.Repositories,
+	appLogger *logger.Logger,
+) managers {
 	whatsappManager := createWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
 	webhookManager := createWebhookManager(repositories.GetWebhookRepository(), appLogger)
 	chatwootIntegrationManager, chatwootManager := createChatwootIntegration(repositories, appLogger)
@@ -240,7 +249,8 @@ func createWhatsAppManager(database *platformDB.DB, sessionRepo ports.SessionRep
 
 // createWebhookManager initializes the webhook manager
 func createWebhookManager(webhookRepo ports.WebhookRepository, appLogger *logger.Logger) *webhook.WebhookManager {
-	webhookManager := webhook.NewWebhookManager(appLogger, webhookRepo, 5)
+	const defaultWebhookWorkers = 5
+	webhookManager := webhook.NewWebhookManager(appLogger, webhookRepo, defaultWebhookWorkers)
 
 	if err := webhookManager.Start(); err != nil {
 		appLogger.Fatal("Failed to start webhook manager: " + err.Error())
@@ -276,24 +286,46 @@ func createChatwootIntegration(repositories *repository.Repositories, appLogger 
 
 // createContainer creates the application container with all dependencies
 func createContainer(repositories *repository.Repositories, managers managers, database *platformDB.DB, appLogger *logger.Logger) *app.Container {
-	// Create concrete implementations
+	// Create adapters and mappers
+	adapters := createAdapters(repositories, managers, appLogger)
+
+	// Create domain services
+	services := createDomainServices(repositories, managers, appLogger, adapters)
+
+	// Create container config
+	config := createContainerConfig(repositories, managers, database, appLogger, adapters, services)
+
+	return app.NewContainer(config)
+}
+
+func createAdapters(repositories *repository.Repositories, managers managers, appLogger *logger.Logger) *containerAdapters {
 	var chatwootMessageMapper ports.ChatwootMessageMapper
 	if repositories.GetChatwootMessageRepository() != nil {
 		chatwootMessageMapper = chatwootIntegration.NewMessageMapper(appLogger, repositories.GetChatwootMessageRepository())
 	}
 
-	jidValidator := wameow.NewJIDValidatorAdapter()
-	newsletterManager := wameow.NewNewsletterAdapter(managers.whatsapp, *appLogger)
-	communityManager := wameow.NewCommunityAdapter(managers.whatsapp, *appLogger)
+	return &containerAdapters{
+		chatwootMessageMapper: chatwootMessageMapper,
+		jidValidator:          wameow.NewJIDValidatorAdapter(),
+		newsletterManager:     wameow.NewNewsletterAdapter(managers.whatsapp, *appLogger),
+		communityManager:      wameow.NewCommunityAdapter(managers.whatsapp, *appLogger),
+		qrGenerator:           wameow.NewQRCodeGenerator(appLogger),
+	}
+}
 
-	// Create QR generator for domain service
-	qrGenerator := wameow.NewQRCodeGenerator(appLogger)
+type containerAdapters struct {
+	chatwootMessageMapper ports.ChatwootMessageMapper
+	jidValidator          ports.JIDValidator
+	newsletterManager     ports.NewsletterManager
+	communityManager      ports.CommunityManager
+	qrGenerator           *wameow.QRCodeGenerator
+}
 
-	// Create domain services
+func createDomainServices(repositories *repository.Repositories, managers managers, appLogger *logger.Logger, adapters *containerAdapters) *containerServices {
 	sessionService := session.NewService(
 		repositories.GetSessionRepository(),
 		managers.whatsapp,
-		qrGenerator,
+		adapters.qrGenerator,
 	)
 
 	webhookService := domainWebhook.NewService(
@@ -308,26 +340,35 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 	)
 
 	// Set MessageMapper if available
-	if chatwootMessageMapper != nil {
-		chatwootService.SetMessageMapper(chatwootMessageMapper)
+	if adapters.chatwootMessageMapper != nil {
+		chatwootService.SetMessageMapper(adapters.chatwootMessageMapper)
 	}
 
-	groupService := domainGroup.NewService(
-		nil, // No repository needed for groups
-		managers.whatsapp,
-		jidValidator,
-	)
+	return &containerServices{
+		sessionService:    sessionService,
+		webhookService:    webhookService,
+		chatwootService:   chatwootService,
+		groupService:      domainGroup.NewService(nil, managers.whatsapp, adapters.jidValidator),
+		contactService:    domainContact.NewService(managers.whatsapp, appLogger),
+		mediaService:      domainMedia.NewService(nil, nil, appLogger, "/tmp/media_cache"),
+		newsletterService: domainNewsletter.NewService(nil),
+		communityService:  domainCommunity.NewService(),
+	}
+}
 
-	contactService := domainContact.NewService(
-		managers.whatsapp, // WhatsAppClient interface
-		appLogger,
-	)
+type containerServices struct {
+	sessionService    *session.Service
+	webhookService    *domainWebhook.Service
+	chatwootService   *domainChatwoot.Service
+	groupService      *domainGroup.Service
+	contactService    domainContact.Service
+	mediaService      domainMedia.Service
+	newsletterService *domainNewsletter.Service
+	communityService  domainCommunity.Service
+}
 
-	mediaService := domainMedia.NewService(nil, nil, appLogger, "/tmp/media_cache")
-	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
-	communityService := domainCommunity.NewService()
-
-	return app.NewContainer(&app.ContainerConfig{
+func createContainerConfig(repositories *repository.Repositories, managers managers, database *platformDB.DB, appLogger *logger.Logger, adapters *containerAdapters, services *containerServices) *app.ContainerConfig {
+	return &app.ContainerConfig{
 		// Repositories
 		SessionRepo:         repositories.GetSessionRepository(),
 		WebhookRepo:         repositories.GetWebhookRepository(),
@@ -338,20 +379,20 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 		WameowManager:         managers.whatsapp,
 		ChatwootIntegration:   nil, // IntegrationManager doesn't implement this interface
 		ChatwootManager:       managers.chatwootManager,
-		ChatwootMessageMapper: chatwootMessageMapper,
-		JIDValidator:          jidValidator,
-		NewsletterManager:     newsletterManager,
-		CommunityManager:      communityManager,
+		ChatwootMessageMapper: adapters.chatwootMessageMapper,
+		JIDValidator:          adapters.jidValidator,
+		NewsletterManager:     adapters.newsletterManager,
+		CommunityManager:      adapters.communityManager,
 
 		// Domain Services
-		SessionService:    sessionService,
-		WebhookService:    webhookService,
-		ChatwootService:   chatwootService,
-		GroupService:      groupService,
-		ContactService:    contactService,
-		MediaService:      mediaService,
-		NewsletterService: newsletterService,
-		CommunityService:  communityService,
+		SessionService:    services.sessionService,
+		WebhookService:    services.webhookService,
+		ChatwootService:   services.chatwootService,
+		GroupService:      services.groupService,
+		ContactService:    services.contactService,
+		MediaService:      services.mediaService,
+		NewsletterService: services.newsletterService,
+		CommunityService:  services.communityService,
 
 		// Infrastructure
 		Logger: appLogger,
@@ -361,7 +402,7 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 		Version:   Version,
 		BuildTime: BuildTime,
 		GitCommit: GitCommit,
-	})
+	}
 }
 
 // setupHTTPServer creates and configures the Fiber HTTP server

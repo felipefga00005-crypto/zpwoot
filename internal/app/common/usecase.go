@@ -10,6 +10,12 @@ import (
 	"zpwoot/internal/ports"
 )
 
+const (
+	// Database operation timeouts
+	dbPingTimeout  = 5 * time.Second
+	dbQueryTimeout = 3 * time.Second
+)
+
 type UseCase interface {
 	GetHealth(ctx context.Context) (*HealthResponse, error)
 	GetVersion(ctx context.Context) (*VersionResponse, error)
@@ -146,7 +152,7 @@ func (uc *useCaseImpl) checkDatabaseStatus(ctx context.Context) string {
 		return "not_configured"
 	}
 
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	pingCtx, cancel := context.WithTimeout(ctx, dbPingTimeout)
 	defer cancel()
 
 	if err := uc.db.PingContext(pingCtx); err != nil {
@@ -161,7 +167,7 @@ func (uc *useCaseImpl) getActiveSessionsCount(ctx context.Context) int {
 		return 0
 	}
 
-	countCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	countCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
 
 	connectedCount, err := uc.sessionRepo.CountByConnectionStatus(countCtx, true)
@@ -182,7 +188,7 @@ func (uc *useCaseImpl) getActiveWebhooksCount(ctx context.Context) int {
 		return 0
 	}
 
-	countCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	countCtx, cancel := context.WithTimeout(ctx, dbQueryTimeout)
 	defer cancel()
 
 	webhooks, err := uc.webhookRepo.GetEnabledWebhooks(countCtx)

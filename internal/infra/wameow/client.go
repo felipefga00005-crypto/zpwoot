@@ -437,7 +437,8 @@ func (c *WameowClient) handleQREvent(evt whatsmeow.QRChannelItem) {
 				"session_id": c.sessionID,
 			})
 
-			// Call event handler to display QR code and save to database
+			// Process QR code through event handler (single source of truth)
+			// This handles both first QR code and subsequent renewals
 			if c.eventHandler != nil {
 				c.eventHandler.HandleQRCode(c.sessionID, evt.Code)
 			}
