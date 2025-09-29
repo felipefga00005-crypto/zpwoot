@@ -173,20 +173,45 @@ func (uc *useCaseImpl) SendMessageToChatwoot(ctx context.Context, req *SendMessa
 }
 
 func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
-	// Map app-layer webhook to domain-layer payload preserving all useful fields
+	// Convert app-layer payload to domain-layer payload
+	domainPayload := uc.convertToDomainPayload(payload)
+
+	// Resolve sender phone number if missing
+	if err := uc.resolveSenderPhoneNumber(ctx, domainPayload); err != nil {
+		uc.logger.WarnWithFields("Failed to resolve sender phone number", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+		// Continue processing even if phone resolution fails
+	}
+
+	return uc.chatwootService.ProcessWebhook(ctx, sessionID, domainPayload)
+}
+
+// convertToDomainPayload converts app-layer webhook payload to domain-layer payload
+func (uc *useCaseImpl) convertToDomainPayload(payload *ChatwootWebhookPayload) *chatwoot.ChatwootWebhookPayload {
 	domainPayload := &chatwoot.ChatwootWebhookPayload{
 		Event:   payload.Event,
 		Account: chatwoot.ChatwootAccount{ID: payload.Account.ID, Name: payload.Account.Name},
+		Conversation: chatwoot.ChatwootConversation{
+			ID:        payload.Conversation.ID,
+			ContactID: payload.Conversation.ContactID,
+			InboxID:   payload.Conversation.InboxID,
+			Status:    payload.Conversation.Status,
+		},
 	}
 
-	// Conversation
-	domainPayload.Conversation = chatwoot.ChatwootConversation{
-		ID:        payload.Conversation.ID,
-		ContactID: payload.Conversation.ContactID,
-		InboxID:   payload.Conversation.InboxID,
-		Status:    payload.Conversation.Status,
-	}
+	// Map message data from nested or top-level fields
+	uc.mapMessageData(payload, domainPayload)
 
+	// Map sender data
+	uc.mapSenderData(payload, domainPayload)
+
+	return domainPayload
+}
+
+// mapMessageData maps message data from nested or top-level fields
+func (uc *useCaseImpl) mapMessageData(payload *ChatwootWebhookPayload, domainPayload *chatwoot.ChatwootWebhookPayload) {
 	// Message from nested field (if present)
 	if payload.Message.ID != 0 || payload.Message.Content != "" {
 		m := payload.Message
@@ -198,16 +223,17 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, pay
 			Private:     m.Private,
 			SourceID:    m.SourceID,
 		}
-		// Shortcuts
+		// Set shortcuts
 		domainPayload.ID = m.ID
 		domainPayload.Content = m.Content
 		domainPayload.MessageType = m.MessageType
 		domainPayload.ContentType = m.ContentType
 		domainPayload.Private = m.Private
+		return
 	}
 
 	// Or from top-level (real Chatwoot webhook format)
-	if domainPayload.Content == "" && (payload.Content != "" || payload.ID != 0) {
+	if payload.Content != "" || payload.ID != 0 {
 		domainPayload.ID = payload.ID
 		domainPayload.Content = payload.Content
 		domainPayload.MessageType = payload.MessageType
@@ -217,8 +243,11 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, pay
 			domainPayload.SourceID = payload.SourceID
 		}
 	}
+}
 
-	// Sender: prefer root sender, fallback to nested message.sender
+// mapSenderData maps sender data from root or nested message sender
+func (uc *useCaseImpl) mapSenderData(payload *ChatwootWebhookPayload, domainPayload *chatwoot.ChatwootWebhookPayload) {
+	// Prefer root sender, fallback to nested message.sender
 	if payload.Sender.PhoneNumber != "" || payload.Sender.Name != "" {
 		domainPayload.Sender.Name = payload.Sender.Name
 		domainPayload.Sender.PhoneNumber = payload.Sender.PhoneNumber
@@ -226,39 +255,63 @@ func (uc *useCaseImpl) ProcessWebhook(ctx context.Context, sessionID string, pay
 		domainPayload.Sender.Name = payload.Message.Sender.Name
 		domainPayload.Sender.PhoneNumber = payload.Message.Sender.PhoneNumber
 	}
+}
 
-	// If no phone got through, try to resolve via Chatwoot API using conversation -> contact OR meta.sender.phone_number
-	if domainPayload.Sender.PhoneNumber == "" && domainPayload.Conversation.ID != 0 {
-		if cfg, err := uc.chatwootRepo.GetConfig(ctx); err == nil && cfg != nil {
-			client := chatwootIntegration.NewClient(cfg.URL, cfg.Token, cfg.AccountID, uc.logger)
-			// 1) Try by conversation -> contact
-			if conv, err := client.GetConversationByID(domainPayload.Conversation.ID); err == nil && conv != nil {
-				if conv.ContactID != 0 {
-					if contact, err := client.GetContact(conv.ContactID); err == nil && contact != nil {
-						domainPayload.Sender.PhoneNumber = contact.PhoneNumber
-						domainPayload.Contact.PhoneNumber = contact.PhoneNumber
-					}
-				}
-			}
-			// 2) Fallback to meta.sender.phone_number (Chatwoot returns this in conversation meta)
-			// 2) Fallback to meta.sender.phone_number
-			if domainPayload.Sender.PhoneNumber == "" {
-				if phone, err := client.GetConversationSenderPhone(domainPayload.Conversation.ID); err == nil && phone != "" {
-					domainPayload.Sender.PhoneNumber = phone
-					domainPayload.Contact.PhoneNumber = phone
-				}
-			}
-
-			if domainPayload.Sender.PhoneNumber == "" {
-				if phone, err := client.GetConversationSenderPhone(domainPayload.Conversation.ID); err == nil && phone != "" {
-					domainPayload.Sender.PhoneNumber = phone
-					domainPayload.Contact.PhoneNumber = phone
-				}
-			}
-		}
+// resolveSenderPhoneNumber attempts to resolve sender phone number via Chatwoot API
+func (uc *useCaseImpl) resolveSenderPhoneNumber(ctx context.Context, domainPayload *chatwoot.ChatwootWebhookPayload) error {
+	// Skip if phone number already available or no conversation ID
+	if domainPayload.Sender.PhoneNumber != "" || domainPayload.Conversation.ID == 0 {
+		return nil
 	}
 
-	return uc.chatwootService.ProcessWebhook(ctx, sessionID, domainPayload)
+	// Get Chatwoot configuration
+	cfg, err := uc.chatwootRepo.GetConfig(ctx)
+	if err != nil || cfg == nil {
+		return fmt.Errorf("failed to get chatwoot config: %w", err)
+	}
+
+	// Create Chatwoot client
+	client := chatwootIntegration.NewClient(cfg.URL, cfg.Token, cfg.AccountID, uc.logger)
+
+	// Try to resolve phone number via conversation -> contact
+	if phone := uc.resolvePhoneViaContact(client, domainPayload.Conversation.ID); phone != "" {
+		domainPayload.Sender.PhoneNumber = phone
+		domainPayload.Contact.PhoneNumber = phone
+		return nil
+	}
+
+	// Fallback to conversation sender phone
+	if phone := uc.resolvePhoneViaConversation(client, domainPayload.Conversation.ID); phone != "" {
+		domainPayload.Sender.PhoneNumber = phone
+		domainPayload.Contact.PhoneNumber = phone
+		return nil
+	}
+
+	return fmt.Errorf("could not resolve sender phone number")
+}
+
+// resolvePhoneViaContact resolves phone number via conversation -> contact
+func (uc *useCaseImpl) resolvePhoneViaContact(client *chatwootIntegration.Client, conversationID int) string {
+	conv, err := client.GetConversationByID(conversationID)
+	if err != nil || conv == nil || conv.ContactID == 0 {
+		return ""
+	}
+
+	contact, err := client.GetContact(conv.ContactID)
+	if err != nil || contact == nil {
+		return ""
+	}
+
+	return contact.PhoneNumber
+}
+
+// resolvePhoneViaConversation resolves phone number via conversation meta
+func (uc *useCaseImpl) resolvePhoneViaConversation(client *chatwootIntegration.Client, conversationID int) string {
+	phone, err := client.GetConversationSenderPhone(conversationID)
+	if err != nil {
+		return ""
+	}
+	return phone
 }
 
 func (uc *useCaseImpl) TestConnection(ctx context.Context) (*TestChatwootConnectionResponse, error) {

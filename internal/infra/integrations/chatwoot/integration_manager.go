@@ -84,25 +84,60 @@ func (im *IntegrationManager) extractChatJID(from string) string {
 
 // processMessageToChatwoot handles the Chatwoot integration flow
 func (im *IntegrationManager) processMessageToChatwoot(ctx context.Context, sessionID, messageID, from, content, messageType string, fromMe bool) error {
+	// Setup Chatwoot client and extract phone number
+	client, phoneNumber, err := im.setupChatwootClient(ctx, sessionID, messageID, from)
+	if err != nil {
+		return err
+	}
+
+	// Get inbox ID from configuration
+	inboxID, err := im.getInboxID(ctx, sessionID, messageID)
+	if err != nil {
+		return err
+	}
+
+	// Get or create contact and conversation
+	conversation, err := im.setupContactAndConversation(client, phoneNumber, sessionID, messageID, inboxID)
+	if err != nil {
+		return err
+	}
+
+	// Send message to Chatwoot
+	chatwootMessage, err := im.sendMessageToChatwoot(client, conversation.ID, content, messageType, fromMe, ctx, sessionID, messageID)
+	if err != nil {
+		return err
+	}
+
+	// Update mapping and log success
+	return im.finalizeMessageProcessing(ctx, sessionID, messageID, chatwootMessage.ID, conversation.ID)
+}
+
+// setupChatwootClient sets up the Chatwoot client and extracts phone number
+func (im *IntegrationManager) setupChatwootClient(ctx context.Context, sessionID, messageID, from string) (ports.ChatwootClient, string, error) {
 	// Get Chatwoot client
 	client, err := im.chatwootManager.GetClient(sessionID)
 	if err != nil {
 		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to get Chatwoot client: %w", err)
+		return nil, "", fmt.Errorf("failed to get Chatwoot client: %w", err)
 	}
 
 	// Extract phone number from JID
 	phoneNumber := im.extractPhoneFromJID(from)
 	if phoneNumber == "" {
 		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to extract phone number from JID: %s", from)
+		return nil, "", fmt.Errorf("failed to extract phone number from JID: %s", from)
 	}
 
+	return client, phoneNumber, nil
+}
+
+// getInboxID retrieves the inbox ID from Chatwoot configuration
+func (im *IntegrationManager) getInboxID(ctx context.Context, sessionID, messageID string) (int, error) {
 	// Get Chatwoot configuration to get inbox ID
 	config, err := im.chatwootManager.GetConfig(sessionID)
 	if err != nil {
 		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to get Chatwoot config: %w", err)
+		return 0, fmt.Errorf("failed to get Chatwoot config: %w", err)
 	}
 
 	// Convert inbox ID from string to int
@@ -113,20 +148,30 @@ func (im *IntegrationManager) processMessageToChatwoot(ctx context.Context, sess
 		}
 	}
 
+	return inboxID, nil
+}
+
+// setupContactAndConversation gets or creates contact and conversation
+func (im *IntegrationManager) setupContactAndConversation(client ports.ChatwootClient, phoneNumber, sessionID, messageID string, inboxID int) (*ports.ChatwootConversation, error) {
 	// Get or create contact
 	contact, err := im.getOrCreateContact(client, phoneNumber, sessionID, inboxID)
 	if err != nil {
-		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to get or create contact: %w", err)
+		_ = im.messageMapper.MarkAsFailed(context.Background(), sessionID, messageID)
+		return nil, fmt.Errorf("failed to get or create contact: %w", err)
 	}
 
 	// Get or create conversation
 	conversation, err := im.getOrCreateConversation(client, contact.ID, sessionID, inboxID)
 	if err != nil {
-		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to get or create conversation: %w", err)
+		_ = im.messageMapper.MarkAsFailed(context.Background(), sessionID, messageID)
+		return nil, fmt.Errorf("failed to get or create conversation: %w", err)
 	}
 
+	return conversation, nil
+}
+
+// sendMessageToChatwoot sends the formatted message to Chatwoot
+func (im *IntegrationManager) sendMessageToChatwoot(client ports.ChatwootClient, conversationID int, content, messageType string, fromMe bool, ctx context.Context, sessionID, messageID string) (*ports.ChatwootMessage, error) {
 	// Format content for Chatwoot
 	formattedContent := im.formatContentForChatwoot(content, messageType)
 
@@ -137,19 +182,24 @@ func (im *IntegrationManager) processMessageToChatwoot(ctx context.Context, sess
 	}
 
 	// Send message to Chatwoot with correct type
-	chatwootMessage, err := client.SendMessageWithType(conversation.ID, formattedContent, chatwootMessageType)
+	chatwootMessage, err := client.SendMessageWithType(conversationID, formattedContent, chatwootMessageType)
 	if err != nil {
 		_ = im.messageMapper.MarkAsFailed(ctx, sessionID, messageID)
-		return fmt.Errorf("failed to send message to Chatwoot: %w", err)
+		return nil, fmt.Errorf("failed to send message to Chatwoot: %w", err)
 	}
 
+	return chatwootMessage, nil
+}
+
+// finalizeMessageProcessing updates mapping and logs success
+func (im *IntegrationManager) finalizeMessageProcessing(ctx context.Context, sessionID, messageID string, chatwootMessageID, conversationID int) error {
 	// Update mapping with Chatwoot IDs
-	err = im.messageMapper.UpdateMapping(ctx, sessionID, messageID, chatwootMessage.ID, conversation.ID)
+	err := im.messageMapper.UpdateMapping(ctx, sessionID, messageID, chatwootMessageID, conversationID)
 	if err != nil {
 		im.logger.WarnWithFields("Failed to update mapping", map[string]interface{}{
 			"message_id":         messageID,
-			"cw_message_id":      chatwootMessage.ID,
-			"cw_conversation_id": conversation.ID,
+			"cw_message_id":      chatwootMessageID,
+			"cw_conversation_id": conversationID,
 			"error":              err.Error(),
 		})
 		// Don't return error here as the message was sent successfully
@@ -158,8 +208,8 @@ func (im *IntegrationManager) processMessageToChatwoot(ctx context.Context, sess
 	im.logger.InfoWithFields("WhatsApp message processed successfully", map[string]interface{}{
 		"session_id":         sessionID,
 		"message_id":         messageID,
-		"cw_message_id":      chatwootMessage.ID,
-		"cw_conversation_id": conversation.ID,
+		"cw_message_id":      chatwootMessageID,
+		"cw_conversation_id": conversationID,
 	})
 
 	return nil

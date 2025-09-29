@@ -343,20 +343,49 @@ func (m *Manager) GetSession(sessionID string) (*session.Session, error) {
 }
 
 func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error {
+	// Validate session and client
+	client, recipientJID, err := m.validateMediaMessageRequest(sessionID, to)
+	if err != nil {
+		return err
+	}
+
+	// Upload media to WhatsApp servers
+	uploaded, err := m.uploadMedia(client, media, mediaType, sessionID, to)
+	if err != nil {
+		return err
+	}
+
+	// Create message based on media type
+	msg, err := m.createMediaMessage(mediaType, uploaded, caption)
+	if err != nil {
+		return err
+	}
+
+	// Send message and handle response
+	return m.sendMediaMessageAndLog(client, recipientJID, msg, sessionID, to, mediaType)
+}
+
+// validateMediaMessageRequest validates session and parses recipient JID
+func (m *Manager) validateMediaMessageRequest(sessionID, to string) (*WameowClient, types.JID, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
-		return fmt.Errorf("session %s not found", sessionID)
+		return nil, types.EmptyJID, fmt.Errorf("session %s not found", sessionID)
 	}
 
 	if !client.IsLoggedIn() {
-		return fmt.Errorf("session %s is not logged in", sessionID)
+		return nil, types.EmptyJID, fmt.Errorf("session %s is not logged in", sessionID)
 	}
 
 	recipientJID, err := ParseJID(to)
 	if err != nil {
-		return fmt.Errorf("invalid recipient JID %s: %w", to, err)
+		return nil, types.EmptyJID, fmt.Errorf("invalid recipient JID %s: %w", to, err)
 	}
 
+	return client, recipientJID, nil
+}
+
+// uploadMedia uploads media to WhatsApp servers
+func (m *Manager) uploadMedia(client *WameowClient, media []byte, mediaType, sessionID, to string) (whatsmeow.UploadResponse, error) {
 	uploaded, err := client.GetClient().Upload(context.Background(), media, whatsmeow.MediaType(mediaType))
 	if err != nil {
 		m.logger.ErrorWithFields("Failed to upload media", map[string]interface{}{
@@ -365,13 +394,16 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 			"media_type": mediaType,
 			"error":      err.Error(),
 		})
-		return fmt.Errorf("failed to upload media: %w", err)
+		return whatsmeow.UploadResponse{}, fmt.Errorf("failed to upload media: %w", err)
 	}
+	return uploaded, nil
+}
 
-	var msg *waE2E.Message
+// createMediaMessage creates the appropriate message type based on media type
+func (m *Manager) createMediaMessage(mediaType string, uploaded whatsmeow.UploadResponse, caption string) (*waE2E.Message, error) {
 	switch mediaType {
 	case "image":
-		msg = &waE2E.Message{
+		return &waE2E.Message{
 			ImageMessage: &waE2E.ImageMessage{
 				URL:           &uploaded.URL,
 				DirectPath:    &uploaded.DirectPath,
@@ -381,9 +413,9 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 				FileLength:    &uploaded.FileLength,
 				Caption:       &caption,
 			},
-		}
+		}, nil
 	case "video":
-		msg = &waE2E.Message{
+		return &waE2E.Message{
 			VideoMessage: &waE2E.VideoMessage{
 				URL:           &uploaded.URL,
 				DirectPath:    &uploaded.DirectPath,
@@ -393,9 +425,9 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 				FileLength:    &uploaded.FileLength,
 				Caption:       &caption,
 			},
-		}
+		}, nil
 	case "audio":
-		msg = &waE2E.Message{
+		return &waE2E.Message{
 			AudioMessage: &waE2E.AudioMessage{
 				URL:           &uploaded.URL,
 				DirectPath:    &uploaded.DirectPath,
@@ -404,9 +436,9 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 				FileSHA256:    uploaded.FileSHA256,
 				FileLength:    &uploaded.FileLength,
 			},
-		}
+		}, nil
 	case "document":
-		msg = &waE2E.Message{
+		return &waE2E.Message{
 			DocumentMessage: &waE2E.DocumentMessage{
 				URL:           &uploaded.URL,
 				DirectPath:    &uploaded.DirectPath,
@@ -416,12 +448,15 @@ func (m *Manager) SendMediaMessage(sessionID, to string, media []byte, mediaType
 				FileLength:    &uploaded.FileLength,
 				Caption:       &caption,
 			},
-		}
+		}, nil
 	default:
-		return fmt.Errorf("unsupported media type: %s", mediaType)
+		return nil, fmt.Errorf("unsupported media type: %s", mediaType)
 	}
+}
 
-	_, err = client.GetClient().SendMessage(context.Background(), recipientJID, msg)
+// sendMediaMessageAndLog sends the message and logs the result
+func (m *Manager) sendMediaMessageAndLog(client *WameowClient, recipientJID types.JID, msg *waE2E.Message, sessionID, to, mediaType string) error {
+	_, err := client.GetClient().SendMessage(context.Background(), recipientJID, msg)
 	if err != nil {
 		m.logger.ErrorWithFields("Failed to send media message", map[string]interface{}{
 			"session_id": sessionID,
@@ -1111,19 +1146,40 @@ type TextMessageResult struct {
 }
 
 func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMessage.ContextInfo) (*TextMessageResult, error) {
+	// Validate session and parse JID
+	client, recipientJID, err := m.validateTextMessageRequest(sessionID, to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create message with optional context
+	messageID, msg := m.createTextMessage(client, text, contextInfo)
+
+	// Send message with Brazilian number fallback
+	resp, finalJID, err := m.sendTextMessageWithFallback(client, recipientJID, msg, messageID, sessionID, to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Log success and return result
+	return m.logAndReturnTextResult(sessionID, to, messageID, contextInfo, resp, finalJID)
+}
+
+// validateTextMessageRequest validates session and parses recipient JID
+func (m *Manager) validateTextMessageRequest(sessionID, to string) (*WameowClient, types.JID, error) {
 	client := m.getClient(sessionID)
 	if client == nil {
-		return nil, fmt.Errorf("session %s not found", sessionID)
+		return nil, types.EmptyJID, fmt.Errorf("session %s not found", sessionID)
 	}
 
 	if !client.IsConnected() {
-		return nil, fmt.Errorf("session %s is not connected", sessionID)
+		return nil, types.EmptyJID, fmt.Errorf("session %s is not connected", sessionID)
 	}
 
 	// Use our improved JID parser that handles +, spaces, etc.
 	recipientJID, err := ParseJID(to)
 	if err != nil {
-		return nil, fmt.Errorf("invalid recipient JID: %w", err)
+		return nil, types.EmptyJID, fmt.Errorf("invalid recipient JID: %w", err)
 	}
 
 	// Debug logging for Brazilian numbers
@@ -1133,9 +1189,13 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		"parsed_jid":  recipientJID.String(),
 		"jid_user":    recipientJID.User,
 		"jid_server":  recipientJID.Server,
-		"text":        text,
 	})
 
+	return client, recipientJID, nil
+}
+
+// createTextMessage creates a text message with optional context info
+func (m *Manager) createTextMessage(client *WameowClient, text string, contextInfo *appMessage.ContextInfo) (string, *waE2E.Message) {
 	messageID := client.GetClient().GenerateMessageID()
 
 	msg := &waE2E.Message{
@@ -1160,42 +1220,60 @@ func (m *Manager) SendTextMessage(sessionID, to, text string, contextInfo *appMe
 		}
 	}
 
+	return messageID, msg
+}
+
+// sendTextMessageWithFallback sends text message with Brazilian number fallback
+func (m *Manager) sendTextMessageWithFallback(client *WameowClient, recipientJID types.JID, msg *waE2E.Message, messageID, sessionID, to string) (whatsmeow.SendResponse, types.JID, error) {
 	resp, err := client.GetClient().SendMessage(context.Background(), recipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
 	if err != nil {
-		// If it's a Brazilian number and sending failed, try the alternative format
-		alternativeNumber := GetBrazilianAlternativeNumber(to)
-		if alternativeNumber != "" {
-			m.logger.InfoWithFields("Trying Brazilian alternative number format", map[string]interface{}{
-				"session_id":         sessionID,
-				"original_number":    to,
-				"alternative_number": alternativeNumber,
-				"original_error":     err.Error(),
-			})
-
-			// Try parsing the alternative number
-			altRecipientJID, altErr := ParseJID(alternativeNumber)
-			if altErr == nil {
-				// Try sending with the alternative number
-				resp, err = client.GetClient().SendMessage(context.Background(), altRecipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
-				if err == nil {
-					m.logger.InfoWithFields("Message sent successfully with alternative Brazilian format", map[string]interface{}{
-						"session_id":         sessionID,
-						"original_number":    to,
-						"alternative_number": alternativeNumber,
-						"used_jid":           altRecipientJID.String(),
-					})
-					// Update the recipient JID for logging
-					recipientJID = altRecipientJID
-				}
-			}
+		// Try Brazilian alternative number format
+		if altResp, altJID, altErr := m.tryBrazilianAlternative(client, msg, messageID, sessionID, to); altErr == nil {
+			return altResp, altJID, nil
 		}
-
-		// If still failed, return the error
-		if err != nil {
-			return nil, fmt.Errorf("failed to send text message: %w", err)
-		}
+		return whatsmeow.SendResponse{}, types.EmptyJID, fmt.Errorf("failed to send text message: %w", err)
 	}
 
+	return resp, recipientJID, nil
+}
+
+// tryBrazilianAlternative attempts to send with Brazilian alternative number format
+func (m *Manager) tryBrazilianAlternative(client *WameowClient, msg *waE2E.Message, messageID, sessionID, to string) (whatsmeow.SendResponse, types.JID, error) {
+	alternativeNumber := GetBrazilianAlternativeNumber(to)
+	if alternativeNumber == "" {
+		return whatsmeow.SendResponse{}, types.EmptyJID, fmt.Errorf("no alternative number available")
+	}
+
+	m.logger.InfoWithFields("Trying Brazilian alternative number format", map[string]interface{}{
+		"session_id":         sessionID,
+		"original_number":    to,
+		"alternative_number": alternativeNumber,
+	})
+
+	// Try parsing the alternative number
+	altRecipientJID, altErr := ParseJID(alternativeNumber)
+	if altErr != nil {
+		return whatsmeow.SendResponse{}, types.EmptyJID, altErr
+	}
+
+	// Try sending with the alternative number
+	resp, err := client.GetClient().SendMessage(context.Background(), altRecipientJID, msg, whatsmeow.SendRequestExtra{ID: messageID})
+	if err != nil {
+		return whatsmeow.SendResponse{}, types.EmptyJID, err
+	}
+
+	m.logger.InfoWithFields("Message sent successfully with alternative Brazilian format", map[string]interface{}{
+		"session_id":         sessionID,
+		"original_number":    to,
+		"alternative_number": alternativeNumber,
+		"used_jid":           altRecipientJID.String(),
+	})
+
+	return resp, altRecipientJID, nil
+}
+
+// logAndReturnTextResult logs success and returns the result
+func (m *Manager) logAndReturnTextResult(sessionID, to, messageID string, contextInfo *appMessage.ContextInfo, resp whatsmeow.SendResponse, recipientJID types.JID) (*TextMessageResult, error) {
 	m.logger.InfoWithFields("Text message sent", map[string]interface{}{
 		"session_id": sessionID,
 		"to":         to,
