@@ -136,62 +136,7 @@ type useCases struct {
 	community  community.UseCase
 }
 
-// createDomainServices creates all domain services
-func createDomainServices(config *ContainerConfig) *domainServices {
-	sessionService := domainSession.NewService(
-		config.SessionRepo,
-		config.WameowManager,
-	)
 
-	webhookService := domainWebhook.NewService(
-		config.Logger,
-		config.WebhookRepo,
-	)
-
-	chatwootService := domainChatwoot.NewService(
-		config.Logger,
-		config.ChatwootRepo,
-		config.WameowManager,
-	)
-
-	// Create and inject MessageMapper if available
-	if config.ChatwootMessageMapper != nil {
-		chatwootService.SetMessageMapper(config.ChatwootMessageMapper)
-	}
-
-	groupService := domainGroup.NewService(
-		nil, // No repository needed for groups
-		config.WameowManager,
-		config.JIDValidator,
-	)
-
-	contactService := domainContact.NewService(
-		config.WameowManager, // WhatsAppClient interface
-		config.Logger,
-	)
-
-	// Create media service
-	// Note: MediaService requires WhatsAppClient and CacheManager which are not available in this context
-	// For now, we'll pass nil values and handle this in the actual implementation
-	mediaService := domainMedia.NewService(nil, nil, config.Logger, "/tmp/media_cache")
-
-	// Create newsletter service
-	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
-
-	// Create community service
-	communityService := domainCommunity.NewService()
-
-	return &domainServices{
-		session:    sessionService,
-		webhook:    webhookService,
-		chatwoot:   chatwootService,
-		group:      groupService,
-		contact:    contactService,
-		media:      mediaService,
-		newsletter: newsletterService,
-		community:  communityService,
-	}
-}
 
 // createUseCases creates all use cases
 func createUseCases(config *ContainerConfig, services *domainServices) *useCases {
