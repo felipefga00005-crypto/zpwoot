@@ -479,6 +479,23 @@ func (m *Manager) sendMediaMessageAndLog(client *WameowClient, recipientJID type
 }
 
 func (m *Manager) RegisterEventHandler(sessionID string, handler ports.EventHandler) error {
+	// Register handler in registry
+	handlerID := m.registerHandlerInRegistry(sessionID, handler)
+
+	// Attach handler to client
+	m.attachHandlerToClient(sessionID, handlerID, handler)
+
+	// Log registration
+	m.logger.InfoWithFields("Event handler registered", map[string]interface{}{
+		"session_id": sessionID,
+		"handler_id": handlerID,
+	})
+
+	return nil
+}
+
+// registerHandlerInRegistry registers the handler in the internal registry
+func (m *Manager) registerHandlerInRegistry(sessionID string, handler ports.EventHandler) string {
 	m.handlersMutex.Lock()
 	defer m.handlersMutex.Unlock()
 
@@ -493,64 +510,81 @@ func (m *Manager) RegisterEventHandler(sessionID string, handler ports.EventHand
 		Handler: handler,
 	}
 
+	return handlerID
+}
+
+// attachHandlerToClient attaches the handler to the WhatsApp client
+func (m *Manager) attachHandlerToClient(sessionID, handlerID string, handler ports.EventHandler) {
 	client := m.getClient(sessionID)
 	if client != nil {
 		client.GetClient().AddEventHandler(func(evt interface{}) {
-			switch e := evt.(type) {
-			case *events.Message:
-				m.incrementMessagesReceived(sessionID)
-				msg := &ports.WameowMessage{
-					ID:   e.Info.ID,
-					From: e.Info.Sender.String(),
-					To:   e.Info.Chat.String(),
-					Body: e.Message.GetConversation(),
-				}
-				if err := handler.HandleMessage(sessionID, msg); err != nil {
-					m.logger.ErrorWithFields("Failed to handle message event", map[string]interface{}{
-						"session_id": sessionID,
-						"error":      err.Error(),
-					})
-				}
-			case *events.Connected:
-				if err := handler.HandleConnection(sessionID, true); err != nil {
-					m.logger.ErrorWithFields("Failed to handle connection event", map[string]interface{}{
-						"session_id": sessionID,
-						"connected":  true,
-						"error":      err.Error(),
-					})
-				}
-			case *events.Disconnected:
-				if err := handler.HandleConnection(sessionID, false); err != nil {
-					m.logger.ErrorWithFields("Failed to handle disconnection event", map[string]interface{}{
-						"session_id": sessionID,
-						"connected":  false,
-						"error":      err.Error(),
-					})
-				}
-			case *events.QR:
-				if err := handler.HandleQRCode(sessionID, e.Codes[0]); err != nil {
-					m.logger.ErrorWithFields("Failed to handle QR code event", map[string]interface{}{
-						"session_id": sessionID,
-						"error":      err.Error(),
-					})
-				}
-			case *events.PairSuccess:
-				if err := handler.HandlePairSuccess(sessionID); err != nil {
-					m.logger.ErrorWithFields("Failed to handle pair success event", map[string]interface{}{
-						"session_id": sessionID,
-						"error":      err.Error(),
-					})
-				}
-			}
+			m.processEventForHandler(evt, sessionID, handler)
 		})
 	}
+}
 
-	m.logger.InfoWithFields("Event handler registered", map[string]interface{}{
-		"session_id": sessionID,
-		"handler_id": handlerID,
-	})
+// processEventForHandler processes an event for a specific handler
+func (m *Manager) processEventForHandler(evt interface{}, sessionID string, handler ports.EventHandler) {
+	switch e := evt.(type) {
+	case *events.Message:
+		m.handleMessageEvent(e, sessionID, handler)
+	case *events.Connected:
+		m.handleConnectionEvent(sessionID, handler, true)
+	case *events.Disconnected:
+		m.handleConnectionEvent(sessionID, handler, false)
+	case *events.QR:
+		m.handleQREvent(e, sessionID, handler)
+	case *events.PairSuccess:
+		m.handlePairSuccessEvent(sessionID, handler)
+	}
+}
 
-	return nil
+// handleMessageEvent handles message events
+func (m *Manager) handleMessageEvent(e *events.Message, sessionID string, handler ports.EventHandler) {
+	m.incrementMessagesReceived(sessionID)
+	msg := &ports.WameowMessage{
+		ID:   e.Info.ID,
+		From: e.Info.Sender.String(),
+		To:   e.Info.Chat.String(),
+		Body: e.Message.GetConversation(),
+	}
+	if err := handler.HandleMessage(sessionID, msg); err != nil {
+		m.logger.ErrorWithFields("Failed to handle message event", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+	}
+}
+
+// handleConnectionEvent handles connection/disconnection events
+func (m *Manager) handleConnectionEvent(sessionID string, handler ports.EventHandler, connected bool) {
+	if err := handler.HandleConnection(sessionID, connected); err != nil {
+		m.logger.ErrorWithFields("Failed to handle connection event", map[string]interface{}{
+			"session_id": sessionID,
+			"connected":  connected,
+			"error":      err.Error(),
+		})
+	}
+}
+
+// handleQREvent handles QR code events
+func (m *Manager) handleQREvent(e *events.QR, sessionID string, handler ports.EventHandler) {
+	if err := handler.HandleQRCode(sessionID, e.Codes[0]); err != nil {
+		m.logger.ErrorWithFields("Failed to handle QR code event", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+	}
+}
+
+// handlePairSuccessEvent handles pair success events
+func (m *Manager) handlePairSuccessEvent(sessionID string, handler ports.EventHandler) {
+	if err := handler.HandlePairSuccess(sessionID); err != nil {
+		m.logger.ErrorWithFields("Failed to handle pair success event", map[string]interface{}{
+			"session_id": sessionID,
+			"error":      err.Error(),
+		})
+	}
 }
 
 func (m *Manager) UnregisterEventHandler(sessionID string, handlerID string) error {

@@ -66,9 +66,10 @@ type commandFlags struct {
 
 // managers holds all initialized managers
 type managers struct {
-	whatsapp *wameow.Manager
-	webhook  *webhook.WebhookManager
-	chatwoot *chatwootIntegration.IntegrationManager
+	whatsapp        *wameow.Manager
+	webhook         *webhook.WebhookManager
+	chatwoot        *chatwootIntegration.IntegrationManager
+	chatwootManager *chatwootIntegration.Manager
 }
 
 func main() {
@@ -200,16 +201,17 @@ func handleDatabaseOperations(flags commandFlags, migrator *db.Migrator, databas
 func initializeManagers(database *platformDB.DB, repositories *repository.Repositories, appLogger *logger.Logger) managers {
 	whatsappManager := createWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
 	webhookManager := createWebhookManager(repositories.GetWebhookRepository(), appLogger)
-	chatwootManager := createChatwootIntegration(repositories, appLogger)
+	chatwootIntegrationManager, chatwootManager := createChatwootIntegration(repositories, appLogger)
 
 	// Configure integrations
 	configureWebhookIntegration(whatsappManager, webhookManager, appLogger)
-	configureChatwootIntegration(whatsappManager, chatwootManager, appLogger)
+	configureChatwootIntegration(whatsappManager, chatwootIntegrationManager, appLogger)
 
 	return managers{
-		whatsapp: whatsappManager,
-		webhook:  webhookManager,
-		chatwoot: chatwootManager,
+		whatsapp:        whatsappManager,
+		webhook:         webhookManager,
+		chatwoot:        chatwootIntegrationManager,
+		chatwootManager: chatwootManager,
 	}
 }
 
@@ -242,7 +244,7 @@ func createWebhookManager(webhookRepo ports.WebhookRepository, appLogger *logger
 }
 
 // createChatwootIntegration initializes the Chatwoot integration
-func createChatwootIntegration(repositories *repository.Repositories, appLogger *logger.Logger) *chatwootIntegration.IntegrationManager {
+func createChatwootIntegration(repositories *repository.Repositories, appLogger *logger.Logger) (*chatwootIntegration.IntegrationManager, *chatwootIntegration.Manager) {
 	chatwootRepo := repositories.GetChatwootRepository()
 	chatwootMessageRepo := repositories.GetChatwootMessageRepository()
 
@@ -262,23 +264,38 @@ func createChatwootIntegration(repositories *repository.Repositories, appLogger 
 	)
 
 	appLogger.Info("Chatwoot integration initialized successfully")
-	return integrationManager
+	return integrationManager, chatwootManager
 }
 
 // createContainer creates the application container with all dependencies
 func createContainer(repositories *repository.Repositories, managers managers, database *platformDB.DB, appLogger *logger.Logger) *app.Container {
+	// Create concrete implementations
+	var chatwootMessageMapper ports.ChatwootMessageMapper
+	if repositories.GetChatwootMessageRepository() != nil {
+		chatwootMessageMapper = chatwootIntegration.NewMessageMapper(appLogger, repositories.GetChatwootMessageRepository())
+	}
+
+	jidValidator := wameow.NewJIDValidatorAdapter()
+	newsletterManager := wameow.NewNewsletterAdapter(managers.whatsapp, *appLogger)
+	communityManager := wameow.NewCommunityAdapter(managers.whatsapp, *appLogger)
+
 	return app.NewContainer(&app.ContainerConfig{
-		SessionRepo:         repositories.GetSessionRepository(),
-		WebhookRepo:         repositories.GetWebhookRepository(),
-		ChatwootRepo:        repositories.GetChatwootRepository(),
-		ChatwootMessageRepo: repositories.GetChatwootMessageRepository(),
-		WameowManager:       managers.whatsapp,
-		ChatwootIntegration: nil, // IntegrationManager doesn't implement this interface
-		Logger:              appLogger,
-		DB:                  database.GetDB().DB,
-		Version:             Version,
-		BuildTime:           BuildTime,
-		GitCommit:           GitCommit,
+		SessionRepo:           repositories.GetSessionRepository(),
+		WebhookRepo:           repositories.GetWebhookRepository(),
+		ChatwootRepo:          repositories.GetChatwootRepository(),
+		ChatwootMessageRepo:   repositories.GetChatwootMessageRepository(),
+		WameowManager:         managers.whatsapp,
+		ChatwootIntegration:   nil, // IntegrationManager doesn't implement this interface
+		ChatwootManager:       managers.chatwootManager,
+		ChatwootMessageMapper: chatwootMessageMapper,
+		JIDValidator:          jidValidator,
+		NewsletterManager:     newsletterManager,
+		CommunityManager:      communityManager,
+		Logger:                appLogger,
+		DB:                    database.GetDB().DB,
+		Version:               Version,
+		BuildTime:             BuildTime,
+		GitCommit:             GitCommit,
 	})
 }
 

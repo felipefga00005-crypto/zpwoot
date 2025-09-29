@@ -22,8 +22,6 @@ import (
 	domainNewsletter "zpwoot/internal/domain/newsletter"
 	domainSession "zpwoot/internal/domain/session"
 	domainWebhook "zpwoot/internal/domain/webhook"
-	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
-	"zpwoot/internal/infra/wameow"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -45,25 +43,55 @@ type Container struct {
 }
 
 type ContainerConfig struct {
+	// Repositories
 	SessionRepo         ports.SessionRepository
 	WebhookRepo         ports.WebhookRepository
 	ChatwootRepo        ports.ChatwootRepository
 	ChatwootMessageRepo ports.ChatwootMessageRepository
 	MediaRepo           ports.MediaRepository
 
-	WameowManager       ports.WameowManager
-	ChatwootIntegration ports.ChatwootIntegration
+	// Managers and Integrations
+	WameowManager         ports.WameowManager
+	ChatwootIntegration   ports.ChatwootIntegration
+	ChatwootManager       ports.ChatwootManager
+	ChatwootMessageMapper ports.ChatwootMessageMapper
+	JIDValidator          ports.JIDValidator
+	NewsletterManager     ports.NewsletterManager
+	CommunityManager      ports.CommunityManager
 
+	// Domain Services (pre-created)
+	SessionService    *domainSession.Service
+	WebhookService    *domainWebhook.Service
+	ChatwootService   *domainChatwoot.Service
+	GroupService      *domainGroup.Service
+	ContactService    domainContact.Service
+	MediaService      domainMedia.Service
+	NewsletterService *domainNewsletter.Service
+	CommunityService  domainCommunity.Service
+
+	// Infrastructure
 	Logger *logger.Logger
 	DB     *sql.DB
 
+	// Build Info
 	Version   string
 	BuildTime string
 	GitCommit string
 }
 
 func NewContainer(config *ContainerConfig) *Container {
-	services := createDomainServices(config)
+	// Domain services are now injected, so we create the services struct directly
+	services := &domainServices{
+		session:    config.SessionService,
+		webhook:    config.WebhookService,
+		chatwoot:   config.ChatwootService,
+		group:      config.GroupService,
+		contact:    config.ContactService,
+		media:      config.MediaService,
+		newsletter: config.NewsletterService,
+		community:  config.CommunityService,
+	}
+
 	useCases := createUseCases(config, services)
 
 	return &Container{
@@ -127,18 +155,14 @@ func createDomainServices(config *ContainerConfig) *domainServices {
 	)
 
 	// Create and inject MessageMapper if available
-	if config.ChatwootMessageRepo != nil {
-		messageMapper := createMessageMapper(config.Logger, config.ChatwootMessageRepo)
-		chatwootService.SetMessageMapper(messageMapper)
+	if config.ChatwootMessageMapper != nil {
+		chatwootService.SetMessageMapper(config.ChatwootMessageMapper)
 	}
-
-	// Create JID validator for group service
-	jidValidator := wameow.NewJIDValidatorAdapter()
 
 	groupService := domainGroup.NewService(
 		nil, // No repository needed for groups
 		config.WameowManager,
-		jidValidator,
+		config.JIDValidator,
 	)
 
 	contactService := domainContact.NewService(
@@ -194,6 +218,7 @@ func createUseCases(config *ContainerConfig, services *domainServices) *useCases
 	chatwootUseCase := chatwoot.NewUseCase(
 		config.ChatwootRepo,
 		config.ChatwootIntegration,
+		config.ChatwootManager,
 		services.chatwoot,
 		config.Logger,
 	)
@@ -221,19 +246,17 @@ func createUseCases(config *ContainerConfig, services *domainServices) *useCases
 		config.Logger,
 	)
 
-	// Create newsletter adapter and use case
-	newsletterManager := wameow.NewNewsletterAdapter(config.WameowManager, *config.Logger)
+	// Create newsletter use case
 	newsletterUseCase := newsletter.NewUseCase(
-		newsletterManager,
+		config.NewsletterManager,
 		services.newsletter,
 		config.SessionRepo,
 		*config.Logger,
 	)
 
-	// Create community adapter and use case
-	communityManager := wameow.NewCommunityAdapter(config.WameowManager, *config.Logger)
+	// Create community use case
 	communityUseCase := community.NewUseCase(
-		communityManager,
+		config.CommunityManager,
 		services.community,
 		config.SessionRepo,
 		*config.Logger,
@@ -307,7 +330,4 @@ func (c *Container) GetSessionResolver() func(sessionID string) (ports.WameowMan
 	}
 }
 
-// createMessageMapper creates a new MessageMapper instance
-func createMessageMapper(logger *logger.Logger, repository ports.ChatwootMessageRepository) ports.ChatwootMessageMapper {
-	return chatwootIntegration.NewMessageMapper(logger, repository)
-}
+

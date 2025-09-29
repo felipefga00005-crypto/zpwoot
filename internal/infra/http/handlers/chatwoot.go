@@ -228,6 +228,36 @@ func (h *ChatwootHandler) SyncConversations(c *fiber.Ctx) error {
 func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 	sessionID := c.Params("sessionId")
 
+	// Log webhook reception
+	h.logWebhookReception(sessionID, c)
+
+	// Validate session ID
+	if err := h.validateSessionID(sessionID); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Parse webhook payload
+	payload, err := h.parseWebhookPayload(c, sessionID)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+	}
+
+	// Validate event type
+	if err := h.validateEventType(sessionID, payload.Event, c.Body()); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error(), "event": payload.Event})
+	}
+
+	// Process webhook
+	if err := h.processWebhook(c, sessionID, payload); err != nil {
+		return h.handleWebhookError(c, sessionID, payload.Event, err)
+	}
+
+	// Return success response
+	return h.returnWebhookSuccess(c, sessionID, payload.Event)
+}
+
+// logWebhookReception logs the webhook reception details
+func (h *ChatwootHandler) logWebhookReception(sessionID string, c *fiber.Ctx) {
 	h.logger.InfoWithFields("Received Chatwoot webhook", map[string]interface{}{
 		"session_id": sessionID,
 		"ip":         c.IP(),
@@ -241,28 +271,32 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		"body":       string(rawBody),
 		"body_size":  len(rawBody),
 	})
+}
 
-	// Validate sessionID format
+// validateSessionID validates the session ID format
+func (h *ChatwootHandler) validateSessionID(sessionID string) error {
 	if _, err := uuid.Parse(sessionID); err != nil {
 		h.logger.WarnWithFields("Invalid session ID format", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
 		})
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Invalid session ID format",
-		})
+		return fmt.Errorf("Invalid session ID format")
 	}
+	return nil
+}
 
+// parseWebhookPayload parses the webhook payload from request body
+func (h *ChatwootHandler) parseWebhookPayload(c *fiber.Ctx, sessionID string) (*chatwoot.ChatwootWebhookPayload, error) {
+	rawBody := c.Body()
 	var payload chatwoot.ChatwootWebhookPayload
+
 	if err := c.BodyParser(&payload); err != nil {
 		h.logger.WarnWithFields("Failed to parse webhook payload", map[string]interface{}{
 			"session_id": sessionID,
 			"error":      err.Error(),
 			"raw_body":   string(rawBody),
 		})
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Invalid webhook payload",
-		})
+		return nil, fmt.Errorf("Invalid webhook payload")
 	}
 
 	// Log parsed payload for debugging
@@ -274,48 +308,57 @@ func (h *ChatwootHandler) ReceiveWebhook(c *fiber.Ctx) error {
 		"message_id": payload.ID,
 	})
 
-	// Validate event type
-	if !domainChatwoot.IsValidChatwootEvent(payload.Event) {
+	return &payload, nil
+}
+
+// validateEventType validates the webhook event type
+func (h *ChatwootHandler) validateEventType(sessionID, event string, rawBody []byte) error {
+	if !domainChatwoot.IsValidChatwootEvent(event) {
 		h.logger.WarnWithFields("Invalid event type", map[string]interface{}{
 			"session_id": sessionID,
-			"event":      payload.Event,
+			"event":      event,
 			"raw_body":   string(rawBody),
 		})
-		return c.Status(400).JSON(fiber.Map{
-			"error": "Invalid event type",
-			"event": payload.Event,
+		return fmt.Errorf("Invalid event type")
+	}
+	return nil
+}
+
+// processWebhook processes the webhook using the use case
+func (h *ChatwootHandler) processWebhook(c *fiber.Ctx, sessionID string, payload *chatwoot.ChatwootWebhookPayload) error {
+	return h.chatwootUC.ProcessWebhook(c.Context(), sessionID, payload)
+}
+
+// handleWebhookError handles webhook processing errors
+func (h *ChatwootHandler) handleWebhookError(c *fiber.Ctx, sessionID, event string, err error) error {
+	h.logger.ErrorWithFields("Failed to process webhook", map[string]interface{}{
+		"session_id": sessionID,
+		"event":      event,
+		"error":      err.Error(),
+	})
+
+	if appErr := errors.GetAppError(err); appErr != nil {
+		return c.Status(appErr.Code).JSON(fiber.Map{
+			"error":   appErr.Message,
+			"details": appErr.Details,
 		})
 	}
+	return c.Status(500).JSON(fiber.Map{
+		"error": "Internal server error",
+	})
+}
 
-	// Process webhook with sessionID (like Evolution API)
-	err := h.chatwootUC.ProcessWebhook(c.Context(), sessionID, &payload)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to process webhook", map[string]interface{}{
-			"session_id": sessionID,
-			"event":      payload.Event,
-			"error":      err.Error(),
-		})
-
-		if appErr := errors.GetAppError(err); appErr != nil {
-			return c.Status(appErr.Code).JSON(fiber.Map{
-				"error":   appErr.Message,
-				"details": appErr.Details,
-			})
-		}
-		return c.Status(500).JSON(fiber.Map{
-			"error": "Internal server error",
-		})
-	}
-
+// returnWebhookSuccess returns a successful webhook response
+func (h *ChatwootHandler) returnWebhookSuccess(c *fiber.Ctx, sessionID, event string) error {
 	h.logger.InfoWithFields("Webhook processed successfully", map[string]interface{}{
 		"session_id": sessionID,
-		"event":      payload.Event,
+		"event":      event,
 	})
 
 	return c.JSON(fiber.Map{
 		"success": true,
 		"message": "Webhook processed successfully",
-		"event":   payload.Event,
+		"event":   event,
 	})
 }
 

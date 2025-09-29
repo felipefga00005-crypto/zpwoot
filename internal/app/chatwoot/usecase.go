@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"zpwoot/internal/domain/chatwoot"
-	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
 )
@@ -27,6 +26,7 @@ type UseCase interface {
 type useCaseImpl struct {
 	chatwootRepo        ports.ChatwootRepository
 	chatwootIntegration ports.ChatwootIntegration
+	chatwootManager     ports.ChatwootManager
 	chatwootService     *chatwoot.Service
 	logger              *logger.Logger
 }
@@ -34,12 +34,14 @@ type useCaseImpl struct {
 func NewUseCase(
 	chatwootRepo ports.ChatwootRepository,
 	chatwootIntegration ports.ChatwootIntegration,
+	chatwootManager ports.ChatwootManager,
 	chatwootService *chatwoot.Service,
 	logger *logger.Logger,
 ) UseCase {
 	return &useCaseImpl{
 		chatwootRepo:        chatwootRepo,
 		chatwootIntegration: chatwootIntegration,
+		chatwootManager:     chatwootManager,
 		chatwootService:     chatwootService,
 		logger:              logger,
 	}
@@ -264,14 +266,13 @@ func (uc *useCaseImpl) resolveSenderPhoneNumber(ctx context.Context, domainPaylo
 		return nil
 	}
 
-	// Get Chatwoot configuration
-	cfg, err := uc.chatwootRepo.GetConfig(ctx)
-	if err != nil || cfg == nil {
-		return fmt.Errorf("failed to get chatwoot config: %w", err)
+	// Get Chatwoot client for the session (assuming we can get sessionID from context or payload)
+	// For now, we'll need to pass sessionID - this is a limitation we need to address
+	sessionID := "default" // TODO: Get sessionID from context or payload
+	client, err := uc.chatwootManager.GetClient(sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get chatwoot client: %w", err)
 	}
-
-	// Create Chatwoot client
-	client := chatwootIntegration.NewClient(cfg.URL, cfg.Token, cfg.AccountID, uc.logger)
 
 	// Try to resolve phone number via conversation -> contact
 	if phone := uc.resolvePhoneViaContact(client, domainPayload.Conversation.ID); phone != "" {
@@ -291,7 +292,7 @@ func (uc *useCaseImpl) resolveSenderPhoneNumber(ctx context.Context, domainPaylo
 }
 
 // resolvePhoneViaContact resolves phone number via conversation -> contact
-func (uc *useCaseImpl) resolvePhoneViaContact(client *chatwootIntegration.Client, conversationID int) string {
+func (uc *useCaseImpl) resolvePhoneViaContact(client ports.ChatwootClient, conversationID int) string {
 	conv, err := client.GetConversationByID(conversationID)
 	if err != nil || conv == nil || conv.ContactID == 0 {
 		return ""
@@ -306,7 +307,7 @@ func (uc *useCaseImpl) resolvePhoneViaContact(client *chatwootIntegration.Client
 }
 
 // resolvePhoneViaConversation resolves phone number via conversation meta
-func (uc *useCaseImpl) resolvePhoneViaConversation(client *chatwootIntegration.Client, conversationID int) string {
+func (uc *useCaseImpl) resolvePhoneViaConversation(client ports.ChatwootClient, conversationID int) string {
 	phone, err := client.GetConversationSenderPhone(conversationID)
 	if err != nil {
 		return ""
@@ -365,14 +366,11 @@ func convertAttachments(attachments []ChatwootAttachment) []chatwoot.ChatwootAtt
 }
 
 func (uc *useCaseImpl) AutoCreateInbox(ctx context.Context, sessionID, inboxName, webhookURL string) error {
-	// Get existing Chatwoot configuration for this session
-	config, err := uc.chatwootService.GetConfigBySessionID(ctx, sessionID)
+	// Get Chatwoot client for the session
+	client, err := uc.chatwootManager.GetClient(sessionID)
 	if err != nil {
-		return fmt.Errorf("chatwoot not configured for session %s: %w", sessionID, err)
+		return fmt.Errorf("failed to get chatwoot client for session %s: %w", sessionID, err)
 	}
-
-	// Create Chatwoot client
-	client := chatwootIntegration.NewClient(config.URL, config.Token, config.AccountID, uc.logger)
 
 	// Create inbox in Chatwoot
 	inbox, err := client.CreateInbox(inboxName, webhookURL)

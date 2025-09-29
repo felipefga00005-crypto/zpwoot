@@ -154,3 +154,12 @@ type ChatwootAttachment struct {
 	ThumbURL string `json:"thumb_url,omitempty"`
 	FileSize int    `json:"file_size,omitempty"`
 }
+
+// JIDValidator defines the interface for JID validation
+type JIDValidator interface {
+	IsValid(jid string) bool
+	Normalize(jid string) string
+	IsValidJID(jid string) bool
+	IsNewsletterJID(jid string) bool
+	ParseJID(jid string) (string, error)
+}

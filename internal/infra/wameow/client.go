@@ -3150,12 +3150,30 @@ func (c *WameowClient) GetNewsletterMessages(ctx context.Context, jid string, co
 
 // GetNewsletterMessageUpdates gets message updates from a newsletter (view counts, reactions)
 func (c *WameowClient) GetNewsletterMessageUpdates(ctx context.Context, jid string, count int, since string, after string) ([]*types.NewsletterMessage, error) {
+	// Validate request
+	newsletterJID, err := c.validateNewsletterUpdatesRequest(jid)
+	if err != nil {
+		return nil, err
+	}
+
+	// Log request
+	c.logNewsletterUpdatesRequest(jid, count, since, after)
+
+	// Prepare parameters
+	params := c.buildNewsletterUpdatesParams(count, since, after)
+
+	// Execute request with timeout
+	return c.executeNewsletterUpdatesRequest(ctx, jid, newsletterJID, params)
+}
+
+// validateNewsletterUpdatesRequest validates the newsletter updates request
+func (c *WameowClient) validateNewsletterUpdatesRequest(jid string) (types.JID, error) {
 	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+		return types.EmptyJID, fmt.Errorf("client is not logged in")
 	}
 
 	if jid == "" {
-		return nil, fmt.Errorf("newsletter JID cannot be empty")
+		return types.EmptyJID, fmt.Errorf("newsletter JID cannot be empty")
 	}
 
 	// Parse and validate JID
@@ -3166,11 +3184,14 @@ func (c *WameowClient) GetNewsletterMessageUpdates(ctx context.Context, jid stri
 			"jid":        jid,
 			"error":      err.Error(),
 		})
-		return nil, fmt.Errorf("invalid newsletter JID: %w", err)
+		return types.EmptyJID, fmt.Errorf("invalid newsletter JID: %w", err)
 	}
 
-	newsletterJID := parsedJID
+	return parsedJID, nil
+}
 
+// logNewsletterUpdatesRequest logs the newsletter updates request
+func (c *WameowClient) logNewsletterUpdatesRequest(jid string, count int, since, after string) {
 	c.logger.InfoWithFields("Getting newsletter message updates", map[string]interface{}{
 		"session_id": c.sessionID,
 		"jid":        jid,
@@ -3178,18 +3199,23 @@ func (c *WameowClient) GetNewsletterMessageUpdates(ctx context.Context, jid stri
 		"since":      since,
 		"after":      after,
 	})
+}
 
-	// Prepare parameters
+// buildNewsletterUpdatesParams builds the parameters for newsletter updates request
+func (c *WameowClient) buildNewsletterUpdatesParams(count int, since, after string) *whatsmeow.GetNewsletterUpdatesParams {
 	params := &whatsmeow.GetNewsletterUpdatesParams{}
+
 	if count > 0 {
 		params.Count = count
 	}
+
 	if since != "" {
 		// Parse ISO timestamp
 		if sinceTime, err := time.Parse(time.RFC3339, since); err == nil {
 			params.Since = sinceTime
 		}
 	}
+
 	if after != "" {
 		// Convert string to MessageServerID
 		if serverID, err := strconv.ParseUint(after, 10, 64); err == nil {
@@ -3197,6 +3223,11 @@ func (c *WameowClient) GetNewsletterMessageUpdates(ctx context.Context, jid stri
 		}
 	}
 
+	return params
+}
+
+// executeNewsletterUpdatesRequest executes the newsletter updates request with timeout
+func (c *WameowClient) executeNewsletterUpdatesRequest(ctx context.Context, jid string, newsletterJID types.JID, params *whatsmeow.GetNewsletterUpdatesParams) ([]*types.NewsletterMessage, error) {
 	// Add timeout context for the operation
 	ctxWithTimeout, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()

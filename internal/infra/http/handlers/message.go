@@ -1502,12 +1502,44 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
+	// Parse and validate poll request
+	pollReq, err := h.parsePollRequest(c)
+	if err != nil {
+		return err
+	}
+
+	// Resolve session
+	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
+	if err != nil {
+		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
+	}
+
+	// Send poll and handle response
+	return h.sendPollAndRespond(c, sess.ID.String(), pollReq)
+}
+
+// parsePollRequest parses and validates the poll request
+func (h *MessageHandler) parsePollRequest(c *fiber.Ctx) (*message.CreatePollRequest, error) {
 	var pollReq message.CreatePollRequest
 	if err := c.BodyParser(&pollReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
+		return nil, c.Status(400).JSON(common.NewErrorResponse("Invalid request body"))
 	}
 
 	// Validate required fields
+	if err := h.validatePollRequest(c, &pollReq); err != nil {
+		return nil, err
+	}
+
+	// Set default selectable count if not provided
+	if pollReq.SelectableOptionCount < 1 {
+		pollReq.SelectableOptionCount = 1
+	}
+
+	return &pollReq, nil
+}
+
+// validatePollRequest validates poll request fields
+func (h *MessageHandler) validatePollRequest(c *fiber.Ctx, pollReq *message.CreatePollRequest) error {
 	if pollReq.RemoteJID == "" {
 		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
 	}
@@ -1524,22 +1556,17 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("maximum 12 options allowed"))
 	}
 
-	// Set default selectable count if not provided
-	if pollReq.SelectableOptionCount < 1 {
-		pollReq.SelectableOptionCount = 1
-	}
-
 	if pollReq.SelectableOptionCount > len(pollReq.Options) {
 		return c.Status(400).JSON(common.NewErrorResponse("selectable count cannot exceed number of options"))
 	}
 
-	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
-	if err != nil {
-		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
-	}
+	return nil
+}
 
+// sendPollAndRespond sends the poll and returns the response
+func (h *MessageHandler) sendPollAndRespond(c *fiber.Ctx, sessionID string, pollReq *message.CreatePollRequest) error {
 	h.logger.InfoWithFields("Sending poll", map[string]interface{}{
-		"session_id":       sess.ID.String(),
+		"session_id":       sessionID,
 		"to":               pollReq.RemoteJID,
 		"name":             pollReq.Name,
 		"options_count":    len(pollReq.Options),
@@ -1547,28 +1574,39 @@ func (h *MessageHandler) SendPoll(c *fiber.Ctx) error {
 	})
 
 	// Send poll using wameow manager
-	result, err := h.wameowManager.SendPoll(sess.ID.String(), pollReq.RemoteJID, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
+	result, err := h.wameowManager.SendPoll(sessionID, pollReq.RemoteJID, pollReq.Name, pollReq.Options, pollReq.SelectableOptionCount)
 	if err != nil {
-		h.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"to":         pollReq.RemoteJID,
-			"name":       pollReq.Name,
-			"error":      err.Error(),
-		})
-
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		if strings.Contains(err.Error(), "not logged in") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not logged in"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send poll"))
+		return h.handlePollSendError(c, sessionID, pollReq, err)
 	}
 
+	// Log success and return response
+	return h.returnPollSuccess(c, sessionID, pollReq, result)
+}
+
+// handlePollSendError handles errors from poll sending
+func (h *MessageHandler) handlePollSendError(c *fiber.Ctx, sessionID string, pollReq *message.CreatePollRequest, err error) error {
+	h.logger.ErrorWithFields("Failed to send poll", map[string]interface{}{
+		"session_id": sessionID,
+		"to":         pollReq.RemoteJID,
+		"name":       pollReq.Name,
+		"error":      err.Error(),
+	})
+
+	if strings.Contains(err.Error(), "not connected") {
+		return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+	}
+
+	if strings.Contains(err.Error(), "not logged in") {
+		return c.Status(400).JSON(common.NewErrorResponse("Session is not logged in"))
+	}
+
+	return c.Status(500).JSON(common.NewErrorResponse("Failed to send poll"))
+}
+
+// returnPollSuccess logs success and returns the poll response
+func (h *MessageHandler) returnPollSuccess(c *fiber.Ctx, sessionID string, pollReq *message.CreatePollRequest, result *wameow.MessageResult) error {
 	h.logger.InfoWithFields("Poll sent successfully", map[string]interface{}{
-		"session_id": sess.ID.String(),
+		"session_id": sessionID,
 		"to":         pollReq.RemoteJID,
 		"name":       pollReq.Name,
 		"message_id": result.MessageID,
