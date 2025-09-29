@@ -28,29 +28,16 @@ func NewWebhookHandler(logger *logger.Logger, manager ports.ChatwootManager, wam
 
 // ProcessWebhook processes incoming webhooks from Chatwoot
 func (h *WebhookHandler) ProcessWebhook(ctx context.Context, webhook *chatwootdomain.ChatwootWebhookPayload, sessionID string) error {
-	h.logger.InfoWithFields("Processing Chatwoot webhook", map[string]interface{}{
-		"event":      webhook.Event,
-		"session_id": sessionID,
-	})
-
 	// Delay 500ms to avoid race conditions (based on Evolution API)
 	time.Sleep(500 * time.Millisecond)
 
 	// Filter private messages
 	if h.isPrivateMessage(webhook) {
-		h.logger.DebugWithFields("Skipping private message", map[string]interface{}{
-			"event":      webhook.Event,
-			"session_id": sessionID,
-		})
 		return nil
 	}
 
 	// Filter message updates without deletion
 	if webhook.Event == "message_updated" && !h.isMessageDeleted(webhook) {
-		h.logger.DebugWithFields("Skipping message update without deletion", map[string]interface{}{
-			"event":      webhook.Event,
-			"session_id": sessionID,
-		})
 		return nil
 	}
 
@@ -122,11 +109,6 @@ func (h *WebhookHandler) handleMessageCreated(ctx context.Context, webhook *chat
 
 	// Skip incoming messages (only process outgoing messages from agents)
 	if webhook.Message.MessageType != "outgoing" {
-		h.logger.DebugWithFields("Skipping incoming message", map[string]interface{}{
-			"message_id":   webhook.Message.ID,
-			"message_type": webhook.Message.MessageType,
-			"session_id":   sessionID,
-		})
 		return nil
 	}
 
@@ -151,28 +133,10 @@ func (h *WebhookHandler) sendToWhatsApp(ctx context.Context, webhook *chatwootdo
 	content := h.formatContentForWhatsApp(webhook.Message.Content)
 
 	// Send message to WhatsApp using wameowManager
-	result, err := h.wameowManager.SendMessage(sessionID, phoneNumber, "text", content, "", "", "", 0, 0, "", "", nil)
+	_, err := h.wameowManager.SendMessage(sessionID, phoneNumber, "text", content, "", "", "", 0, 0, "", "", nil)
 	if err != nil {
-		h.logger.ErrorWithFields("Failed to send message to WhatsApp", map[string]interface{}{
-			"session_id":      sessionID,
-			"to":              phoneNumber,
-			"content":         content,
-			"message_id":      webhook.Message.ID,
-			"conversation_id": webhook.Conversation.ID,
-			"error":           err.Error(),
-		})
 		return fmt.Errorf("failed to send message to WhatsApp: %w", err)
 	}
-
-	h.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
-		"session_id":      sessionID,
-		"to":              phoneNumber,
-		"content":         content,
-		"whatsapp_msg_id": result.MessageID,
-		"chatwoot_msg_id": webhook.Message.ID,
-		"conversation_id": webhook.Conversation.ID,
-		"timestamp":       result.Timestamp,
-	})
 
 	return nil
 }

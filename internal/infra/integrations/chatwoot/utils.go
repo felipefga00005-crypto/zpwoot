@@ -355,23 +355,4 @@ func (u *Utils) GetErrorCategory(err error) string {
 	}
 }
 
-// LogError logs an error with category and context
-func (u *Utils) LogError(err error, context map[string]interface{}) {
-	if err == nil {
-		return
-	}
 
-	category := u.GetErrorCategory(err)
-
-	logContext := map[string]interface{}{
-		"error":    err.Error(),
-		"category": category,
-	}
-
-	// Merge with provided context
-	for k, v := range context {
-		logContext[k] = v
-	}
-
-	u.logger.ErrorWithFields("Chatwoot integration error", logContext)
-}

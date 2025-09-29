@@ -32,10 +32,7 @@ func (s *Service) SetMessageMapper(messageMapper ports.ChatwootMessageMapper) {
 }
 
 func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
-	s.logger.InfoWithFields("Creating Chatwoot config", map[string]interface{}{
-		"url":        req.URL,
-		"account_id": req.AccountID,
-	})
+
 
 	// Set defaults
 	enabled := true
@@ -124,9 +121,6 @@ func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigReq
 
 	// Persist to repository
 	if err := s.repository.CreateConfig(ctx, config); err != nil {
-		s.logger.ErrorWithFields("Failed to create chatwoot config", map[string]interface{}{
-			"error": err.Error(),
-		})
 		return nil, err
 	}
 
@@ -134,13 +128,8 @@ func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigReq
 }
 
 func (s *Service) GetConfig(ctx context.Context) (*ports.ChatwootConfig, error) {
-	s.logger.Info("Getting Chatwoot config")
-
 	config, err := s.repository.GetConfig(ctx)
 	if err != nil {
-		s.logger.ErrorWithFields("Failed to get chatwoot config", map[string]interface{}{
-			"error": err.Error(),
-		})
 		return nil, err
 	}
 
@@ -148,16 +137,8 @@ func (s *Service) GetConfig(ctx context.Context) (*ports.ChatwootConfig, error) 
 }
 
 func (s *Service) GetConfigBySessionID(ctx context.Context, sessionID string) (*ports.ChatwootConfig, error) {
-	s.logger.InfoWithFields("Getting Chatwoot config by session ID", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
 	config, err := s.repository.GetConfigBySessionID(ctx, sessionID)
 	if err != nil {
-		s.logger.ErrorWithFields("Failed to get chatwoot config by session ID", map[string]interface{}{
-			"session_id": sessionID,
-			"error":      err.Error(),
-		})
 		return nil, err
 	}
 
@@ -165,14 +146,9 @@ func (s *Service) GetConfigBySessionID(ctx context.Context, sessionID string) (*
 }
 
 func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
-	s.logger.Info("Updating Chatwoot config")
-
 	// Get existing config first
 	existingConfig, err := s.repository.GetConfig(ctx)
 	if err != nil {
-		s.logger.ErrorWithFields("Failed to get existing config for update", map[string]interface{}{
-			"error": err.Error(),
-		})
 		return nil, err
 	}
 
@@ -240,9 +216,6 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 
 	// Persist changes
 	if err := s.repository.UpdateConfig(ctx, &config); err != nil {
-		s.logger.ErrorWithFields("Failed to update chatwoot config", map[string]interface{}{
-			"error": err.Error(),
-		})
 		return nil, err
 	}
 
@@ -250,12 +223,7 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 }
 
 func (s *Service) DeleteConfig(ctx context.Context) error {
-	s.logger.Info("Deleting Chatwoot config")
-
 	if err := s.repository.DeleteConfig(ctx); err != nil {
-		s.logger.ErrorWithFields("Failed to delete chatwoot config", map[string]interface{}{
-			"error": err.Error(),
-		})
 		return err
 	}
 
@@ -263,11 +231,6 @@ func (s *Service) DeleteConfig(ctx context.Context) error {
 }
 
 func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*ChatwootContact, error) {
-	s.logger.InfoWithFields("Syncing contact", map[string]interface{}{
-		"phone_number": req.PhoneNumber,
-		"name":         req.Name,
-	})
-
 	contact := &ChatwootContact{
 		ID:               1, // This would be assigned by Chatwoot
 		Name:             req.Name,
@@ -282,11 +245,6 @@ func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*Ch
 }
 
 func (s *Service) SyncConversation(ctx context.Context, req *SyncConversationRequest) (*ChatwootConversation, error) {
-	s.logger.InfoWithFields("Syncing conversation", map[string]interface{}{
-		"contact_id": req.ContactID,
-		"session_id": req.SessionID,
-	})
-
 	conversation := &ChatwootConversation{
 		ID:        1, // This would be assigned by Chatwoot
 		ContactID: req.ContactID,
@@ -299,12 +257,6 @@ func (s *Service) SyncConversation(ctx context.Context, req *SyncConversationReq
 }
 
 func (s *Service) SendMessage(ctx context.Context, req *SendMessageToChatwootRequest) (*ChatwootMessage, error) {
-	s.logger.InfoWithFields("Sending message to Chatwoot", map[string]interface{}{
-		"conversation_id": req.ConversationID,
-		"message_type":    req.MessageType,
-		"content_type":    req.ContentType,
-	})
-
 	message := &ChatwootMessage{
 		ID:             1, // This would be assigned by Chatwoot
 		ConversationID: req.ConversationID,
@@ -319,21 +271,11 @@ func (s *Service) SendMessage(ctx context.Context, req *SendMessageToChatwootReq
 }
 
 func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload *ChatwootWebhookPayload) error {
-	s.logger.InfoWithFields("Processing Chatwoot webhook", map[string]interface{}{
-		"session_id": sessionID,
-		"event":      payload.Event,
-		"account_id": payload.Account.ID,
-	})
-
 	// Delay 500ms to avoid race conditions (based on Evolution API)
 	time.Sleep(500 * time.Millisecond)
 
 	// Skip private messages
 	if payload.Message != nil && payload.Message.Private {
-		s.logger.DebugWithFields("Skipping private message", map[string]interface{}{
-			"session_id": sessionID,
-			"event":      payload.Event,
-		})
 		return nil
 	}
 
@@ -359,10 +301,6 @@ func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload 
 
 	// Handle typing events (ignore them as they don't require action)
 	if payload.Event == "conversation_typing_on" || payload.Event == "conversation_typing_off" {
-		s.logger.DebugWithFields("Ignoring typing event", map[string]interface{}{
-			"session_id": sessionID,
-			"event":      payload.Event,
-		})
 		return nil
 	}
 
@@ -370,12 +308,6 @@ func (s *Service) ProcessWebhook(ctx context.Context, sessionID string, payload 
 	if payload.Event == "message_created" {
 		return s.handleMessageCreated(ctx, sessionID, payload)
 	}
-
-	// Log unhandled events for debugging
-	s.logger.DebugWithFields("Unhandled Chatwoot event", map[string]interface{}{
-		"session_id": sessionID,
-		"event":      payload.Event,
-	})
 
 	return nil
 }
@@ -421,38 +353,16 @@ func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, pa
 		}
 	}
 
-	// Log message details for debugging
-	s.logger.InfoWithFields("Processing Chatwoot webhook message", map[string]interface{}{
-		"session_id":   sessionID,
-		"message_type": messageType,
-		"message_id":   messageID,
-		"content":      content,
-		"is_private":   isPrivate,
-		"event":        "message_created",
-		"has_content":  content != "",
-	})
-
 	// Se não há conteúdo e é uma mensagem outgoing, pode ser um problema
 	if content == "" && messageType == "outgoing" {
-		s.logger.WarnWithFields("Outgoing message with empty content", map[string]interface{}{
-			"session_id":   sessionID,
-			"message_type": messageType,
-			"message_id":   messageID,
-			"payload":      payload,
-		})
 		// Não retornar erro, apenas logar para investigação
+		return nil
 	}
 
 	// Process both incoming and outgoing messages
 	// - outgoing: mensagens do agente para WhatsApp (enviar para WhatsApp)
 	// - incoming: mensagens do WhatsApp para agente (IGNORAR - já processadas)
 	if messageType == "incoming" {
-		s.logger.DebugWithFields("Ignoring incoming message webhook (already processed from WhatsApp)", map[string]interface{}{
-			"session_id":   sessionID,
-			"message_type": messageType,
-			"message_id":   messageID,
-			"content":      content,
-		})
 		// Mensagens incoming são aquelas que vieram do WhatsApp e já foram processadas
 		// Não precisamos reprocessá-las
 		return nil
@@ -460,21 +370,12 @@ func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, pa
 
 	// Para mensagens outgoing, verificar se há conteúdo para enviar
 	if messageType == "outgoing" && content == "" {
-		s.logger.WarnWithFields("Outgoing message has no content to send to WhatsApp", map[string]interface{}{
-			"session_id":   sessionID,
-			"message_type": messageType,
-			"message_id":   messageID,
-		})
 		// Não enviar mensagem vazia para WhatsApp, mas não falhar
 		return nil
 	}
 
 	// Skip private messages
 	if isPrivate {
-		s.logger.DebugWithFields("Skipping private message", map[string]interface{}{
-			"session_id": sessionID,
-			"message_id": messageID,
-		})
 		return nil
 	}
 
@@ -487,11 +388,6 @@ func (s *Service) handleMessageCreated(ctx context.Context, sessionID string, pa
 	}
 
 	if sourceID != "" && len(sourceID) >= 5 && sourceID[:5] == "WAID:" {
-		s.logger.DebugWithFields("Skipping bot message", map[string]interface{}{
-			"session_id": sessionID,
-			"message_id": messageID,
-			"source_id":  sourceID,
-		})
 		return nil
 	}
 
@@ -525,30 +421,7 @@ func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload 
 
 	// If still no phone number, this is an error
 	if phoneNumber == "" {
-		s.logger.ErrorWithFields("No valid recipient phone number found", map[string]interface{}{
-			"session_id":    sessionID,
-			"message_type":  messageType,
-			"sender_phone":  payload.Sender.PhoneNumber,
-			"contact_phone": payload.Contact.PhoneNumber,
-		})
 		return fmt.Errorf("no valid recipient phone number found for %s message", messageType)
-	}
-
-	s.logger.InfoWithFields("Extracting phone number from webhook", map[string]interface{}{
-		"session_id":           sessionID,
-		"sender_phone":         payload.Sender.PhoneNumber,
-		"contact_phone":        payload.Contact.PhoneNumber,
-		"extracted_phone":      phoneNumber,
-		"sender_name":          payload.Sender.Name,
-		"sender_id":            payload.Sender.ID,
-	})
-
-	if phoneNumber == "" {
-		s.logger.ErrorWithFields("No phone number found in webhook payload", map[string]interface{}{
-			"session_id": sessionID,
-			"payload":    payload,
-		})
-		return fmt.Errorf("contact phone number is empty")
 	}
 
 	// Format content for WhatsApp (convert Chatwoot markdown to WhatsApp format)
@@ -562,47 +435,15 @@ func (s *Service) sendToWhatsApp(ctx context.Context, sessionID string, payload 
 		messageID = payload.ID
 	}
 
-	s.logger.InfoWithFields("Sending message to WhatsApp", map[string]interface{}{
-		"session_id":      sessionID,
-		"to":              phoneNumber,
-		"content":         formattedContent,
-		"message_id":      messageID,
-		"conversation_id": payload.Conversation.ID,
-	})
-
 	// Send message to WhatsApp using wameowManager
 	result, err := s.wameowManager.SendMessage(sessionID, phoneNumber, "text", formattedContent, "", "", "", 0, 0, "", "", nil)
 	if err != nil {
-		s.logger.ErrorWithFields("Failed to send message to WhatsApp", map[string]interface{}{
-			"session_id":      sessionID,
-			"to":              phoneNumber,
-			"content":         formattedContent,
-			"message_id":      messageID,
-			"conversation_id": payload.Conversation.ID,
-			"error":           err.Error(),
-		})
 		return fmt.Errorf("failed to send message to WhatsApp: %w", err)
 	}
-
-	s.logger.InfoWithFields("Message sent to WhatsApp successfully", map[string]interface{}{
-		"session_id":      sessionID,
-		"to":              phoneNumber,
-		"content":         formattedContent,
-		"whatsapp_msg_id": result.MessageID,
-		"chatwoot_msg_id": messageID,
-		"conversation_id": payload.Conversation.ID,
-		"timestamp":       result.Timestamp,
-	})
 
 	// Store the outgoing message in zpMessage table for tracking
 	err = s.storeOutgoingMessage(ctx, sessionID, result.MessageID, phoneNumber, formattedContent, result.Timestamp, messageID, payload.Conversation.ID)
 	if err != nil {
-		s.logger.ErrorWithFields("Failed to store outgoing message in zpMessage table", map[string]interface{}{
-			"session_id":      sessionID,
-			"whatsapp_msg_id": result.MessageID,
-			"chatwoot_msg_id": messageID,
-			"error":           err.Error(),
-		})
 		// Don't fail the whole operation, just log the error
 	}
 
@@ -678,8 +519,6 @@ type TestConnectionResult struct {
 }
 
 func (s *Service) TestConnection(ctx context.Context) (*TestConnectionResult, error) {
-	s.logger.Info("Testing Chatwoot connection")
-
 	return &TestConnectionResult{
 		Success:     true,
 		AccountName: "Test Account",
@@ -696,8 +535,6 @@ type ChatwootStats struct {
 }
 
 func (s *Service) GetStats(ctx context.Context) (*ChatwootStats, error) {
-	s.logger.Info("Getting Chatwoot stats")
-
 	return &ChatwootStats{
 		TotalContacts:       100,
 		TotalConversations:  50,

@@ -73,13 +73,6 @@ func (m *Manager) IsEnabled(sessionID string) bool {
 
 // InitInstanceChatwoot initializes Chatwoot integration for a session
 func (m *Manager) InitInstanceChatwoot(sessionID, inboxName, webhookURL string, autoCreate bool) error {
-	m.logger.InfoWithFields("Initializing Chatwoot instance", map[string]interface{}{
-		"session_id":  sessionID,
-		"inbox_name":  inboxName,
-		"webhook_url": webhookURL,
-		"auto_create": autoCreate,
-	})
-
 	client, err := m.GetClient(sessionID)
 	if err != nil {
 		return fmt.Errorf("failed to get client: %w", err)
@@ -141,11 +134,6 @@ func (m *Manager) InitInstanceChatwoot(sessionID, inboxName, webhookURL string, 
 
 // SetConfig sets the Chatwoot configuration for a session
 func (m *Manager) SetConfig(sessionID string, config *ports.ChatwootConfig) error {
-	m.logger.InfoWithFields("Setting Chatwoot config", map[string]interface{}{
-		"session_id": sessionID,
-		"config_id":  config.ID.String(),
-	})
-
 	// Store in repository
 	ctx := context.Background()
 	err := m.repository.UpdateConfig(ctx, config)
@@ -190,10 +178,6 @@ func (m *Manager) GetConfig(sessionID string) (*ports.ChatwootConfig, error) {
 
 // Cleanup cleans up resources for a session
 func (m *Manager) Cleanup(sessionID string) error {
-	m.logger.InfoWithFields("Cleaning up Chatwoot resources", map[string]interface{}{
-		"session_id": sessionID,
-	})
-
 	m.mu.Lock()
 	delete(m.clients, sessionID)
 	delete(m.configs, sessionID)

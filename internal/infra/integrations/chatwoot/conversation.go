@@ -23,27 +23,13 @@ func NewConversationManager(logger *logger.Logger, client ports.ChatwootClient) 
 
 // CreateOrGetConversation creates or gets an existing conversation
 func (cm *ConversationManager) CreateOrGetConversation(contactID, inboxID int) (*ports.ChatwootConversation, error) {
-	cm.logger.InfoWithFields("Creating or getting conversation", map[string]interface{}{
-		"contact_id": contactID,
-		"inbox_id":   inboxID,
-	})
-
 	// Try to get existing conversation
 	conversation, err := cm.client.GetConversation(contactID, inboxID)
 	if err == nil {
-		cm.logger.InfoWithFields("Found existing conversation", map[string]interface{}{
-			"conversation_id": conversation.ID,
-			"status":          conversation.Status,
-		})
 		return conversation, nil
 	}
 
 	// Create new conversation
-	cm.logger.InfoWithFields("Creating new conversation", map[string]interface{}{
-		"contact_id": contactID,
-		"inbox_id":   inboxID,
-	})
-
 	conversation, err = cm.client.CreateConversation(contactID, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create conversation: %w", err)
@@ -54,10 +40,6 @@ func (cm *ConversationManager) CreateOrGetConversation(contactID, inboxID int) (
 
 // ReopenConversation reopens a resolved conversation
 func (cm *ConversationManager) ReopenConversation(conversationID int) error {
-	cm.logger.InfoWithFields("Reopening conversation", map[string]interface{}{
-		"conversation_id": conversationID,
-	})
-
 	err := cm.client.UpdateConversationStatus(conversationID, "open")
 	if err != nil {
 		return fmt.Errorf("failed to reopen conversation: %w", err)
@@ -150,11 +132,6 @@ func (cm *ConversationManager) SendMessage(conversationID int, content string) (
 
 // GetConversationMessages gets messages from a conversation
 func (cm *ConversationManager) GetConversationMessages(conversationID int, before int) ([]ports.ChatwootMessage, error) {
-	cm.logger.InfoWithFields("Getting conversation messages", map[string]interface{}{
-		"conversation_id": conversationID,
-		"before":          before,
-	})
-
 	messages, err := cm.client.GetMessages(conversationID, before)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get messages: %w", err)
@@ -207,11 +184,6 @@ type ConversationConfig struct {
 
 // ApplyConversationConfig applies conversation configuration
 func (cm *ConversationManager) ApplyConversationConfig(conversationID int, config ConversationConfig) error {
-	cm.logger.InfoWithFields("Applying conversation config", map[string]interface{}{
-		"conversation_id": conversationID,
-		"config":          config,
-	})
-
 	conversation, err := cm.GetConversationByID(conversationID)
 	if err != nil {
 		return fmt.Errorf("failed to get conversation: %w", err)
@@ -231,12 +203,6 @@ func (cm *ConversationManager) ApplyConversationConfig(conversationID int, confi
 
 // CreateConversationWithContact creates a conversation for a specific contact
 func (cm *ConversationManager) CreateConversationWithContact(contact *ports.ChatwootContact, inboxID int) (*ports.ChatwootConversation, error) {
-	cm.logger.InfoWithFields("Creating conversation with contact", map[string]interface{}{
-		"contact_id":   contact.ID,
-		"contact_name": contact.Name,
-		"inbox_id":     inboxID,
-	})
-
 	return cm.CreateOrGetConversation(contact.ID, inboxID)
 }
 

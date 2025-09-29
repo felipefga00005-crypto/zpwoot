@@ -25,12 +25,6 @@ func NewContactSync(logger *logger.Logger, client ports.ChatwootClient) *Contact
 
 // CreateOrUpdateContact creates or updates a contact in Chatwoot
 func (cs *ContactSync) CreateOrUpdateContact(phone, name string, inboxID int, mergeBrazilContacts bool) (*ports.ChatwootContact, error) {
-	cs.logger.InfoWithFields("Creating or updating contact", map[string]interface{}{
-		"phone":                 phone,
-		"name":                  name,
-		"inbox_id":              inboxID,
-		"merge_brazil_contacts": mergeBrazilContacts,
-	})
 
 	// Normalize phone number
 	normalizedPhone := cs.normalizePhoneNumber(phone)
@@ -52,21 +46,10 @@ func (cs *ContactSync) CreateOrUpdateContact(phone, name string, inboxID int, me
 	if err == nil {
 		// Contact exists, update if needed
 		if existingContact.Name != name && name != "" {
-			cs.logger.InfoWithFields("Updating existing contact", map[string]interface{}{
-				"contact_id": existingContact.ID,
-				"old_name":   existingContact.Name,
-				"new_name":   name,
-			})
-
 			err = cs.client.UpdateContactAttributes(existingContact.ID, map[string]interface{}{
 				"name": name,
 			})
-			if err != nil {
-				cs.logger.WarnWithFields("Failed to update contact name", map[string]interface{}{
-					"contact_id": existingContact.ID,
-					"error":      err.Error(),
-				})
-			} else {
+			if err == nil {
 				existingContact.Name = name
 			}
 		}
@@ -74,12 +57,6 @@ func (cs *ContactSync) CreateOrUpdateContact(phone, name string, inboxID int, me
 	}
 
 	// Contact doesn't exist, create new one
-	cs.logger.InfoWithFields("Creating new contact", map[string]interface{}{
-		"phone":    normalizedPhone,
-		"name":     name,
-		"inbox_id": inboxID,
-	})
-
 	contact, err := cs.client.CreateContact(normalizedPhone, name, inboxID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create contact: %w", err)
@@ -90,12 +67,6 @@ func (cs *ContactSync) CreateOrUpdateContact(phone, name string, inboxID int, me
 
 // ImportContacts imports contacts from WhatsApp to Chatwoot
 func (cs *ContactSync) ImportContacts(contacts []ContactImportData, inboxID int, mergeBrazilContacts bool) ([]ContactImportResult, error) {
-	cs.logger.InfoWithFields("Importing contacts", map[string]interface{}{
-		"count":                 len(contacts),
-		"inbox_id":              inboxID,
-		"merge_brazil_contacts": mergeBrazilContacts,
-	})
-
 	results := make([]ContactImportResult, 0, len(contacts))
 
 	for _, contactData := range contacts {
@@ -108,11 +79,6 @@ func (cs *ContactSync) ImportContacts(contacts []ContactImportData, inboxID int,
 		contact, err := cs.CreateOrUpdateContact(contactData.Phone, contactData.Name, inboxID, mergeBrazilContacts)
 		if err != nil {
 			result.Error = err.Error()
-			cs.logger.ErrorWithFields("Failed to import contact", map[string]interface{}{
-				"phone": contactData.Phone,
-				"name":  contactData.Name,
-				"error": err.Error(),
-			})
 		} else {
 			result.Success = true
 			result.ContactID = contact.ID
@@ -120,19 +86,6 @@ func (cs *ContactSync) ImportContacts(contacts []ContactImportData, inboxID int,
 
 		results = append(results, result)
 	}
-
-	successCount := 0
-	for _, result := range results {
-		if result.Success {
-			successCount++
-		}
-	}
-
-	cs.logger.InfoWithFields("Contact import completed", map[string]interface{}{
-		"total":   len(contacts),
-		"success": successCount,
-		"failed":  len(contacts) - successCount,
-	})
 
 	return results, nil
 }
@@ -199,11 +152,6 @@ func (cs *ContactSync) GetContactByPhone(phone string, inboxID int) (*ports.Chat
 
 // UpdateContactAttributes updates contact custom attributes
 func (cs *ContactSync) UpdateContactAttributes(contactID int, attributes map[string]interface{}) error {
-	cs.logger.InfoWithFields("Updating contact attributes", map[string]interface{}{
-		"contact_id": contactID,
-		"attributes": attributes,
-	})
-
 	return cs.client.UpdateContactAttributes(contactID, attributes)
 }
 

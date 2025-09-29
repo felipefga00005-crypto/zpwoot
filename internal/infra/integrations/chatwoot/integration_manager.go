@@ -60,22 +60,7 @@ func (im *IntegrationManager) ProcessWhatsAppMessage(sessionID, messageID, from,
 
 	// Skip if message is already mapped (this means it came from Chatwoot originally)
 	if im.messageMapper.IsMessageMapped(ctx, sessionID, messageID) {
-		im.logger.DebugWithFields("Message already mapped (originated from Chatwoot), skipping to avoid loop", map[string]interface{}{
-			"session_id": sessionID,
-			"message_id": messageID,
-			"from_me":    fromMe,
-		})
 		return nil
-	}
-
-	// For from_me=true messages that are NOT already mapped, these are messages sent
-	// from phone/other devices that should be synced to Chatwoot for history consistency
-	if fromMe {
-		im.logger.InfoWithFields("Processing from_me message from phone/other device for history sync", map[string]interface{}{
-			"session_id": sessionID,
-			"message_id": messageID,
-			"from":       from,
-		})
 	}
 
 	// Extract chat JID from sender (for groups, chat != sender)
