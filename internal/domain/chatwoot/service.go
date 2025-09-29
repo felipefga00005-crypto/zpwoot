@@ -36,91 +36,11 @@ func (s *Service) SetMessageMapper(messageMapper ports.ChatwootMessageMapper) {
 // ============================================================================
 
 func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigRequest) (*ports.ChatwootConfig, error) {
+	// Apply defaults to request
+	defaults := s.applyConfigDefaults(req)
 
-	// Set defaults
-	enabled := true
-	if req.Enabled != nil {
-		enabled = *req.Enabled
-	}
-
-	autoCreate := false
-	if req.AutoCreate != nil {
-		autoCreate = *req.AutoCreate
-	}
-
-	signMsg := false
-	if req.SignMsg != nil {
-		signMsg = *req.SignMsg
-	}
-
-	signDelimiter := "\n\n"
-	if req.SignDelimiter != nil {
-		signDelimiter = *req.SignDelimiter
-	}
-
-	reopenConv := true
-	if req.ReopenConv != nil {
-		reopenConv = *req.ReopenConv
-	}
-
-	convPending := false
-	if req.ConvPending != nil {
-		convPending = *req.ConvPending
-	}
-
-	importContacts := false
-	if req.ImportContacts != nil {
-		importContacts = *req.ImportContacts
-	}
-
-	importMessages := false
-	if req.ImportMessages != nil {
-		importMessages = *req.ImportMessages
-	}
-
-	importDays := 60
-	if req.ImportDays != nil {
-		importDays = *req.ImportDays
-	}
-
-	mergeBrazil := true
-	if req.MergeBrazil != nil {
-		mergeBrazil = *req.MergeBrazil
-	}
-
-	ignoreJids := []string{}
-	if req.IgnoreJids != nil {
-		ignoreJids = req.IgnoreJids
-	}
-
-	config := &ports.ChatwootConfig{
-		ID:        uuid.New(),
-		SessionID: req.SessionID,
-		URL:       req.URL,
-		Token:     req.Token,
-		AccountID: req.AccountID,
-		InboxID:   req.InboxID,
-		Enabled:   enabled,
-
-		// Advanced configuration
-		InboxName:      req.InboxName,
-		AutoCreate:     autoCreate,
-		SignMsg:        signMsg,
-		SignDelimiter:  signDelimiter,
-		ReopenConv:     reopenConv,
-		ConvPending:    convPending,
-		ImportContacts: importContacts,
-		ImportMessages: importMessages,
-		ImportDays:     importDays,
-		MergeBrazil:    mergeBrazil,
-		Organization:   req.Organization,
-		Logo:           req.Logo,
-		Number:         req.Number,
-		IgnoreJids:     ignoreJids,
-
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
-	}
+	// Build configuration
+	config := s.buildChatwootConfig(req, defaults)
 
 	// Persist to repository
 	if err := s.repository.CreateConfig(ctx, config); err != nil {
@@ -128,6 +48,107 @@ func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigReq
 	}
 
 	return config, nil
+}
+
+// configDefaults holds default values for configuration
+type configDefaults struct {
+	enabled        bool
+	autoCreate     bool
+	signMsg        bool
+	signDelimiter  string
+	reopenConv     bool
+	convPending    bool
+	importContacts bool
+	importMessages bool
+	importDays     int
+	mergeBrazil    bool
+	ignoreJids     []string
+}
+
+// applyConfigDefaults applies default values to configuration request
+func (s *Service) applyConfigDefaults(req *CreateChatwootConfigRequest) *configDefaults {
+	defaults := &configDefaults{
+		enabled:        true,
+		autoCreate:     false,
+		signMsg:        false,
+		signDelimiter:  "\n\n",
+		reopenConv:     true,
+		convPending:    false,
+		importContacts: false,
+		importMessages: false,
+		importDays:     60,
+		mergeBrazil:    true,
+		ignoreJids:     []string{},
+	}
+
+	// Override defaults with request values
+	if req.Enabled != nil {
+		defaults.enabled = *req.Enabled
+	}
+	if req.AutoCreate != nil {
+		defaults.autoCreate = *req.AutoCreate
+	}
+	if req.SignMsg != nil {
+		defaults.signMsg = *req.SignMsg
+	}
+	if req.SignDelimiter != nil {
+		defaults.signDelimiter = *req.SignDelimiter
+	}
+	if req.ReopenConv != nil {
+		defaults.reopenConv = *req.ReopenConv
+	}
+	if req.ConvPending != nil {
+		defaults.convPending = *req.ConvPending
+	}
+	if req.ImportContacts != nil {
+		defaults.importContacts = *req.ImportContacts
+	}
+	if req.ImportMessages != nil {
+		defaults.importMessages = *req.ImportMessages
+	}
+	if req.ImportDays != nil {
+		defaults.importDays = *req.ImportDays
+	}
+	if req.MergeBrazil != nil {
+		defaults.mergeBrazil = *req.MergeBrazil
+	}
+	if req.IgnoreJids != nil {
+		defaults.ignoreJids = req.IgnoreJids
+	}
+
+	return defaults
+}
+
+// buildChatwootConfig builds the final configuration object
+func (s *Service) buildChatwootConfig(req *CreateChatwootConfigRequest, defaults *configDefaults) *ports.ChatwootConfig {
+	return &ports.ChatwootConfig{
+		ID:        uuid.New(),
+		SessionID: req.SessionID,
+		URL:       req.URL,
+		Token:     req.Token,
+		AccountID: req.AccountID,
+		InboxID:   req.InboxID,
+		Enabled:   defaults.enabled,
+
+		// Advanced configuration
+		InboxName:      req.InboxName,
+		AutoCreate:     defaults.autoCreate,
+		SignMsg:        defaults.signMsg,
+		SignDelimiter:  defaults.signDelimiter,
+		ReopenConv:     defaults.reopenConv,
+		ConvPending:    defaults.convPending,
+		ImportContacts: defaults.importContacts,
+		ImportMessages: defaults.importMessages,
+		ImportDays:     defaults.importDays,
+		MergeBrazil:    defaults.mergeBrazil,
+		Organization:   req.Organization,
+		Logo:           req.Logo,
+		Number:         req.Number,
+		IgnoreJids:     defaults.ignoreJids,
+
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
 }
 
 func (s *Service) GetConfig(ctx context.Context) (*ports.ChatwootConfig, error) {
@@ -155,10 +176,37 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 		return nil, err
 	}
 
-	// Update only provided fields
-	config := *existingConfig // Copy existing config
+	// Update config with request values
+	config := s.updateConfigFields(existingConfig, req)
+
+	// Persist changes
+	if err := s.repository.UpdateConfig(ctx, config); err != nil {
+		return nil, err
+	}
+
+	return config, nil
+}
+
+// updateConfigFields updates configuration fields from request
+func (s *Service) updateConfigFields(existingConfig *ports.ChatwootConfig, req *UpdateChatwootConfigRequest) *ports.ChatwootConfig {
+	// Copy existing config
+	config := *existingConfig
 	config.UpdatedAt = time.Now()
 
+	// Update basic fields
+	s.updateBasicConfigFields(&config, req)
+
+	// Update advanced fields
+	s.updateAdvancedConfigFields(&config, req)
+
+	// Update optional fields
+	s.updateOptionalConfigFields(&config, req)
+
+	return &config
+}
+
+// updateBasicConfigFields updates basic configuration fields
+func (s *Service) updateBasicConfigFields(config *ports.ChatwootConfig, req *UpdateChatwootConfigRequest) {
 	if req.URL != nil {
 		config.URL = *req.URL
 	}
@@ -177,6 +225,10 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 	if req.InboxName != nil {
 		config.InboxName = req.InboxName
 	}
+}
+
+// updateAdvancedConfigFields updates advanced configuration fields
+func (s *Service) updateAdvancedConfigFields(config *ports.ChatwootConfig, req *UpdateChatwootConfigRequest) {
 	if req.AutoCreate != nil {
 		config.AutoCreate = *req.AutoCreate
 	}
@@ -204,6 +256,10 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 	if req.MergeBrazil != nil {
 		config.MergeBrazil = *req.MergeBrazil
 	}
+}
+
+// updateOptionalConfigFields updates optional configuration fields
+func (s *Service) updateOptionalConfigFields(config *ports.ChatwootConfig, req *UpdateChatwootConfigRequest) {
 	if req.Organization != nil {
 		config.Organization = req.Organization
 	}
@@ -216,13 +272,6 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 	if req.IgnoreJids != nil {
 		config.IgnoreJids = req.IgnoreJids
 	}
-
-	// Persist changes
-	if err := s.repository.UpdateConfig(ctx, &config); err != nil {
-		return nil, err
-	}
-
-	return &config, nil
 }
 
 func (s *Service) DeleteConfig(ctx context.Context) error {

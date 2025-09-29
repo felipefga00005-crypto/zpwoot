@@ -1363,42 +1363,42 @@ func (c *WameowClient) SendButtonMessage(ctx context.Context, to, body string, b
 }
 
 func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText string, sections []map[string]interface{}) (*whatsmeow.SendResponse, error) {
+	// Validate request
+	jid, err := c.validateListMessageRequest(to)
+	if err != nil {
+		return nil, err
+	}
+
+	// Build list sections
+	listSections := c.buildListSections(sections)
+
+	// Create and send message
+	return c.sendListMessage(ctx, jid, to, body, buttonText, listSections, len(sections))
+}
+
+// validateListMessageRequest validates the list message request
+func (c *WameowClient) validateListMessageRequest(to string) (types.JID, error) {
 	if !c.client.IsLoggedIn() {
-		return nil, fmt.Errorf("client is not logged in")
+		return types.EmptyJID, fmt.Errorf("client is not logged in")
 	}
 
 	jid, err := c.parseJID(to)
 	if err != nil {
-		return nil, fmt.Errorf("invalid JID: %w", err)
+		return types.EmptyJID, fmt.Errorf("invalid JID: %w", err)
 	}
 
-	// Build sections exactly like
+	return jid, nil
+}
+
+// buildListSections builds WhatsApp list sections from input data
+func (c *WameowClient) buildListSections(sections []map[string]interface{}) []*waE2E.ListMessage_Section {
 	var listSections []*waE2E.ListMessage_Section
+
 	for _, section := range sections {
 		title, _ := section["title"].(string)
 		rows, _ := section["rows"].([]interface{})
 
-		var listRows []*waE2E.ListMessage_Row
-		for _, rowInterface := range rows {
-			row, ok := rowInterface.(map[string]interface{})
-			if !ok {
-				continue
-			}
-
-			rowTitle, _ := row["title"].(string)
-			rowDescription, _ := row["description"].(string)
-			rowId, _ := row["id"].(string)
-
-			if rowId == "" {
-				rowId = rowTitle // fallback to title
-			}
-
-			listRows = append(listRows, &waE2E.ListMessage_Row{
-				RowID:       &rowId,
-				Title:       &rowTitle,
-				Description: &rowDescription,
-			})
-		}
+		listRows := c.buildListRows(rows)
 
 		listSections = append(listSections, &waE2E.ListMessage_Section{
 			Title: &title,
@@ -1406,6 +1406,39 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 		})
 	}
 
+	return listSections
+}
+
+// buildListRows builds WhatsApp list rows from input data
+func (c *WameowClient) buildListRows(rows []interface{}) []*waE2E.ListMessage_Row {
+	var listRows []*waE2E.ListMessage_Row
+
+	for _, rowInterface := range rows {
+		row, ok := rowInterface.(map[string]interface{})
+		if !ok {
+			continue
+		}
+
+		rowTitle, _ := row["title"].(string)
+		rowDescription, _ := row["description"].(string)
+		rowId, _ := row["id"].(string)
+
+		if rowId == "" {
+			rowId = rowTitle // fallback to title
+		}
+
+		listRows = append(listRows, &waE2E.ListMessage_Row{
+			RowID:       &rowId,
+			Title:       &rowTitle,
+			Description: &rowDescription,
+		})
+	}
+
+	return listRows
+}
+
+// sendListMessage creates and sends the list message
+func (c *WameowClient) sendListMessage(ctx context.Context, jid types.JID, to, body, buttonText string, listSections []*waE2E.ListMessage_Section, sectionCount int) (*whatsmeow.SendResponse, error) {
 	listMsg := &waE2E.ListMessage{
 		Title:       &body,
 		Description: &body,
@@ -1425,7 +1458,7 @@ func (c *WameowClient) SendListMessage(ctx context.Context, to, body, buttonText
 	c.logger.InfoWithFields("Sending list message", map[string]interface{}{
 		"session_id":    c.sessionID,
 		"to":            to,
-		"section_count": len(sections),
+		"section_count": sectionCount,
 		"body_length":   len(body),
 	})
 
