@@ -546,40 +546,66 @@ func (h *MessageHandler) handleSingleContact(c *fiber.Ctx, sessionIdentifier str
 }
 
 func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier string) error {
-	var contactListReq message.ContactListMessageRequest
-	if err := c.BodyParser(&contactListReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("Invalid contact list format"))
+	// Parse and validate request
+	contactListReq, err := h.parseContactListRequest(c)
+	if err != nil {
+		return err
 	}
 
-	if contactListReq.RemoteJID == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
-	}
-
-	if len(contactListReq.Contacts) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("At least one contact is required"))
-	}
-
-	if len(contactListReq.Contacts) > 10 {
-		return c.Status(400).JSON(common.NewErrorResponse("Maximum 10 contacts allowed per request"))
-	}
-
-	for i, contact := range contactListReq.Contacts {
-		if contact.Name == "" {
-			return c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: name is required", i+1)))
-		}
-		if contact.Phone == "" {
-			return c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: phone is required", i+1)))
-		}
-	}
-
+	// Resolve session
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
 	if err != nil {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	var contacts []wameow.ContactInfo
-	for _, contact := range contactListReq.Contacts {
-		contacts = append(contacts, wameow.ContactInfo{
+	// Convert and send contacts
+	contacts := h.convertToWameowContacts(contactListReq.Contacts)
+	result, err := h.sendContactsViaWameow(sess.ID.String(), contactListReq.RemoteJID, contacts, contactListReq.Contacts)
+	if err != nil {
+		return h.handleContactSendError(c, err)
+	}
+
+	// Build and return response
+	return h.buildContactListResponse(c, result, sess.ID.String(), contactListReq.RemoteJID, len(contactListReq.Contacts))
+}
+
+// parseContactListRequest parses and validates the contact list request
+func (h *MessageHandler) parseContactListRequest(c *fiber.Ctx) (*message.ContactListMessageRequest, error) {
+	var contactListReq message.ContactListMessageRequest
+	if err := c.BodyParser(&contactListReq); err != nil {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("Invalid contact list format"))
+	}
+
+	if contactListReq.RemoteJID == "" {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("'Phone' field is required"))
+	}
+
+	if len(contactListReq.Contacts) == 0 {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("At least one contact is required"))
+	}
+
+	if len(contactListReq.Contacts) > 10 {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("Maximum 10 contacts allowed per request"))
+	}
+
+	// Validate individual contacts
+	for i, contact := range contactListReq.Contacts {
+		if contact.Name == "" {
+			return nil, c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: name is required", i+1)))
+		}
+		if contact.Phone == "" {
+			return nil, c.Status(400).JSON(common.NewErrorResponse(fmt.Sprintf("Contact %d: phone is required", i+1)))
+		}
+	}
+
+	return &contactListReq, nil
+}
+
+// convertToWameowContacts converts message contacts to wameow contacts
+func (h *MessageHandler) convertToWameowContacts(contacts []message.ContactInfo) []wameow.ContactInfo {
+	var wameowContacts []wameow.ContactInfo
+	for _, contact := range contacts {
+		wameowContacts = append(wameowContacts, wameow.ContactInfo{
 			Name:         contact.Name,
 			Phone:        contact.Phone,
 			Email:        contact.Email,
@@ -589,41 +615,46 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 			Address:      contact.Address,
 		})
 	}
+	return wameowContacts
+}
 
-	var result *wameow.ContactListResult
-
-	if len(contactListReq.Contacts) == 1 {
-		contact := contacts[0]
-
-		result, err = h.wameowManager.SendSingleContact(sess.ID.String(), contactListReq.RemoteJID, contact)
+// sendContactsViaWameow sends contacts using the appropriate method (single or list)
+func (h *MessageHandler) sendContactsViaWameow(sessionID, remoteJID string, contacts []wameow.ContactInfo, originalContacts []message.ContactInfo) (*wameow.ContactListResult, error) {
+	if len(contacts) == 1 {
+		result, err := h.wameowManager.SendSingleContact(sessionID, remoteJID, contacts[0])
 		if err != nil {
 			h.logger.ErrorWithFields("Failed to send single contact", map[string]interface{}{
-				"session_id":   sess.ID.String(),
-				"to":           contactListReq.RemoteJID,
-				"contact_name": contact.Name,
+				"session_id":   sessionID,
+				"to":           remoteJID,
+				"contact_name": contacts[0].Name,
 				"error":        err.Error(),
 			})
 		}
-	} else {
-		result, err = h.wameowManager.SendContactList(sess.ID.String(), contactListReq.RemoteJID, contacts)
-		if err != nil {
-			h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
-				"session_id":    sess.ID.String(),
-				"to":            contactListReq.RemoteJID,
-				"contact_count": len(contactListReq.Contacts),
-				"error":         err.Error(),
-			})
-		}
+		return result, err
 	}
 
+	result, err := h.wameowManager.SendContactList(sessionID, remoteJID, contacts)
 	if err != nil {
-		if strings.Contains(err.Error(), "not connected") {
-			return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
-		}
-
-		return c.Status(500).JSON(common.NewErrorResponse("Failed to send contact list"))
+		h.logger.ErrorWithFields("Failed to send contact list", map[string]interface{}{
+			"session_id":    sessionID,
+			"to":            remoteJID,
+			"contact_count": len(originalContacts),
+			"error":         err.Error(),
+		})
 	}
+	return result, err
+}
 
+// handleContactSendError handles errors from contact sending
+func (h *MessageHandler) handleContactSendError(c *fiber.Ctx, err error) error {
+	if strings.Contains(err.Error(), "not connected") {
+		return c.Status(400).JSON(common.NewErrorResponse("Session is not connected"))
+	}
+	return c.Status(500).JSON(common.NewErrorResponse("Failed to send contact list"))
+}
+
+// buildContactListResponse builds the final response for contact list sending
+func (h *MessageHandler) buildContactListResponse(c *fiber.Ctx, result *wameow.ContactListResult, sessionID, remoteJID string, contactCount int) error {
 	var contactResults []message.ContactSendResult
 	for _, r := range result.Results {
 		contactResults = append(contactResults, message.ContactSendResult{
@@ -643,24 +674,21 @@ func (h *MessageHandler) handleContactList(c *fiber.Ctx, sessionIdentifier strin
 	}
 
 	contactType := "single contact"
-	if len(contactListReq.Contacts) > 1 {
+	successMessage := "Contact sent successfully"
+	if contactCount > 1 {
 		contactType = "contact list"
+		successMessage = "Contact list sent successfully"
 	}
 
 	h.logger.InfoWithFields("Contact sent successfully", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"to":             contactListReq.RemoteJID,
+		"session_id":     sessionID,
+		"to":             remoteJID,
 		"total_contacts": result.TotalContacts,
 		"success_count":  result.SuccessCount,
 		"failure_count":  result.FailureCount,
 		"contact_type":   contactType,
 		"format_type":    "standard",
 	})
-
-	successMessage := "Contact sent successfully"
-	if len(contactListReq.Contacts) > 1 {
-		successMessage = "Contact list sent successfully"
-	}
 
 	return c.JSON(common.NewSuccessResponse(response, successMessage))
 }
@@ -931,83 +959,20 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 		return c.Status(400).JSON(common.NewErrorResponse("Session identifier is required"))
 	}
 
-	// Use  format exactly
-	type listItem struct {
-		Title string `json:"title"`
-		Desc  string `json:"desc"`
-		RowId string `json:"RowId"`
-	}
-	type section struct {
-		Title string     `json:"title"`
-		Rows  []listItem `json:"rows"`
-	}
-	type listRequest struct {
-		RemoteJID  string     `json:"remoteJid"`
-		ButtonText string     `json:"ButtonText"`
-		Desc       string     `json:"Desc"`
-		TopText    string     `json:"TopText"`
-		Sections   []section  `json:"Sections"`
-		List       []listItem `json:"List"` // compatibility
-		FooterText string     `json:"FooterText"`
-		Id         string     `json:"Id,omitempty"`
+	// Parse and validate request
+	listReq, err := h.parseListMessageRequest(c)
+	if err != nil {
+		return err
 	}
 
-	var listReq listRequest
-	if err := c.BodyParser(&listReq); err != nil {
-		return c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
-	}
-
-	// Required fields validation - FooterText is optional
-	if listReq.RemoteJID == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
-		return c.Status(400).JSON(common.NewErrorResponse("missing required fields: Phone, ButtonText, Desc, TopText"))
-	}
-
-	// Check if we have sections or list
-	if len(listReq.Sections) == 0 && len(listReq.List) == 0 {
-		return c.Status(400).JSON(common.NewErrorResponse("no section or list provided"))
-	}
-
+	// Resolve session
 	sess, err := h.sessionResolver.ResolveSession(c.Context(), sessionIdentifier)
 	if err != nil {
 		return c.Status(404).JSON(common.NewErrorResponse("Session not found"))
 	}
 
-	// Convert to internal format
-	var sections []map[string]interface{}
-	if len(listReq.Sections) > 0 {
-		for _, sec := range listReq.Sections {
-			var rows []interface{}
-			for _, item := range sec.Rows {
-				rows = append(rows, map[string]interface{}{
-					"id":          item.RowId,
-					"title":       item.Title,
-					"description": item.Desc,
-				})
-			}
-			sections = append(sections, map[string]interface{}{
-				"title": sec.Title,
-				"rows":  rows,
-			})
-		}
-	} else if len(listReq.List) > 0 {
-		var rows []interface{}
-		for _, item := range listReq.List {
-			rows = append(rows, map[string]interface{}{
-				"id":          item.RowId,
-				"title":       item.Title,
-				"description": item.Desc,
-			})
-		}
-		sectionTitle := listReq.TopText
-		if sectionTitle == "" {
-			sectionTitle = "Menu"
-		}
-		sections = append(sections, map[string]interface{}{
-			"title": sectionTitle,
-			"rows":  rows,
-		})
-	}
-
+	// Convert to internal format and send
+	sections := h.convertListRequestToSections(listReq)
 	result, err := h.wameowManager.SendListMessage(sess.ID.String(), listReq.RemoteJID, listReq.Desc, listReq.ButtonText, sections)
 	if err != nil {
 		h.logger.ErrorWithFields("Failed to send list message", map[string]interface{}{
@@ -1015,10 +980,10 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 			"to":         listReq.RemoteJID,
 			"error":      err.Error(),
 		})
-
 		return c.Status(500).JSON(common.NewErrorResponse(fmt.Sprintf("error sending message: %v", err)))
 	}
 
+	// Return response
 	response := map[string]interface{}{
 		"Details":   "Sent",
 		"Timestamp": result.Timestamp.Unix(),
@@ -1026,6 +991,110 @@ func (h *MessageHandler) SendListMessage(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(response)
+}
+
+// listItem represents a single item in a list
+type listItem struct {
+	Title string `json:"title"`
+	Desc  string `json:"desc"`
+	RowId string `json:"RowId"`
+}
+
+// section represents a section containing multiple list items
+type section struct {
+	Title string     `json:"title"`
+	Rows  []listItem `json:"rows"`
+}
+
+// listRequest represents the complete list message request
+type listRequest struct {
+	RemoteJID  string     `json:"remoteJid"`
+	ButtonText string     `json:"ButtonText"`
+	Desc       string     `json:"Desc"`
+	TopText    string     `json:"TopText"`
+	Sections   []section  `json:"Sections"`
+	List       []listItem `json:"List"` // compatibility
+	FooterText string     `json:"FooterText"`
+	Id         string     `json:"Id,omitempty"`
+}
+
+// parseListMessageRequest parses and validates the list message request
+func (h *MessageHandler) parseListMessageRequest(c *fiber.Ctx) (*listRequest, error) {
+	var listReq listRequest
+	if err := c.BodyParser(&listReq); err != nil {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("could not decode Payload"))
+	}
+
+	// Required fields validation - FooterText is optional
+	if listReq.RemoteJID == "" || listReq.ButtonText == "" || listReq.Desc == "" || listReq.TopText == "" {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("missing required fields: Phone, ButtonText, Desc, TopText"))
+	}
+
+	// Check if we have sections or list
+	if len(listReq.Sections) == 0 && len(listReq.List) == 0 {
+		return nil, c.Status(400).JSON(common.NewErrorResponse("no section or list provided"))
+	}
+
+	return &listReq, nil
+}
+
+// convertListRequestToSections converts the request format to internal sections format
+func (h *MessageHandler) convertListRequestToSections(listReq *listRequest) []map[string]interface{} {
+	var sections []map[string]interface{}
+
+	if len(listReq.Sections) > 0 {
+		sections = h.convertSectionsFormat(listReq.Sections)
+	} else if len(listReq.List) > 0 {
+		sections = h.convertListFormat(listReq.List, listReq.TopText)
+	}
+
+	return sections
+}
+
+// convertSectionsFormat converts sections to internal format
+func (h *MessageHandler) convertSectionsFormat(reqSections []section) []map[string]interface{} {
+	var sections []map[string]interface{}
+
+	for _, sec := range reqSections {
+		var rows []interface{}
+		for _, item := range sec.Rows {
+			rows = append(rows, map[string]interface{}{
+				"id":          item.RowId,
+				"title":       item.Title,
+				"description": item.Desc,
+			})
+		}
+		sections = append(sections, map[string]interface{}{
+			"title": sec.Title,
+			"rows":  rows,
+		})
+	}
+
+	return sections
+}
+
+// convertListFormat converts list format to internal sections format
+func (h *MessageHandler) convertListFormat(list []listItem, topText string) []map[string]interface{} {
+	var rows []interface{}
+	for _, item := range list {
+		rows = append(rows, map[string]interface{}{
+			"id":          item.RowId,
+			"title":       item.Title,
+			"description": item.Desc,
+		})
+	}
+
+	sectionTitle := topText
+	if sectionTitle == "" {
+		sectionTitle = "Menu"
+	}
+
+	return []map[string]interface{}{
+		{
+			"title": sectionTitle,
+			"rows":  rows,
+		},
+	}
 }
 
 // @Summary Send reaction

@@ -189,11 +189,25 @@ func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*
 		"search":     req.Search,
 	})
 
-	// Get all contacts from whatsmeow store
-	contactsData, err := s.wameowManager.GetAllContacts(ctx, req.SessionID)
+	// Get raw contacts data
+	contactsList, err := s.fetchContactsData(ctx, req.SessionID)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convert and filter contacts
+	allContacts := s.processContactsData(contactsList, req.Search)
+
+	// Apply pagination and return response
+	return s.paginateContacts(allContacts, req), nil
+}
+
+// fetchContactsData retrieves raw contacts data from WhatsApp
+func (s *service) fetchContactsData(ctx context.Context, sessionID string) ([]map[string]interface{}, error) {
+	contactsData, err := s.wameowManager.GetAllContacts(ctx, sessionID)
 	if err != nil {
 		s.logger.ErrorWithFields("Failed to get contacts", map[string]interface{}{
-			"session_id": req.SessionID,
+			"session_id": sessionID,
 			"error":      err.Error(),
 		})
 		return nil, fmt.Errorf("failed to get contacts: %w", err)
@@ -202,13 +216,7 @@ func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*
 	// Extract contacts from response
 	contactsInterface, exists := contactsData["contacts"]
 	if !exists {
-		return &ListContactsResponse{
-			Contacts: []Contact{},
-			Total:    0,
-			Limit:    req.Limit,
-			Offset:   req.Offset,
-			HasMore:  false,
-		}, nil
+		return []map[string]interface{}{}, nil
 	}
 
 	contactsList, ok := contactsInterface.([]map[string]interface{})
@@ -216,50 +224,68 @@ func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*
 		return nil, fmt.Errorf("invalid contacts data format")
 	}
 
-	// Convert to domain objects and apply filtering
-	allContacts := make([]Contact, 0, len(contactsList))
-	for _, contactData := range contactsList {
-		// Handle time fields that might be nil
-		var addedAt, updatedAt time.Time
-		if addedAtPtr := getTimeFromMap(contactData, "addedAt"); addedAtPtr != nil {
-			addedAt = *addedAtPtr
-		}
-		if updatedAtPtr := getTimeFromMap(contactData, "updatedAt"); updatedAtPtr != nil {
-			updatedAt = *updatedAtPtr
-		}
+	return contactsList, nil
+}
 
-		contact := Contact{
-			JID:         getStringFromMap(contactData, "jid"),
-			PhoneNumber: getStringFromMap(contactData, "phoneNumber"),
-			Name:        getStringFromMap(contactData, "name"),
-			ShortName:   getStringFromMap(contactData, "shortName"),
-			PushName:    getStringFromMap(contactData, "pushName"),
-			IsBusiness:  getBoolFromMap(contactData, "isBusiness"),
-			IsContact:   getBoolFromMap(contactData, "isContact"),
-			IsBlocked:   getBoolFromMap(contactData, "isBlocked"),
-			AddedAt:     addedAt,
-			UpdatedAt:   updatedAt,
-		}
+// processContactsData converts raw data to domain objects and applies search filter
+func (s *service) processContactsData(contactsList []map[string]interface{}, search string) []Contact {
+	allContacts := make([]Contact, 0, len(contactsList))
+
+	for _, contactData := range contactsList {
+		contact := s.mapContactData(contactData)
 
 		// Apply search filter if provided
-		if req.Search != "" {
-			searchLower := strings.ToLower(req.Search)
-			if !strings.Contains(strings.ToLower(contact.Name), searchLower) &&
-				!strings.Contains(strings.ToLower(contact.ShortName), searchLower) &&
-				!strings.Contains(strings.ToLower(contact.PushName), searchLower) &&
-				!strings.Contains(contact.PhoneNumber, req.Search) {
-				continue
-			}
+		if search != "" && !s.matchesSearchCriteria(contact, search) {
+			continue
 		}
 
 		allContacts = append(allContacts, contact)
 	}
 
-	// Apply pagination
+	return allContacts
+}
+
+// mapContactData converts raw contact data to domain Contact object
+func (s *service) mapContactData(contactData map[string]interface{}) Contact {
+	// Handle time fields that might be nil
+	var addedAt, updatedAt time.Time
+	if addedAtPtr := getTimeFromMap(contactData, "addedAt"); addedAtPtr != nil {
+		addedAt = *addedAtPtr
+	}
+	if updatedAtPtr := getTimeFromMap(contactData, "updatedAt"); updatedAtPtr != nil {
+		updatedAt = *updatedAtPtr
+	}
+
+	return Contact{
+		JID:         getStringFromMap(contactData, "jid"),
+		PhoneNumber: getStringFromMap(contactData, "phoneNumber"),
+		Name:        getStringFromMap(contactData, "name"),
+		ShortName:   getStringFromMap(contactData, "shortName"),
+		PushName:    getStringFromMap(contactData, "pushName"),
+		IsBusiness:  getBoolFromMap(contactData, "isBusiness"),
+		IsContact:   getBoolFromMap(contactData, "isContact"),
+		IsBlocked:   getBoolFromMap(contactData, "isBlocked"),
+		AddedAt:     addedAt,
+		UpdatedAt:   updatedAt,
+	}
+}
+
+// matchesSearchCriteria checks if a contact matches the search criteria
+func (s *service) matchesSearchCriteria(contact Contact, search string) bool {
+	searchLower := strings.ToLower(search)
+	return strings.Contains(strings.ToLower(contact.Name), searchLower) ||
+		strings.Contains(strings.ToLower(contact.ShortName), searchLower) ||
+		strings.Contains(strings.ToLower(contact.PushName), searchLower) ||
+		strings.Contains(contact.PhoneNumber, search)
+}
+
+// paginateContacts applies pagination to the contacts list
+func (s *service) paginateContacts(allContacts []Contact, req *ListContactsRequest) *ListContactsResponse {
 	total := len(allContacts)
 	start := req.Offset
 	end := start + req.Limit
 
+	// Handle empty results or offset beyond total
 	if start >= total {
 		return &ListContactsResponse{
 			Contacts: []Contact{},
@@ -267,9 +293,10 @@ func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*
 			Limit:    req.Limit,
 			Offset:   req.Offset,
 			HasMore:  false,
-		}, nil
+		}
 	}
 
+	// Adjust end if it exceeds total
 	if end > total {
 		end = total
 	}
@@ -283,7 +310,7 @@ func (s *service) ListContacts(ctx context.Context, req *ListContactsRequest) (*
 		Limit:    req.Limit,
 		Offset:   req.Offset,
 		HasMore:  hasMore,
-	}, nil
+	}
 }
 
 // SyncContacts synchronizes contacts from the device with WhatsApp

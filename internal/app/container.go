@@ -63,6 +63,53 @@ type ContainerConfig struct {
 }
 
 func NewContainer(config *ContainerConfig) *Container {
+	services := createDomainServices(config)
+	useCases := createUseCases(config, services)
+
+	return &Container{
+		CommonUseCase:     useCases.common,
+		SessionUseCase:    useCases.session,
+		WebhookUseCase:    useCases.webhook,
+		ChatwootUseCase:   useCases.chatwoot,
+		MessageUseCase:    useCases.message,
+		MediaUseCase:      useCases.media,
+		GroupUseCase:      useCases.group,
+		ContactUseCase:    useCases.contact,
+		NewsletterUseCase: useCases.newsletter,
+		CommunityUseCase:  useCases.community,
+		logger:            config.Logger,
+		sessionRepo:       config.SessionRepo,
+	}
+}
+
+// domainServices holds all domain services
+type domainServices struct {
+	session    *domainSession.Service
+	webhook    *domainWebhook.Service
+	chatwoot   *domainChatwoot.Service
+	group      *domainGroup.Service
+	contact    domainContact.Service
+	media      domainMedia.Service
+	newsletter *domainNewsletter.Service
+	community  domainCommunity.Service
+}
+
+// useCases holds all use cases
+type useCases struct {
+	common     common.UseCase
+	session    session.UseCase
+	webhook    webhook.UseCase
+	chatwoot   chatwoot.UseCase
+	message    message.UseCase
+	media      media.UseCase
+	group      group.UseCase
+	contact    contact.UseCase
+	newsletter newsletter.UseCase
+	community  community.UseCase
+}
+
+// createDomainServices creates all domain services
+func createDomainServices(config *ContainerConfig) *domainServices {
 	sessionService := domainSession.NewService(
 		config.SessionRepo,
 		config.WameowManager,
@@ -99,6 +146,31 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
+	// Create media service
+	// Note: MediaService requires WhatsAppClient and CacheManager which are not available in this context
+	// For now, we'll pass nil values and handle this in the actual implementation
+	mediaService := domainMedia.NewService(nil, nil, config.Logger, "/tmp/media_cache")
+
+	// Create newsletter service
+	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
+
+	// Create community service
+	communityService := domainCommunity.NewService()
+
+	return &domainServices{
+		session:    sessionService,
+		webhook:    webhookService,
+		chatwoot:   chatwootService,
+		group:      groupService,
+		contact:    contactService,
+		media:      mediaService,
+		newsletter: newsletterService,
+		community:  communityService,
+	}
+}
+
+// createUseCases creates all use cases
+func createUseCases(config *ContainerConfig, services *domainServices) *useCases {
 	commonUseCase := common.NewUseCase(
 		config.Version,
 		config.BuildTime,
@@ -111,18 +183,18 @@ func NewContainer(config *ContainerConfig) *Container {
 	sessionUseCase := session.NewUseCase(
 		config.SessionRepo,
 		config.WameowManager,
-		sessionService,
+		services.session,
 	)
 
 	webhookUseCase := webhook.NewUseCase(
 		config.WebhookRepo,
-		webhookService,
+		services.webhook,
 	)
 
 	chatwootUseCase := chatwoot.NewUseCase(
 		config.ChatwootRepo,
 		config.ChatwootIntegration,
-		chatwootService,
+		services.chatwoot,
 		config.Logger,
 	)
 
@@ -132,12 +204,8 @@ func NewContainer(config *ContainerConfig) *Container {
 		config.Logger,
 	)
 
-	// Create media service and use case
-	// Note: MediaService requires WhatsAppClient and CacheManager which are not available in this context
-	// For now, we'll pass nil values and handle this in the actual implementation
-	mediaService := domainMedia.NewService(nil, nil, config.Logger, "/tmp/media_cache")
 	mediaUseCase := media.NewUseCase(
-		mediaService,
+		services.media,
 		config.MediaRepo,
 		config.Logger,
 	)
@@ -145,49 +213,43 @@ func NewContainer(config *ContainerConfig) *Container {
 	groupUseCase := group.NewUseCase(
 		nil, // No repository needed for groups
 		config.WameowManager,
-		groupService,
+		services.group,
 	)
 
 	contactUseCase := contact.NewUseCase(
-		contactService,
+		services.contact,
 		config.Logger,
 	)
 
-	// Create newsletter service and adapter
-	newsletterService := domainNewsletter.NewService(nil) // JIDValidator is optional for now
+	// Create newsletter adapter and use case
 	newsletterManager := wameow.NewNewsletterAdapter(config.WameowManager, *config.Logger)
-
 	newsletterUseCase := newsletter.NewUseCase(
 		newsletterManager,
-		newsletterService,
+		services.newsletter,
 		config.SessionRepo,
 		*config.Logger,
 	)
 
-	// Create community service and adapter
-	communityService := domainCommunity.NewService()
+	// Create community adapter and use case
 	communityManager := wameow.NewCommunityAdapter(config.WameowManager, *config.Logger)
-
 	communityUseCase := community.NewUseCase(
 		communityManager,
-		communityService,
+		services.community,
 		config.SessionRepo,
 		*config.Logger,
 	)
 
-	return &Container{
-		CommonUseCase:     commonUseCase,
-		SessionUseCase:    sessionUseCase,
-		WebhookUseCase:    webhookUseCase,
-		ChatwootUseCase:   chatwootUseCase,
-		MessageUseCase:    messageUseCase,
-		MediaUseCase:      mediaUseCase,
-		GroupUseCase:      groupUseCase,
-		ContactUseCase:    contactUseCase,
-		NewsletterUseCase: newsletterUseCase,
-		CommunityUseCase:  communityUseCase,
-		logger:            config.Logger,
-		sessionRepo:       config.SessionRepo,
+	return &useCases{
+		common:     commonUseCase,
+		session:    sessionUseCase,
+		webhook:    webhookUseCase,
+		chatwoot:   chatwootUseCase,
+		message:    messageUseCase,
+		media:      mediaUseCase,
+		group:      groupUseCase,
+		contact:    contactUseCase,
+		newsletter: newsletterUseCase,
+		community:  communityUseCase,
 	}
 }
 

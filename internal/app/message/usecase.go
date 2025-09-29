@@ -45,81 +45,26 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		"type":       req.Type,
 	})
 
-	sess, err := uc.sessionRepo.GetByID(ctx, sessionID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get session: %w", err)
+	// Validate session
+	if err := uc.validateSession(ctx, sessionID); err != nil {
+		return nil, err
 	}
 
-	if sess == nil {
-		return nil, fmt.Errorf("session not found")
-	}
-
-	if !sess.IsConnected {
-		return nil, fmt.Errorf("session is not connected")
-	}
-
+	// Prepare domain request
 	domainReq := req.ToDomainRequest()
-
 	if err := message.ValidateMessageRequest(domainReq); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
 	}
 
-	var filePath string
-	var cleanup func() error
-
-	if domainReq.IsMediaMessage() && domainReq.File != "" {
-		processedMedia, err := uc.mediaProcessor.ProcessMediaForType(ctx, domainReq.File, domainReq.Type)
-		if err != nil {
-			return nil, fmt.Errorf("failed to process media: %w", err)
-		}
-
-		filePath = processedMedia.FilePath
-		cleanup = processedMedia.Cleanup
-
-		if domainReq.MimeType == "" {
-			domainReq.MimeType = processedMedia.MimeType
-		}
-
-		if domainReq.Type == message.MessageTypeDocument && domainReq.Filename == "" {
-			domainReq.Filename = "document"
-		}
-
-		defer func() {
-			if cleanup != nil {
-				if cleanupErr := cleanup(); cleanupErr != nil {
-					uc.logger.WarnWithFields("Failed to cleanup temporary file", map[string]interface{}{
-						"file_path": filePath,
-						"error":     cleanupErr.Error(),
-					})
-				}
-			}
-		}()
+	// Process media if needed
+	filePath, cleanup, err := uc.processMediaIfNeeded(ctx, domainReq)
+	if err != nil {
+		return nil, err
 	}
+	defer uc.cleanupMedia(cleanup, filePath)
 
-	// Convert domain ContextInfo to message ContextInfo
-	var msgContextInfo *message.ContextInfo
-	if domainReq.ContextInfo != nil {
-		msgContextInfo = &message.ContextInfo{
-			StanzaID:    domainReq.ContextInfo.StanzaID,
-			Participant: domainReq.ContextInfo.Participant,
-		}
-	}
-
-	result, err := uc.wameowManager.SendMessage(
-		sessionID,
-		domainReq.To,
-		string(domainReq.Type),
-		domainReq.Body,
-		domainReq.Caption,
-		filePath,
-		domainReq.Filename,
-		domainReq.Latitude,
-		domainReq.Longitude,
-		domainReq.ContactName,
-		domainReq.ContactPhone,
-		msgContextInfo,
-	)
-
+	// Send message
+	result, err := uc.sendMessageToWameow(sessionID, domainReq, filePath)
 	if err != nil {
 		uc.logger.ErrorWithFields("Failed to send message", map[string]interface{}{
 			"session_id": sessionID,
@@ -137,13 +82,91 @@ func (uc *useCaseImpl) SendMessage(ctx context.Context, sessionID string, req *S
 		"message_id": result.MessageID,
 	})
 
-	response := &SendMessageResponse{
+	return &SendMessageResponse{
 		ID:        result.MessageID,
 		Status:    result.Status,
 		Timestamp: result.Timestamp,
+	}, nil
+}
+
+// validateSession validates that the session exists and is connected
+func (uc *useCaseImpl) validateSession(ctx context.Context, sessionID string) error {
+	sess, err := uc.sessionRepo.GetByID(ctx, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to get session: %w", err)
 	}
 
-	return response, nil
+	if sess == nil {
+		return fmt.Errorf("session not found")
+	}
+
+	if !sess.IsConnected {
+		return fmt.Errorf("session is not connected")
+	}
+
+	return nil
+}
+
+// processMediaIfNeeded processes media files if the message contains media
+func (uc *useCaseImpl) processMediaIfNeeded(ctx context.Context, domainReq *message.SendMessageRequest) (string, func() error, error) {
+	if !domainReq.IsMediaMessage() || domainReq.File == "" {
+		return "", nil, nil
+	}
+
+	processedMedia, err := uc.mediaProcessor.ProcessMediaForType(ctx, domainReq.File, domainReq.Type)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to process media: %w", err)
+	}
+
+	// Set default values if not provided
+	if domainReq.MimeType == "" {
+		domainReq.MimeType = processedMedia.MimeType
+	}
+
+	if domainReq.Type == message.MessageTypeDocument && domainReq.Filename == "" {
+		domainReq.Filename = "document"
+	}
+
+	return processedMedia.FilePath, processedMedia.Cleanup, nil
+}
+
+// cleanupMedia cleans up temporary media files
+func (uc *useCaseImpl) cleanupMedia(cleanup func() error, filePath string) {
+	if cleanup != nil {
+		if cleanupErr := cleanup(); cleanupErr != nil {
+			uc.logger.WarnWithFields("Failed to cleanup temporary file", map[string]interface{}{
+				"file_path": filePath,
+				"error":     cleanupErr.Error(),
+			})
+		}
+	}
+}
+
+// sendMessageToWameow sends the message via WameowManager
+func (uc *useCaseImpl) sendMessageToWameow(sessionID string, domainReq *message.SendMessageRequest, filePath string) (*message.SendResult, error) {
+	// Convert domain ContextInfo to message ContextInfo
+	var msgContextInfo *message.ContextInfo
+	if domainReq.ContextInfo != nil {
+		msgContextInfo = &message.ContextInfo{
+			StanzaID:    domainReq.ContextInfo.StanzaID,
+			Participant: domainReq.ContextInfo.Participant,
+		}
+	}
+
+	return uc.wameowManager.SendMessage(
+		sessionID,
+		domainReq.To,
+		string(domainReq.Type),
+		domainReq.Body,
+		domainReq.Caption,
+		filePath,
+		domainReq.Filename,
+		domainReq.Latitude,
+		domainReq.Longitude,
+		domainReq.ContactName,
+		domainReq.ContactPhone,
+		msgContextInfo,
+	)
 }
 
 // GetPollResults retrieves poll results for a specific poll message
