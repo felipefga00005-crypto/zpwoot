@@ -286,10 +286,14 @@ func createContainer(repositories *repository.Repositories, managers managers, d
 	newsletterManager := wameow.NewNewsletterAdapter(managers.whatsapp, *appLogger)
 	communityManager := wameow.NewCommunityAdapter(managers.whatsapp, *appLogger)
 
+	// Create QR generator for domain service
+	qrGenerator := wameow.NewQRCodeGenerator(appLogger)
+
 	// Create domain services
 	sessionService := session.NewService(
 		repositories.GetSessionRepository(),
 		managers.whatsapp,
+		qrGenerator,
 	)
 
 	webhookService := domainWebhook.NewService(

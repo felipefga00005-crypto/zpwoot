@@ -22,13 +22,13 @@ Replace these variables in the examples:
 - **GET** `/health/wameow` - WhatsApp manager status
 
 ## Sessions
-- **POST** `/sessions/create` - Create session
+- **POST** `/sessions/create` - Create session (with optional QR code generation)
 - **GET** `/sessions/list` - List sessions
 - **GET** `/sessions/{sessionId}/info` - Session info
 - **DELETE** `/sessions/{sessionId}/delete` - Delete session
-- **POST** `/sessions/{sessionId}/connect` - Connect session
+- **POST** `/sessions/{sessionId}/connect` - Connect session (returns QR code if needed)
 - **POST** `/sessions/{sessionId}/logout` - Logout session
-- **GET** `/sessions/{sessionId}/qr` - Get QR code
+- **GET** `/sessions/{sessionId}/qr` - Get QR code (with base64 image)
 - **POST** `/sessions/{sessionId}/pair` - Pair phone
 
 ## Proxy
@@ -103,6 +103,69 @@ Replace these variables in the examples:
 - **POST** `/sessions/{sessionId}/chatwoot/conversations/sync` - Sync conversations
 
 ## Request Examples
+
+### Create Session with QR Code
+```bash
+# Create session and get QR code immediately
+curl -X POST "http://localhost:8080/sessions/create" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-session",
+    "qrCode": true,
+    "proxyConfig": {
+      "host": "proxy.example.com",
+      "password": "proxypass123",
+      "port": 8080,
+      "type": "http",
+      "username": "proxyuser"
+    }
+  }'
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "1b2e424c-a2a0-41a4-b992-15b7ec06b9bc",
+    "name": "my-session",
+    "isConnected": false,
+    "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+    "code": "2@abc123def456...",
+    "createdAt": "2024-01-01T00:00:00Z"
+  }
+}
+```
+
+### Create Session without QR Code
+```bash
+# Create session without QR code (traditional flow)
+curl -X POST "http://localhost:8080/sessions/create" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "my-session",
+    "qrCode": false
+  }'
+```
+
+### Connect Session and Get QR Code
+```bash
+# Connect session and get QR code if needed
+curl -X POST "http://localhost:8080/sessions/my-session/connect" \
+  -H "Authorization: a0b1125a0eb3364d98e2c49ec6f7d6ba"
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session connection initiated successfully",
+  "qrCode": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAA...",
+  "code": "2@abc123def456..."
+}
+```
 
 ### Send Text Message
 ```bash

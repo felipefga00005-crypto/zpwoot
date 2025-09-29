@@ -2,9 +2,11 @@ package session
 
 import (
 	"context"
+	"time"
 
 	"zpwoot/internal/domain/session"
 	"zpwoot/internal/ports"
+	"zpwoot/platform/logger"
 )
 
 type UseCase interface {
@@ -24,17 +26,20 @@ type useCaseImpl struct {
 	sessionRepo    ports.SessionRepository
 	WameowMgr      ports.WameowManager
 	sessionService *session.Service
+	logger         *logger.Logger
 }
 
 func NewUseCase(
 	sessionRepo ports.SessionRepository,
 	WameowMgr ports.WameowManager,
 	sessionService *session.Service,
+	logger *logger.Logger,
 ) UseCase {
 	return &useCaseImpl{
 		sessionRepo:    sessionRepo,
 		WameowMgr:      WameowMgr,
 		sessionService: sessionService,
+		logger:         logger,
 	}
 }
 
@@ -65,18 +70,23 @@ func (uc *useCaseImpl) CreateSession(ctx context.Context, req *CreateSessionRequ
 		CreatedAt:   sess.CreatedAt,
 	}
 
-	// If QR code was requested during creation, generate it
+	// If QR code was requested during creation, try to get it from database
 	if req.QrCode {
+		// Give a small delay for the QR code to be generated and saved by events
+		time.Sleep(500 * time.Millisecond)
+
 		qrResponse, err := uc.sessionService.GetQRCode(ctx, sess.ID.String())
 		if err == nil && qrResponse != nil {
 			response.QrCode = qrResponse.QRCodeImage
 			response.Code = qrResponse.QRCode
 		}
-		// Don't fail creation if QR code generation fails
+		// Don't fail creation if QR code is not ready yet
 	}
 
 	return response, nil
 }
+
+
 
 func (uc *useCaseImpl) ListSessions(ctx context.Context, req *ListSessionsRequest) (*ListSessionsResponse, error) {
 	domainReq := &session.ListSessionsRequest{

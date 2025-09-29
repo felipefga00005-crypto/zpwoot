@@ -9,9 +9,14 @@ import (
 )
 
 type Service struct {
-	repo      Repository
-	Wameow    WameowManager
-	generator *uuid.Generator
+	repo        Repository
+	Wameow      WameowManager
+	generator   *uuid.Generator
+	qrGenerator QRGenerator
+}
+
+type QRGenerator interface {
+	GenerateQRCodeImage(qrText string) string
 }
 
 type Repository interface {
@@ -36,11 +41,12 @@ type WameowManager interface {
 	GetProxy(sessionID string) (*ProxyConfig, error)
 }
 
-func NewService(repo Repository, Wameow WameowManager) *Service {
+func NewService(repo Repository, Wameow WameowManager, qrGenerator QRGenerator) *Service {
 	return &Service{
-		repo:      repo,
-		Wameow:    Wameow,
-		generator: uuid.New(),
+		repo:        repo,
+		Wameow:      Wameow,
+		generator:   uuid.New(),
+		qrGenerator: qrGenerator,
 	}
 }
 
@@ -190,12 +196,31 @@ func (s *Service) GetQRCode(ctx context.Context, id string) (*QRCodeResponse, er
 		return nil, errors.ErrNotFound
 	}
 
-	qrResponse, err := s.Wameow.GetQRCode(id)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get QR code")
+	// Check if QR code exists in database
+	if session.QRCode == "" {
+		return nil, errors.NewWithDetails(404, "QR code not found", "no QR code available for this session")
 	}
 
-	return qrResponse, nil
+	// Check if QR code is expired
+	if session.QRCodeExpiresAt != nil && time.Now().After(*session.QRCodeExpiresAt) {
+		return nil, errors.NewWithDetails(410, "QR code expired", "QR code has expired")
+	}
+
+	// Generate QR code image from the stored code
+	qrCodeImage := s.qrGenerator.GenerateQRCodeImage(session.QRCode)
+
+	// Calculate expiry time (default 2 minutes from now if no expiry set)
+	expiresAt := time.Now().Add(2 * time.Minute)
+	if session.QRCodeExpiresAt != nil {
+		expiresAt = *session.QRCodeExpiresAt
+	}
+
+	return &QRCodeResponse{
+		QRCode:      session.QRCode,
+		QRCodeImage: qrCodeImage,
+		ExpiresAt:   expiresAt,
+		Timeout:     120,
+	}, nil
 }
 
 func (s *Service) PairPhone(ctx context.Context, id string, req *PairPhoneRequest) error {

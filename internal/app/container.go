@@ -153,6 +153,7 @@ func createUseCases(config *ContainerConfig, services *domainServices) *useCases
 		config.SessionRepo,
 		config.WameowManager,
 		services.session,
+		config.Logger,
 	)
 
 	webhookUseCase := webhook.NewUseCase(

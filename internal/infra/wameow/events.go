@@ -176,11 +176,10 @@ func (h *EventHandler) handleQR(evt *events.QR, sessionID string) {
 		"codes_count": len(evt.Codes),
 	})
 
-	// Gera a imagem do QR code apenas se necessário
+	// Salva o QR code no banco e exibe no terminal
 	qrCode := evt.Codes[0]
 	if qrCode != "" {
-		qrImage := h.qrGen.GenerateQRCodeImage(qrCode)
-		h.updateSessionQRCode(sessionID, qrImage)
+		h.updateSessionQRCode(sessionID, qrCode) // Save raw QR code to database
 
 		// Exibe o QR code no terminal
 		h.qrGen.DisplayQRCodeInTerminal(qrCode, sessionID)
@@ -586,6 +585,8 @@ func (h *EventHandler) updateSessionQRCode(sessionID, qrCode string) {
 	}
 
 	sess.QRCode = qrCode
+	expiresAt := time.Now().Add(2 * time.Minute) // QR code expires in 2 minutes
+	sess.QRCodeExpiresAt = &expiresAt
 	sess.UpdatedAt = time.Now()
 
 	if err := h.sessionMgr.GetSessionRepo().Update(ctx, sess); err != nil {

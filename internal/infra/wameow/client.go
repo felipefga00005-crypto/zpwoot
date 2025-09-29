@@ -415,7 +415,7 @@ func (c *WameowClient) handleQREvent(evt whatsmeow.QRChannelItem) {
 
 		if currentCode != evt.Code {
 			c.updateQRCode(evt.Code)
-			c.displayQRCode(evt.Code)
+			// QR code display is handled by events.go to avoid duplication
 			c.setStatus("connecting")
 		} else {
 			c.logger.DebugWithFields("Received duplicate QR code, skipping display", map[string]interface{}{
