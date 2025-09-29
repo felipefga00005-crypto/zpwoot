@@ -8,15 +8,15 @@ import (
 
 // Domain errors
 var (
-	ErrInvalidNewsletterJID  = errors.New("invalid newsletter JID")
-	ErrInvalidNewsletterName = errors.New("invalid newsletter name")
-	ErrNewsletterNameTooLong = errors.New("newsletter name too long (max 64 characters)")
-	ErrDescriptionTooLong    = errors.New("description too long (max 256 characters)")
-	ErrInvalidInviteKey      = errors.New("invalid invite key")
-	ErrNewsletterNotFound    = errors.New("newsletter not found")
-	ErrNotNewsletterAdmin    = errors.New("user is not a newsletter admin")
-	ErrEmptyNewsletterName   = errors.New("newsletter name cannot be empty")
-	ErrInvalidNewsletterRole = errors.New("invalid newsletter role")
+	ErrInvalidNewsletterJID   = errors.New("invalid newsletter JID")
+	ErrInvalidNewsletterName  = errors.New("invalid newsletter name")
+	ErrNewsletterNameTooLong  = errors.New("newsletter name too long (max 64 characters)")
+	ErrDescriptionTooLong     = errors.New("description too long (max 256 characters)")
+	ErrInvalidInviteKey       = errors.New("invalid invite key")
+	ErrNewsletterNotFound     = errors.New("newsletter not found")
+	ErrNotNewsletterAdmin     = errors.New("user is not a newsletter admin")
+	ErrEmptyNewsletterName    = errors.New("newsletter name cannot be empty")
+	ErrInvalidNewsletterRole  = errors.New("invalid newsletter role")
 	ErrInvalidNewsletterState = errors.New("invalid newsletter state")
 )
 
@@ -65,21 +65,21 @@ type ProfilePictureInfo struct {
 
 // NewsletterInfo represents a WhatsApp newsletter/channel
 type NewsletterInfo struct {
-	ID              string                      `json:"id"`
-	Name            string                      `json:"name"`
-	Description     string                      `json:"description"`
-	InviteCode      string                      `json:"inviteCode"`
-	SubscriberCount int                         `json:"subscriberCount"`
-	State           NewsletterState             `json:"state"`
-	Role            NewsletterRole              `json:"role"`
-	Muted           bool                        `json:"muted"`
-	MuteState       NewsletterMuteState         `json:"muteState"`
-	Verified        bool                        `json:"verified"`
+	ID                string                      `json:"id"`
+	Name              string                      `json:"name"`
+	Description       string                      `json:"description"`
+	InviteCode        string                      `json:"inviteCode"`
+	SubscriberCount   int                         `json:"subscriberCount"`
+	State             NewsletterState             `json:"state"`
+	Role              NewsletterRole              `json:"role"`
+	Muted             bool                        `json:"muted"`
+	MuteState         NewsletterMuteState         `json:"muteState"`
+	Verified          bool                        `json:"verified"`
 	VerificationState NewsletterVerificationState `json:"verificationState"`
-	CreationTime    time.Time                   `json:"creationTime"`
-	UpdateTime      time.Time                   `json:"updateTime"`
-	Picture         *ProfilePictureInfo         `json:"picture,omitempty"`
-	Preview         *ProfilePictureInfo         `json:"preview,omitempty"`
+	CreationTime      time.Time                   `json:"creationTime"`
+	UpdateTime        time.Time                   `json:"updateTime"`
+	Picture           *ProfilePictureInfo         `json:"picture,omitempty"`
+	Preview           *ProfilePictureInfo         `json:"preview,omitempty"`
 }
 
 // CreateNewsletterRequest represents the data needed to create a newsletter
@@ -205,7 +205,7 @@ func (req *GetNewsletterInfoWithInviteRequest) Validate() error {
 	req.InviteKey = strings.TrimPrefix(req.InviteKey, "https://whatsapp.com/channel/")
 	req.InviteKey = strings.TrimPrefix(req.InviteKey, "whatsapp.com/channel/")
 	req.InviteKey = strings.TrimPrefix(req.InviteKey, "channel/")
-	
+
 	if req.InviteKey == "" {
 		return ErrInvalidInviteKey
 	}
@@ -329,7 +329,7 @@ type NewsletterMarkViewedRequest struct {
 type NewsletterSendReactionRequest struct {
 	JID       string `json:"jid" validate:"required"`
 	ServerID  string `json:"serverId" validate:"required"`
-	Reaction  string `json:"reaction"`          // Empty string to remove reaction
+	Reaction  string `json:"reaction"`            // Empty string to remove reaction
 	MessageID string `json:"messageId,omitempty"` // Optional, will be generated if empty
 }
 
@@ -364,8 +364,8 @@ type NewsletterActionResponse struct {
 
 // UploadNewsletterRequest represents the request for uploading newsletter media
 type UploadNewsletterRequest struct {
-	Data     []byte `json:"data" validate:"required"`
-	MimeType string `json:"mimeType" validate:"required"`
+	Data      []byte `json:"data" validate:"required"`
+	MimeType  string `json:"mimeType" validate:"required"`
 	MediaType string `json:"mediaType" validate:"required"` // image, video, audio, document
 }
 

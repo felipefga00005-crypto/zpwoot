@@ -46,7 +46,7 @@ func (uc *useCaseImpl) SetConfig(ctx context.Context, req *SetConfigRequest) (*S
 		SessionID: webhookConfig.SessionID,
 		URL:       webhookConfig.URL,
 		Events:    webhookConfig.Events,
-		Active:    webhookConfig.Active,
+		Enabled:   webhookConfig.Enabled,
 		CreatedAt: webhookConfig.CreatedAt,
 	}
 

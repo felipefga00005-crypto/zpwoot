@@ -23,10 +23,10 @@ type WebhookRepository interface {
 	List(ctx context.Context, req *webhook.ListWebhooksRequest) ([]*webhook.WebhookConfig, int, error)
 	Update(ctx context.Context, webhook *webhook.WebhookConfig) error
 	Delete(ctx context.Context, id string) error
-	UpdateStatus(ctx context.Context, id string, active bool) error
-	GetActiveWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error)
+	UpdateStatus(ctx context.Context, id string, enabled bool) error
+	GetEnabledWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error)
 	GetWebhooksByEvent(ctx context.Context, eventType string) ([]*webhook.WebhookConfig, error)
-	CountByStatus(ctx context.Context, active bool) (int, error)
+	CountByStatus(ctx context.Context, enabled bool) (int, error)
 	GetWebhookStats(ctx context.Context, webhookID string) (*WebhookStats, error)
 	UpdateWebhookStats(ctx context.Context, webhookID string, stats *WebhookStats) error
 }

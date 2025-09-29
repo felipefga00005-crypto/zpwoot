@@ -3048,6 +3048,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "format": "uuid",
                         "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
@@ -3061,8 +3062,14 @@ const docTemplate = `{
                             "$ref": "#/definitions/WebhookResponse"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request - Invalid session ID format",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
                     "404": {
-                        "description": "Session not found",
+                        "description": "Webhook not found for this session",
                         "schema": {
                             "type": "object"
                         }
@@ -3083,7 +3090,7 @@ const docTemplate = `{
                         "ApiKeyAuth": []
                     }
                 ],
-                "description": "Set or update webhook configuration for a WhatsApp session",
+                "description": "Create or update webhook configuration for a WhatsApp session. Set enabled=true to activate, enabled=false to disable without deleting. If enabled is not provided, defaults to true.",
                 "consumes": [
                     "application/json"
                 ],
@@ -3097,6 +3104,7 @@ const docTemplate = `{
                 "parameters": [
                     {
                         "type": "string",
+                        "format": "uuid",
                         "description": "Session ID",
                         "name": "sessionId",
                         "in": "path",
@@ -3113,14 +3121,14 @@ const docTemplate = `{
                     }
                 ],
                 "responses": {
-                    "200": {
-                        "description": "Webhook configuration set successfully",
+                    "201": {
+                        "description": "Webhook configuration created/updated successfully",
                         "schema": {
                             "$ref": "#/definitions/SetConfigResponse"
                         }
                     },
                     "400": {
-                        "description": "Bad Request",
+                        "description": "Bad Request - Invalid session ID, URL, or event types",
                         "schema": {
                             "type": "object"
                         }
@@ -3139,6 +3147,97 @@ const docTemplate = `{
                     }
                 }
             }
+        },
+        "/sessions/{sessionId}/webhook/test": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "description": "Test webhook endpoint for a WhatsApp session with a sample event",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Test webhook",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "format": "uuid",
+                        "description": "Session ID",
+                        "name": "sessionId",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "Test webhook request",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/TestWebhookRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Webhook tested successfully",
+                        "schema": {
+                            "$ref": "#/definitions/zpwoot_internal_app_webhook.TestWebhookResponse"
+                        }
+                    },
+                    "400": {
+                        "description": "Bad Request - Invalid session ID or event type",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "404": {
+                        "description": "Webhook not found for this session",
+                        "schema": {
+                            "type": "object"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
+        },
+        "/webhook/events": {
+            "get": {
+                "description": "Get list of all supported webhook event types that can be subscribed to",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Webhooks"
+                ],
+                "summary": "Get supported webhook events",
+                "responses": {
+                    "200": {
+                        "description": "Supported events retrieved successfully",
+                        "schema": {
+                            "$ref": "#/definitions/zpwoot_internal_app_webhook.WebhookEventsResponse"
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object"
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -3146,7 +3245,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "file",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "caption": {
@@ -3160,22 +3259,22 @@ const docTemplate = `{
                     "type": "string",
                     "example": "https://example.com/audio.ogg"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "mimeType": {
                     "type": "string",
                     "example": "audio/ogg"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "BusinessProfileRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "name",
-                "phone"
+                "phone",
+                "remoteJid"
             ],
             "properties": {
                 "address": {
@@ -3185,10 +3284,6 @@ const docTemplate = `{
                 "email": {
                     "type": "string",
                     "example": "contato@empresateste.com.br"
-                },
-                "jid": {
-                    "type": "string",
-                    "example": "5511987654321@s.whatsapp.net"
                 },
                 "name": {
                     "type": "string",
@@ -3201,6 +3296,10 @@ const docTemplate = `{
                 "phone": {
                     "type": "string",
                     "example": "+5511987654321"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511987654321@s.whatsapp.net"
                 },
                 "title": {
                     "type": "string",
@@ -3233,7 +3332,7 @@ const docTemplate = `{
             "required": [
                 "body",
                 "buttons",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "body": {
@@ -3248,7 +3347,7 @@ const docTemplate = `{
                         "$ref": "#/definitions/Button"
                     }
                 },
-                "jid": {
+                "remoteJid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 }
@@ -3319,7 +3418,7 @@ const docTemplate = `{
             "required": [
                 "contactName",
                 "contactPhone",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "contactName": {
@@ -3330,7 +3429,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "+5511987654321"
                 },
-                "jid": {
+                "remoteJid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 }
@@ -3430,18 +3529,14 @@ const docTemplate = `{
         "CreatePollRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "name",
-                "options"
+                "options",
+                "remoteJid"
             ],
             "properties": {
                 "allowMultipleAnswers": {
                     "type": "boolean",
                     "example": false
-                },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "name": {
                     "type": "string",
@@ -3462,6 +3557,10 @@ const docTemplate = `{
                         "Green"
                     ]
                 },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
+                },
                 "selectableOptionCount": {
                     "type": "integer",
                     "minimum": 1,
@@ -3472,10 +3571,6 @@ const docTemplate = `{
         "CreatePollResponse": {
             "type": "object",
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
@@ -3494,6 +3589,10 @@ const docTemplate = `{
                 "pollName": {
                     "type": "string",
                     "example": "What's your favorite color?"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "status": {
                     "type": "string",
@@ -3572,7 +3671,7 @@ const docTemplate = `{
             "required": [
                 "file",
                 "filename",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "caption": {
@@ -3590,29 +3689,24 @@ const docTemplate = `{
                     "type": "string",
                     "example": "important_document.pdf"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "mimeType": {
                     "type": "string",
                     "example": "application/pdf"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "EditMessageRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "messageId",
                 "newBody",
-                "sessionId"
+                "remoteJid"
             ],
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
@@ -3620,6 +3714,10 @@ const docTemplate = `{
                 "newBody": {
                     "type": "string",
                     "example": "Updated message text"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "sessionId": {
                     "type": "string",
@@ -3659,10 +3757,6 @@ const docTemplate = `{
                     "type": "string",
                     "example": "2024-01-01T12:00:00Z"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "options": {
                     "type": "array",
                     "items": {
@@ -3676,6 +3770,10 @@ const docTemplate = `{
                 "pollName": {
                     "type": "string",
                     "example": "What's your favorite color?"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "selectableOptionCount": {
                     "type": "integer",
@@ -3712,7 +3810,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "file",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "caption": {
@@ -3730,13 +3828,13 @@ const docTemplate = `{
                     "type": "string",
                     "example": "sunset.jpg"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "mimeType": {
                     "type": "string",
                     "example": "image/jpeg"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3745,7 +3843,7 @@ const docTemplate = `{
             "required": [
                 "body",
                 "buttonText",
-                "jid",
+                "remoteJid",
                 "sections"
             ],
             "properties": {
@@ -3757,7 +3855,7 @@ const docTemplate = `{
                     "type": "string",
                     "example": "Select Option"
                 },
-                "jid": {
+                "remoteJid": {
                     "type": "string",
                     "example": "5511999999999@s.whatsapp.net"
                 },
@@ -3796,18 +3894,14 @@ const docTemplate = `{
         "LocationMessageRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "latitude",
-                "longitude"
+                "longitude",
+                "remoteJid"
             ],
             "properties": {
                 "address": {
                     "type": "string",
                     "example": "Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil"
-                },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "latitude": {
                     "type": "number",
@@ -3816,23 +3910,27 @@ const docTemplate = `{
                 "longitude": {
                     "type": "number",
                     "example": -46.6333
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "MarkReadRequest": {
             "type": "object",
             "required": [
-                "jid",
-                "messageId"
+                "messageId",
+                "remoteJid"
             ],
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C431C26A1916E07E"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3861,7 +3959,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "file",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "caption": {
@@ -3876,13 +3974,13 @@ const docTemplate = `{
                     "type": "string",
                     "example": "media.file"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "mimeType": {
                     "type": "string",
                     "example": "application/octet-stream"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -3940,14 +4038,10 @@ const docTemplate = `{
         "PresenceMessageRequest": {
             "type": "object",
             "required": [
-                "jid",
-                "presence"
+                "presence",
+                "remoteJid"
             ],
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "presence": {
                     "type": "string",
                     "enum": [
@@ -3958,6 +4052,10 @@ const docTemplate = `{
                         "paused"
                     ],
                     "example": "typing"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -4032,15 +4130,11 @@ const docTemplate = `{
         "ReactionMessageRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "messageId",
-                "reaction"
+                "reaction",
+                "remoteJid"
             ],
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
@@ -4048,6 +4142,10 @@ const docTemplate = `{
                 "reaction": {
                     "type": "string",
                     "example": "👍"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
@@ -4075,18 +4173,18 @@ const docTemplate = `{
         "RevokeMessageRequest": {
             "type": "object",
             "required": [
-                "jid",
                 "messageId",
+                "remoteJid",
                 "sessionId"
             ],
             "properties": {
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "messageId": {
                     "type": "string",
                     "example": "3EB0C767D71D"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 },
                 "sessionId": {
                     "type": "string",
@@ -4226,6 +4324,11 @@ const docTemplate = `{
                 "url"
             ],
             "properties": {
+                "enabled": {
+                    "description": "Whether webhook is enabled (default: true)",
+                    "type": "boolean",
+                    "example": true
+                },
                 "events": {
                     "type": "array",
                     "minItems": 1,
@@ -4255,13 +4358,14 @@ const docTemplate = `{
         "SetConfigResponse": {
             "type": "object",
             "properties": {
-                "active": {
-                    "type": "boolean",
-                    "example": true
-                },
                 "createdAt": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
+                },
+                "enabled": {
+                    "description": "Whether webhook is enabled",
+                    "type": "boolean",
+                    "example": true
                 },
                 "events": {
                     "type": "array",
@@ -4310,11 +4414,27 @@ const docTemplate = `{
                 }
             }
         },
+        "TestWebhookRequest": {
+            "type": "object",
+            "required": [
+                "eventType"
+            ],
+            "properties": {
+                "eventType": {
+                    "type": "string",
+                    "example": "message"
+                },
+                "testData": {
+                    "type": "object",
+                    "additionalProperties": true
+                }
+            }
+        },
         "TextMessageRequest": {
             "type": "object",
             "required": [
                 "body",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "body": {
@@ -4324,7 +4444,7 @@ const docTemplate = `{
                 "contextInfo": {
                     "$ref": "#/definitions/ContextInfo"
                 },
-                "jid": {
+                "remoteJid": {
                     "type": "string",
                     "example": "5511987654321@s.whatsapp.net"
                 }
@@ -4334,7 +4454,7 @@ const docTemplate = `{
             "type": "object",
             "required": [
                 "file",
-                "jid"
+                "remoteJid"
             ],
             "properties": {
                 "caption": {
@@ -4352,26 +4472,27 @@ const docTemplate = `{
                     "type": "string",
                     "example": "amazing_video.mp4"
                 },
-                "jid": {
-                    "type": "string",
-                    "example": "5511999999999@s.whatsapp.net"
-                },
                 "mimeType": {
                     "type": "string",
                     "example": "video/mp4"
+                },
+                "remoteJid": {
+                    "type": "string",
+                    "example": "5511999999999@s.whatsapp.net"
                 }
             }
         },
         "WebhookResponse": {
             "type": "object",
             "properties": {
-                "active": {
-                    "type": "boolean",
-                    "example": true
-                },
                 "createdAt": {
                     "type": "string",
                     "example": "2024-01-01T00:00:00Z"
+                },
+                "enabled": {
+                    "description": "Whether webhook is enabled",
+                    "type": "boolean",
+                    "example": true
                 },
                 "events": {
                     "type": "array",
@@ -4878,6 +4999,54 @@ const docTemplate = `{
                 "timestamp": {
                     "type": "string",
                     "example": "2024-01-01T12:00:00Z"
+                }
+            }
+        },
+        "zpwoot_internal_app_webhook.TestWebhookResponse": {
+            "type": "object",
+            "properties": {
+                "error": {
+                    "type": "string"
+                },
+                "responseTimeMs": {
+                    "type": "integer",
+                    "example": 150
+                },
+                "statusCode": {
+                    "type": "integer",
+                    "example": 200
+                },
+                "success": {
+                    "type": "boolean",
+                    "example": true
+                }
+            }
+        },
+        "zpwoot_internal_app_webhook.WebhookEventInfo": {
+            "type": "object",
+            "properties": {
+                "data_schema": {
+                    "type": "string",
+                    "example": "MessageEventData"
+                },
+                "description": {
+                    "type": "string",
+                    "example": "Triggered when a message is received or sent"
+                },
+                "type": {
+                    "type": "string",
+                    "example": "message"
+                }
+            }
+        },
+        "zpwoot_internal_app_webhook.WebhookEventsResponse": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/zpwoot_internal_app_webhook.WebhookEventInfo"
+                    }
                 }
             }
         }

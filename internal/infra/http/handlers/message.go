@@ -1646,9 +1646,9 @@ func (h *MessageHandler) GetPollResults(c *fiber.Ctx) error {
 	}
 
 	h.logger.InfoWithFields("Getting poll results", map[string]interface{}{
-		"session":     sessionIdentifier,
-		"message_id":  messageID,
-		"remote_jid":  remoteJID,
+		"session":    sessionIdentifier,
+		"message_id": messageID,
+		"remote_jid": remoteJID,
 	})
 
 	// Resolve session

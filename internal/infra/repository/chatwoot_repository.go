@@ -28,11 +28,12 @@ func NewChatwootRepository(db *sqlx.DB, logger *logger.Logger) ports.ChatwootRep
 
 type chatwootConfigModel struct {
 	ID        string         `db:"id"`
+	SessionID string         `db:"sessionId"`
 	URL       string         `db:"url"`
 	Token     string         `db:"token"`
 	AccountID string         `db:"accountId"`
 	InboxID   sql.NullString `db:"inboxId"`
-	Active    bool           `db:"active"`
+	Enabled   bool           `db:"enabled"`
 	CreatedAt time.Time      `db:"createdAt"`
 	UpdatedAt time.Time      `db:"updatedAt"`
 }
@@ -46,8 +47,8 @@ func (r *chatwootRepository) CreateConfig(ctx context.Context, config *chatwootd
 	model := r.configToModel(config)
 
 	query := `
-		INSERT INTO "zpChatwoot" (id, url, token, "accountId", "inboxId", active, "createdAt", "updatedAt")
-		VALUES (:id, :url, :token, :accountId, :inboxId, :active, :createdAt, :updatedAt)
+		INSERT INTO "zpChatwoot" (id, "sessionId", url, token, "accountId", "inboxId", enabled, "createdAt", "updatedAt")
+		VALUES (:id, :sessionId, :url, :token, :accountId, :inboxId, :enabled, :createdAt, :updatedAt)
 	`
 
 	_, err := r.db.NamedExecContext(ctx, query, model)
@@ -98,7 +99,7 @@ func (r *chatwootRepository) UpdateConfig(ctx context.Context, config *chatwootd
 	query := `
 		UPDATE "zpChatwoot"
 		SET url = :url, token = :token, "accountId" = :accountId,
-		    "inboxId" = :inboxId, active = :active, "updatedAt" = :updatedAt
+		    "inboxId" = :inboxId, enabled = :enabled, "updatedAt" = :updatedAt
 		WHERE id = :id
 	`
 
@@ -307,10 +308,11 @@ func (r *chatwootRepository) GetSyncRecordsBySession(ctx context.Context, sessio
 func (r *chatwootRepository) configToModel(config *chatwootdomain.ChatwootConfig) *chatwootConfigModel {
 	model := &chatwootConfigModel{
 		ID:        config.ID.String(),
+		SessionID: config.SessionID.String(),
 		URL:       config.URL,
-		Token:     config.APIKey, // APIKey maps to token field
+		Token:     config.Token,
 		AccountID: config.AccountID,
-		Active:    config.Active,
+		Enabled:   config.Enabled,
 		CreatedAt: config.CreatedAt,
 		UpdatedAt: config.UpdatedAt,
 	}
@@ -328,12 +330,18 @@ func (r *chatwootRepository) configFromModel(model *chatwootConfigModel) (*chatw
 		return nil, fmt.Errorf("invalid config ID: %w", err)
 	}
 
+	sessionID, err := uuid.Parse(model.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session ID: %w", err)
+	}
+
 	config := &chatwootdomain.ChatwootConfig{
 		ID:        id,
+		SessionID: sessionID,
 		URL:       model.URL,
-		APIKey:    model.Token, // token field maps to APIKey
+		Token:     model.Token,
 		AccountID: model.AccountID,
-		Active:    model.Active,
+		Enabled:   model.Enabled,
 		CreatedAt: model.CreatedAt,
 		UpdatedAt: model.UpdatedAt,
 	}

@@ -9,13 +9,31 @@ import (
 
 type ChatwootConfig struct {
 	ID        uuid.UUID `json:"id" db:"id"`
+	SessionID uuid.UUID `json:"sessionId" db:"sessionId"`
 	URL       string    `json:"url" db:"url"`
-	APIKey    string    `json:"api_key" db:"api_key"`
-	AccountID string    `json:"account_id" db:"account_id"`
-	InboxID   *string   `json:"inbox_id,omitempty" db:"inbox_id"`
-	Active    bool      `json:"active" db:"active"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	Token     string    `json:"token" db:"token"`
+	AccountID string    `json:"accountId" db:"accountId"`
+	InboxID   *string   `json:"inboxId,omitempty" db:"inboxId"`
+	Enabled   bool      `json:"enabled" db:"enabled"`
+
+	// Advanced configuration - shorter names matching DB
+	InboxName      *string  `json:"inboxName,omitempty" db:"inboxName"`
+	AutoCreate     bool     `json:"autoCreate" db:"autoCreate"`
+	SignMsg        bool     `json:"signMsg" db:"signMsg"`
+	SignDelimiter  string   `json:"signDelimiter" db:"signDelimiter"`
+	ReopenConv     bool     `json:"reopenConv" db:"reopenConv"`
+	ConvPending    bool     `json:"convPending" db:"convPending"`
+	ImportContacts bool     `json:"importContacts" db:"importContacts"`
+	ImportMessages bool     `json:"importMessages" db:"importMessages"`
+	ImportDays     int      `json:"importDays" db:"importDays"`
+	MergeBrazil    bool     `json:"mergeBrazil" db:"mergeBrazil"`
+	Organization   *string  `json:"organization,omitempty" db:"organization"`
+	Logo           *string  `json:"logo,omitempty" db:"logo"`
+	Number         *string  `json:"number,omitempty" db:"number"`
+	IgnoreJids     []string `json:"ignoreJids,omitempty" db:"ignoreJids"`
+
+	CreatedAt time.Time `json:"createdAt" db:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt" db:"updatedAt"`
 }
 
 var (
@@ -28,29 +46,65 @@ var (
 	ErrChatwootAPIError     = errors.New("chatwoot API error")
 )
 
+// Domain DTOs - used by domain service
 type CreateChatwootConfigRequest struct {
 	URL       string  `json:"url" validate:"required,url"`
-	APIKey    string  `json:"api_key" validate:"required"`
-	AccountID string  `json:"account_id" validate:"required"`
-	InboxID   *string `json:"inbox_id,omitempty"`
+	Token     string  `json:"token" validate:"required"`
+	AccountID string  `json:"accountId" validate:"required"`
+	InboxID   *string `json:"inboxId,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+
+	// Advanced configuration
+	InboxName      *string  `json:"inboxName,omitempty"`
+	AutoCreate     *bool    `json:"autoCreate,omitempty"`
+	SignMsg        *bool    `json:"signMsg,omitempty"`
+	SignDelimiter  *string  `json:"signDelimiter,omitempty"`
+	ReopenConv     *bool    `json:"reopenConv,omitempty"`
+	ConvPending    *bool    `json:"convPending,omitempty"`
+	ImportContacts *bool    `json:"importContacts,omitempty"`
+	ImportMessages *bool    `json:"importMessages,omitempty"`
+	ImportDays     *int     `json:"importDays,omitempty"`
+	MergeBrazil    *bool    `json:"mergeBrazil,omitempty"`
+	Organization   *string  `json:"organization,omitempty"`
+	Logo           *string  `json:"logo,omitempty"`
+	Number         *string  `json:"number,omitempty"`
+	IgnoreJids     []string `json:"ignoreJids,omitempty"`
 }
 
 type UpdateChatwootConfigRequest struct {
 	URL       *string `json:"url,omitempty" validate:"omitempty,url"`
-	APIKey    *string `json:"api_key,omitempty"`
-	AccountID *string `json:"account_id,omitempty"`
-	InboxID   *string `json:"inbox_id,omitempty"`
-	Active    *bool   `json:"active,omitempty"`
+	Token     *string `json:"token,omitempty"`
+	AccountID *string `json:"accountId,omitempty"`
+	InboxID   *string `json:"inboxId,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+
+	// Advanced configuration updates
+	InboxName      *string  `json:"inboxName,omitempty"`
+	AutoCreate     *bool    `json:"autoCreate,omitempty"`
+	SignMsg        *bool    `json:"signMsg,omitempty"`
+	SignDelimiter  *string  `json:"signDelimiter,omitempty"`
+	ReopenConv     *bool    `json:"reopenConv,omitempty"`
+	ConvPending    *bool    `json:"convPending,omitempty"`
+	ImportContacts *bool    `json:"importContacts,omitempty"`
+	ImportMessages *bool    `json:"importMessages,omitempty"`
+	ImportDays     *int     `json:"importDays,omitempty"`
+	MergeBrazil    *bool    `json:"mergeBrazil,omitempty"`
+	Organization   *string  `json:"organization,omitempty"`
+	Logo           *string  `json:"logo,omitempty"`
+	Number         *string  `json:"number,omitempty"`
+	IgnoreJids     []string `json:"ignoreJids,omitempty"`
 }
 
 type ChatwootContact struct {
-	ID          int                    `json:"id"`
-	Name        string                 `json:"name"`
-	PhoneNumber string                 `json:"phone_number"`
-	Email       string                 `json:"email"`
-	Attributes  map[string]interface{} `json:"custom_attributes"`
-	CreatedAt   time.Time              `json:"created_at"`
-	UpdatedAt   time.Time              `json:"updated_at"`
+	ID                   int                    `json:"id"`
+	Name                 string                 `json:"name"`
+	PhoneNumber          string                 `json:"phone_number"`
+	Email                string                 `json:"email"`
+	Identifier           string                 `json:"identifier,omitempty"`
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`
+	CustomAttributes     map[string]interface{} `json:"custom_attributes,omitempty"`
+	CreatedAt            time.Time              `json:"created_at"`
+	UpdatedAt            time.Time              `json:"updated_at"`
 }
 
 type ChatwootConversation struct {
@@ -63,14 +117,18 @@ type ChatwootConversation struct {
 }
 
 type ChatwootMessage struct {
-	ID             int                    `json:"id"`
-	ConversationID int                    `json:"conversation_id"`
-	Content        string                 `json:"content"`
-	MessageType    string                 `json:"message_type"`
-	ContentType    string                 `json:"content_type"`
-	Attachments    []ChatwootAttachment   `json:"attachments"`
-	Metadata       map[string]interface{} `json:"metadata"`
-	CreatedAt      time.Time              `json:"created_at"`
+	ID                int                    `json:"id"`
+	ConversationID    int                    `json:"conversation_id"`
+	Content           string                 `json:"content"`
+	MessageType       string                 `json:"message_type"`
+	ContentType       string                 `json:"content_type"`
+	ContentAttributes map[string]interface{} `json:"content_attributes,omitempty"`
+	Private           bool                   `json:"private"`
+	SourceID          string                 `json:"source_id,omitempty"`
+	Sender            *ChatwootSender        `json:"sender,omitempty"`
+	Attachments       []ChatwootAttachment   `json:"attachments"`
+	Metadata          map[string]interface{} `json:"metadata"`
+	CreatedAt         time.Time              `json:"created_at"`
 }
 
 type ChatwootAttachment struct {
@@ -78,6 +136,16 @@ type ChatwootAttachment struct {
 	FileType string `json:"file_type"`
 	FileURL  string `json:"data_url"`
 	FileName string `json:"file_name"`
+}
+
+type ChatwootSender struct {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	AvailableName string `json:"available_name"`
+	AvatarURL     string `json:"avatar_url"`
+	Type          string `json:"type"`
+	Identifier    string `json:"identifier,omitempty"`
+	Email         string `json:"email,omitempty"`
 }
 
 type ChatwootWebhookPayload struct {
@@ -119,10 +187,10 @@ func NewChatwootConfig(url, apiKey, accountID string, inboxID *string) *Chatwoot
 	return &ChatwootConfig{
 		ID:        uuid.New(),
 		URL:       url,
-		APIKey:    apiKey,
+		Token:     apiKey,
 		AccountID: accountID,
 		InboxID:   inboxID,
-		Active:    true,
+		Enabled:   true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -132,8 +200,8 @@ func (c *ChatwootConfig) Update(req *UpdateChatwootConfigRequest) {
 	if req.URL != nil {
 		c.URL = *req.URL
 	}
-	if req.APIKey != nil {
-		c.APIKey = *req.APIKey
+	if req.Token != nil {
+		c.Token = *req.Token
 	}
 	if req.AccountID != nil {
 		c.AccountID = *req.AccountID
@@ -141,14 +209,14 @@ func (c *ChatwootConfig) Update(req *UpdateChatwootConfigRequest) {
 	if req.InboxID != nil {
 		c.InboxID = req.InboxID
 	}
-	if req.Active != nil {
-		c.Active = *req.Active
+	if req.Enabled != nil {
+		c.Enabled = *req.Enabled
 	}
 	c.UpdatedAt = time.Now()
 }
 
 func (c *ChatwootConfig) IsConfigured() bool {
-	return c.URL != "" && c.APIKey != "" && c.AccountID != ""
+	return c.URL != "" && c.Token != "" && c.AccountID != ""
 }
 
 func (c *ChatwootConfig) GetBaseURL() string {

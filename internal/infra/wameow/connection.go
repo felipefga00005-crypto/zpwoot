@@ -109,9 +109,9 @@ func (c *ConnectionManager) ConnectWithRetry(client *whatsmeow.Client, sessionID
 }
 
 type QRCodeGenerator struct {
-	logger    *logger.Logger
-	mu        sync.Mutex // Protege a saída do terminal
-	lastQRCode string    // Armazena o último QR code exibido para evitar duplicatas
+	logger     *logger.Logger
+	mu         sync.Mutex // Protege a saída do terminal
+	lastQRCode string     // Armazena o último QR code exibido para evitar duplicatas
 }
 
 func NewQRCodeGenerator(logger *logger.Logger) *QRCodeGenerator {

@@ -13,7 +13,7 @@ type WebhookConfig struct {
 	URL       string    `json:"url" db:"url"`
 	Secret    string    `json:"secret,omitempty" db:"secret"`
 	Events    []string  `json:"events" db:"events"`
-	Active    bool      `json:"active" db:"active"`
+	Enabled   bool      `json:"enabled" db:"enabled"` // User-controlled enable/disable
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -30,18 +30,19 @@ type SetConfigRequest struct {
 	URL       string   `json:"url" validate:"required,url"`
 	Secret    string   `json:"secret,omitempty"`
 	Events    []string `json:"events" validate:"required,min=1"`
+	Enabled   *bool    `json:"enabled,omitempty"`
 }
 
 type UpdateWebhookRequest struct {
-	URL    *string  `json:"url,omitempty" validate:"omitempty,url"`
-	Secret *string  `json:"secret,omitempty"`
-	Events []string `json:"events,omitempty" validate:"omitempty,min=1"`
-	Active *bool    `json:"active,omitempty"`
+	URL     *string  `json:"url,omitempty" validate:"omitempty,url"`
+	Secret  *string  `json:"secret,omitempty"`
+	Events  []string `json:"events,omitempty" validate:"omitempty,min=1"`
+	Enabled *bool    `json:"enabled,omitempty"`
 }
 
 type ListWebhooksRequest struct {
 	SessionID *string `json:"session_id,omitempty" query:"session_id"`
-	Active    *bool   `json:"active,omitempty" query:"active"`
+	Enabled   *bool   `json:"enabled,omitempty" query:"enabled"`
 	Limit     int     `json:"limit,omitempty" query:"limit" validate:"omitempty,min=1,max=100"`
 	Offset    int     `json:"offset,omitempty" query:"offset" validate:"omitempty,min=0"`
 }
@@ -145,7 +146,7 @@ func NewWebhookConfig(sessionID *string, url, secret string, events []string) *W
 		URL:       url,
 		Secret:    secret,
 		Events:    events,
-		Active:    true,
+		Enabled:   true,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -174,8 +175,8 @@ func (w *WebhookConfig) Update(req *UpdateWebhookRequest) {
 	if req.Events != nil {
 		w.Events = req.Events
 	}
-	if req.Active != nil {
-		w.Active = *req.Active
+	if req.Enabled != nil {
+		w.Enabled = *req.Enabled
 	}
 	w.UpdatedAt = time.Now()
 }

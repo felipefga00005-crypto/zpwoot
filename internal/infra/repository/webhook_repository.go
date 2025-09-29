@@ -33,7 +33,7 @@ type webhookModel struct {
 	URL       string         `db:"url"`
 	Secret    sql.NullString `db:"secret"`
 	Events    string         `db:"events"` // JSONB field
-	Active    bool           `db:"active"`
+	Enabled   bool           `db:"enabled"`
 	CreatedAt time.Time      `db:"createdAt"`
 	UpdatedAt time.Time      `db:"updatedAt"`
 }
@@ -48,8 +48,8 @@ func (r *webhookRepository) Create(ctx context.Context, wh *webhook.WebhookConfi
 	model := r.toModel(wh)
 
 	query := `
-		INSERT INTO "zpWebhooks" (id, "sessionId", url, secret, events, active, "createdAt", "updatedAt")
-		VALUES (:id, :sessionId, :url, :secret, :events, :active, :createdAt, :updatedAt)
+		INSERT INTO "zpWebhooks" (id, "sessionId", url, secret, events, enabled, "createdAt", "updatedAt")
+		VALUES (:id, :sessionId, :url, :secret, :events, :enabled, :createdAt, :updatedAt)
 	`
 
 	_, err := r.db.NamedExecContext(ctx, query, model)
@@ -162,7 +162,7 @@ func (r *webhookRepository) GetGlobalWebhooks(ctx context.Context) ([]*webhook.W
 func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksRequest) ([]*webhook.WebhookConfig, int, error) {
 	r.logger.InfoWithFields("Listing webhooks", map[string]interface{}{
 		"session_id": req.SessionID,
-		"active":     req.Active,
+		"enabled":    req.Enabled,
 		"limit":      req.Limit,
 		"offset":     req.Offset,
 	})
@@ -177,9 +177,9 @@ func (r *webhookRepository) List(ctx context.Context, req *webhook.ListWebhooksR
 		argIndex++
 	}
 
-	if req.Active != nil {
-		whereClause += fmt.Sprintf(" AND active = $%d", argIndex)
-		args = append(args, *req.Active)
+	if req.Enabled != nil {
+		whereClause += fmt.Sprintf(" AND enabled = $%d", argIndex)
+		args = append(args, *req.Enabled)
 		argIndex++
 	}
 
@@ -237,7 +237,7 @@ func (r *webhookRepository) Update(ctx context.Context, wh *webhook.WebhookConfi
 	query := `
 		UPDATE "zpWebhooks"
 		SET "sessionId" = :sessionId, url = :url, secret = :secret,
-		    events = :events, active = :active, "updatedAt" = :updatedAt
+		    events = :events, enabled = :enabled, "updatedAt" = :updatedAt
 		WHERE id = :id
 	`
 
@@ -290,15 +290,15 @@ func (r *webhookRepository) Delete(ctx context.Context, id string) error {
 	return nil
 }
 
-func (r *webhookRepository) UpdateStatus(ctx context.Context, id string, active bool) error {
+func (r *webhookRepository) UpdateStatus(ctx context.Context, id string, enabled bool) error {
 	r.logger.InfoWithFields("Updating webhook status", map[string]interface{}{
 		"webhook_id": id,
-		"active":     active,
+		"enabled":    enabled,
 	})
 
-	query := `UPDATE "zpWebhooks" SET active = $1, "updatedAt" = $2 WHERE id = $3`
+	query := `UPDATE "zpWebhooks" SET enabled = $1, "updatedAt" = $2 WHERE id = $3`
 
-	result, err := r.db.ExecContext(ctx, query, active, time.Now(), id)
+	result, err := r.db.ExecContext(ctx, query, enabled, time.Now(), id)
 	if err != nil {
 		r.logger.ErrorWithFields("Failed to update webhook status", map[string]interface{}{
 			"webhook_id": id,
@@ -319,18 +319,18 @@ func (r *webhookRepository) UpdateStatus(ctx context.Context, id string, active 
 	return nil
 }
 
-func (r *webhookRepository) GetActiveWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error) {
-	r.logger.Info("Getting active webhooks")
+func (r *webhookRepository) GetEnabledWebhooks(ctx context.Context) ([]*webhook.WebhookConfig, error) {
+	r.logger.Info("Getting enabled webhooks")
 
-	query := `SELECT * FROM "zpWebhooks" WHERE active = true ORDER BY "createdAt" DESC`
+	query := `SELECT * FROM "zpWebhooks" WHERE enabled = true ORDER BY "createdAt" DESC`
 
 	var models []webhookModel
 	err := r.db.SelectContext(ctx, &models, query)
 	if err != nil {
-		r.logger.ErrorWithFields("Failed to get active webhooks", map[string]interface{}{
+		r.logger.ErrorWithFields("Failed to get enabled webhooks", map[string]interface{}{
 			"error": err.Error(),
 		})
-		return nil, fmt.Errorf("failed to get active webhooks: %w", err)
+		return nil, fmt.Errorf("failed to get enabled webhooks: %w", err)
 	}
 
 	webhooks := make([]*webhook.WebhookConfig, len(models))
@@ -354,7 +354,7 @@ func (r *webhookRepository) GetWebhooksByEvent(ctx context.Context, eventType st
 		"event_type": eventType,
 	})
 
-	query := `SELECT * FROM "zpWebhooks" WHERE active = true AND $1 = ANY(events) ORDER BY "createdAt" DESC`
+	query := `SELECT * FROM "zpWebhooks" WHERE enabled = true AND $1 = ANY(events) ORDER BY "createdAt" DESC`
 
 	var models []webhookModel
 	err := r.db.SelectContext(ctx, &models, query, eventType)
@@ -382,11 +382,11 @@ func (r *webhookRepository) GetWebhooksByEvent(ctx context.Context, eventType st
 	return webhooks, nil
 }
 
-func (r *webhookRepository) CountByStatus(ctx context.Context, active bool) (int, error) {
-	query := `SELECT COUNT(*) FROM "zpWebhooks" WHERE active = $1`
+func (r *webhookRepository) CountByStatus(ctx context.Context, enabled bool) (int, error) {
+	query := `SELECT COUNT(*) FROM "zpWebhooks" WHERE enabled = $1`
 
 	var count int
-	err := r.db.GetContext(ctx, &count, query, active)
+	err := r.db.GetContext(ctx, &count, query, enabled)
 	if err != nil {
 		return 0, fmt.Errorf("failed to count webhooks by status: %w", err)
 	}
@@ -412,7 +412,7 @@ func (r *webhookRepository) toModel(wh *webhook.WebhookConfig) *webhookModel {
 	model := &webhookModel{
 		ID:        wh.ID.String(),
 		URL:       wh.URL,
-		Active:    wh.Active,
+		Enabled:   wh.Enabled,
 		CreatedAt: wh.CreatedAt,
 		UpdatedAt: wh.UpdatedAt,
 	}
@@ -446,7 +446,7 @@ func (r *webhookRepository) fromModel(model *webhookModel) (*webhook.WebhookConf
 	wh := &webhook.WebhookConfig{
 		ID:        id,
 		URL:       model.URL,
-		Active:    model.Active,
+		Enabled:   model.Enabled,
 		CreatedAt: model.CreatedAt,
 		UpdatedAt: model.UpdatedAt,
 	}

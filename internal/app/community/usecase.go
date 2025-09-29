@@ -13,13 +13,13 @@ import (
 type UseCase interface {
 	// LinkGroup links a group to a community
 	LinkGroup(ctx context.Context, sessionID string, req *LinkGroupRequest) (*LinkGroupResponse, error)
-	
+
 	// UnlinkGroup unlinks a group from a community
 	UnlinkGroup(ctx context.Context, sessionID string, req *UnlinkGroupRequest) (*UnlinkGroupResponse, error)
-	
+
 	// GetCommunityInfo gets community information
 	GetCommunityInfo(ctx context.Context, sessionID string, req *GetCommunityInfoRequest) (*CommunityInfoResponse, error)
-	
+
 	// GetSubGroups gets all sub-groups of a community
 	GetSubGroups(ctx context.Context, sessionID string, req *GetSubGroupsRequest) (*SubGroupsResponse, error)
 }

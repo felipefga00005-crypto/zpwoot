@@ -286,20 +286,20 @@ func NewCommunityParticipantResponse(participant *community.CommunityParticipant
 
 // CommunitySettingsResponse represents community settings
 type CommunitySettingsResponse struct {
-	IsAnnouncement       bool   `json:"isAnnouncement"`
-	IsMuted              bool   `json:"isMuted"`
-	WhoCanAddGroups      string `json:"whoCanAddGroups"`
-	WhoCanSendMessages   string `json:"whoCanSendMessages"`
-	WhoCanEditInfo       string `json:"whoCanEditInfo"`
+	IsAnnouncement     bool   `json:"isAnnouncement"`
+	IsMuted            bool   `json:"isMuted"`
+	WhoCanAddGroups    string `json:"whoCanAddGroups"`
+	WhoCanSendMessages string `json:"whoCanSendMessages"`
+	WhoCanEditInfo     string `json:"whoCanEditInfo"`
 }
 
 // NewCommunitySettingsResponse creates a new community settings response
 func NewCommunitySettingsResponse(settings *community.CommunitySettings) *CommunitySettingsResponse {
 	return &CommunitySettingsResponse{
-		IsAnnouncement:       settings.IsAnnouncement,
-		IsMuted:              settings.IsMuted,
-		WhoCanAddGroups:      settings.WhoCanAddGroups,
-		WhoCanSendMessages:   settings.WhoCanSendMessages,
-		WhoCanEditInfo:       settings.WhoCanEditInfo,
+		IsAnnouncement:     settings.IsAnnouncement,
+		IsMuted:            settings.IsMuted,
+		WhoCanAddGroups:    settings.WhoCanAddGroups,
+		WhoCanSendMessages: settings.WhoCanSendMessages,
+		WhoCanEditInfo:     settings.WhoCanEditInfo,
 	}
 }

@@ -45,8 +45,9 @@ type Manager struct {
 	sessionStats map[string]*SessionStats
 	statsMutex   sync.RWMutex
 
-	eventHandlers map[string]map[string]*EventHandlerInfo // sessionID -> handlerID -> handler
-	handlersMutex sync.RWMutex
+	eventHandlers  map[string]map[string]*EventHandlerInfo // sessionID -> handlerID -> handler
+	handlersMutex  sync.RWMutex
+	webhookHandler WebhookEventHandler // Global webhook handler for all sessions
 }
 
 func NewManager(
@@ -1513,9 +1514,20 @@ func (m *Manager) GetBusinessProfile(ctx context.Context, sessionID, jid string)
 func (m *Manager) SetupEventHandlers(client *whatsmeow.Client, sessionID string) {
 	eventHandler := NewEventHandler(m, m.sessionMgr, m.qrGenerator, m.logger)
 
+	// Set webhook handler if available
+	if m.webhookHandler != nil {
+		eventHandler.SetWebhookHandler(m.webhookHandler)
+	}
+
 	client.AddEventHandler(func(evt interface{}) {
 		eventHandler.HandleEvent(evt, sessionID)
 	})
+}
+
+// SetWebhookHandler sets the global webhook handler for all sessions
+func (m *Manager) SetWebhookHandler(handler WebhookEventHandler) {
+	m.webhookHandler = handler
+	m.logger.Info("Webhook handler configured for wameow manager")
 }
 
 // convertToPortsGroupInfo converts whatsmeow GroupInfo to ports GroupInfo

@@ -39,7 +39,7 @@ func (s *Service) ValidateNewsletterCreation(req *CreateNewsletterRequest) error
 	if req == nil {
 		return ErrInvalidNewsletterName
 	}
-	
+
 	return req.Validate()
 }
 
@@ -48,17 +48,17 @@ func (s *Service) ValidateNewsletterName(name string) error {
 	if name == "" {
 		return ErrEmptyNewsletterName
 	}
-	
+
 	// Trim whitespace
 	name = strings.TrimSpace(name)
 	if name == "" {
 		return ErrEmptyNewsletterName
 	}
-	
+
 	if len(name) > 25 {
 		return ErrNewsletterNameTooLong
 	}
-	
+
 	return nil
 }
 
@@ -67,7 +67,7 @@ func (s *Service) ValidateNewsletterDescription(description string) error {
 	if len(description) > 512 {
 		return ErrDescriptionTooLong
 	}
-	
+
 	return nil
 }
 
@@ -76,15 +76,15 @@ func (s *Service) ValidateNewsletterJID(jid string) error {
 	if jid == "" {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	if !IsValidNewsletterJID(jid) {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	if s.jidValidator != nil && !s.jidValidator.IsNewsletterJID(jid) {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	return nil
 }
 
@@ -93,17 +93,17 @@ func (s *Service) ValidateInviteKey(inviteKey string) error {
 	if inviteKey == "" {
 		return ErrInvalidInviteKey
 	}
-	
+
 	// Clean up the invite key by removing common prefixes
 	cleanKey := strings.TrimSpace(inviteKey)
 	cleanKey = strings.TrimPrefix(cleanKey, "https://whatsapp.com/channel/")
 	cleanKey = strings.TrimPrefix(cleanKey, "whatsapp.com/channel/")
 	cleanKey = strings.TrimPrefix(cleanKey, "channel/")
-	
+
 	if cleanKey == "" {
 		return ErrInvalidInviteKey
 	}
-	
+
 	return nil
 }
 
@@ -112,7 +112,7 @@ func (s *Service) ValidateGetNewsletterInfoRequest(req *GetNewsletterInfoRequest
 	if req == nil {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	return s.ValidateNewsletterJID(req.JID)
 }
 
@@ -121,7 +121,7 @@ func (s *Service) ValidateGetNewsletterInfoWithInviteRequest(req *GetNewsletterI
 	if req == nil {
 		return ErrInvalidInviteKey
 	}
-	
+
 	return s.ValidateInviteKey(req.InviteKey)
 }
 
@@ -130,7 +130,7 @@ func (s *Service) ValidateFollowNewsletterRequest(req *FollowNewsletterRequest) 
 	if req == nil {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	return s.ValidateNewsletterJID(req.JID)
 }
 
@@ -139,7 +139,7 @@ func (s *Service) ValidateUnfollowNewsletterRequest(req *UnfollowNewsletterReque
 	if req == nil {
 		return ErrInvalidNewsletterJID
 	}
-	
+
 	return s.ValidateNewsletterJID(req.JID)
 }
 
@@ -148,15 +148,15 @@ func (s *Service) ProcessNewsletterInfo(info *NewsletterInfo) error {
 	if info == nil {
 		return ErrNewsletterNotFound
 	}
-	
+
 	// Validate the newsletter info
 	if err := info.Validate(); err != nil {
 		return err
 	}
-	
+
 	// Additional business logic can be added here
 	// For example: checking permissions, applying business rules, etc.
-	
+
 	return nil
 }
 
@@ -165,7 +165,7 @@ func (s *Service) CanUserManageNewsletter(info *NewsletterInfo, userRole Newslet
 	if info == nil {
 		return false
 	}
-	
+
 	// Only admins and owners can manage newsletters
 	return userRole == NewsletterRoleAdmin || userRole == NewsletterRoleOwner
 }
@@ -175,7 +175,7 @@ func (s *Service) CanUserFollowNewsletter(info *NewsletterInfo) bool {
 	if info == nil {
 		return false
 	}
-	
+
 	// Users can follow active newsletters
 	return info.IsActive()
 }
@@ -184,10 +184,10 @@ func (s *Service) CanUserFollowNewsletter(info *NewsletterInfo) bool {
 func (s *Service) SanitizeNewsletterName(name string) string {
 	// Trim whitespace
 	name = strings.TrimSpace(name)
-	
+
 	// Remove excessive whitespace
 	name = strings.Join(strings.Fields(name), " ")
-	
+
 	return name
 }
 
@@ -195,7 +195,7 @@ func (s *Service) SanitizeNewsletterName(name string) string {
 func (s *Service) SanitizeNewsletterDescription(description string) string {
 	// Trim whitespace
 	description = strings.TrimSpace(description)
-	
+
 	return description
 }
 
@@ -203,12 +203,12 @@ func (s *Service) SanitizeNewsletterDescription(description string) string {
 func (s *Service) CleanInviteKey(inviteKey string) string {
 	// Trim whitespace
 	inviteKey = strings.TrimSpace(inviteKey)
-	
+
 	// Remove common prefixes
 	inviteKey = strings.TrimPrefix(inviteKey, "https://whatsapp.com/channel/")
 	inviteKey = strings.TrimPrefix(inviteKey, "whatsapp.com/channel/")
 	inviteKey = strings.TrimPrefix(inviteKey, "channel/")
-	
+
 	return inviteKey
 }
 
@@ -217,12 +217,12 @@ func (s *Service) FormatNewsletterJID(jid string) string {
 	if strings.Contains(jid, "@newsletter") {
 		return jid
 	}
-	
+
 	// If it's just the ID part, add the newsletter suffix
 	if !strings.Contains(jid, "@") {
 		return jid + "@newsletter"
 	}
-	
+
 	return jid
 }
 
@@ -231,7 +231,7 @@ func (s *Service) ExtractNewsletterID(jid string) string {
 	if strings.Contains(jid, "@newsletter") {
 		return strings.Split(jid, "@")[0]
 	}
-	
+
 	return jid
 }
 
@@ -240,7 +240,7 @@ func (s *Service) IsNewsletterOwner(info *NewsletterInfo) bool {
 	if info == nil {
 		return false
 	}
-	
+
 	return info.IsOwner()
 }
 
@@ -249,7 +249,7 @@ func (s *Service) IsNewsletterAdmin(info *NewsletterInfo) bool {
 	if info == nil {
 		return false
 	}
-	
+
 	return info.IsAdmin()
 }
 
@@ -257,17 +257,17 @@ func (s *Service) IsNewsletterAdmin(info *NewsletterInfo) bool {
 func (s *Service) GetNewsletterPermissions(info *NewsletterInfo) map[string]bool {
 	if info == nil {
 		return map[string]bool{
-			"canManage":    false,
-			"canFollow":    false,
-			"canUnfollow":  false,
-			"canView":      false,
+			"canManage":   false,
+			"canFollow":   false,
+			"canUnfollow": false,
+			"canView":     false,
 		}
 	}
-	
+
 	return map[string]bool{
-		"canManage":    info.CanManage(),
-		"canFollow":    info.IsActive() && info.Role == NewsletterRoleGuest,
-		"canUnfollow":  info.Role == NewsletterRoleSubscriber,
-		"canView":      true,
+		"canManage":   info.CanManage(),
+		"canFollow":   info.IsActive() && info.Role == NewsletterRoleGuest,
+		"canUnfollow": info.Role == NewsletterRoleSubscriber,
+		"canView":     true,
 	}
 }

@@ -12,17 +12,17 @@ type Community struct {
 	Description string    `json:"description"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
-	
+
 	// Community metadata
-	ParticipantCount int    `json:"participantCount"`
-	GroupCount       int    `json:"groupCount"`
-	IsOwner          bool   `json:"isOwner"`
-	IsAdmin          bool   `json:"isAdmin"`
-	
+	ParticipantCount int  `json:"participantCount"`
+	GroupCount       int  `json:"groupCount"`
+	IsOwner          bool `json:"isOwner"`
+	IsAdmin          bool `json:"isAdmin"`
+
 	// Community settings
-	IsMuted         bool `json:"isMuted"`
-	IsAnnouncement  bool `json:"isAnnouncement"`
-	
+	IsMuted        bool `json:"isMuted"`
+	IsAnnouncement bool `json:"isAnnouncement"`
+
 	// Linked groups
 	LinkedGroups []*LinkedGroup `json:"linkedGroups,omitempty"`
 }
@@ -32,12 +32,12 @@ type LinkedGroup struct {
 	JID         string `json:"jid"`
 	Name        string `json:"name"`
 	Description string `json:"description"`
-	
+
 	// Group metadata
 	ParticipantCount int  `json:"participantCount"`
 	IsOwner          bool `json:"isOwner"`
 	IsAdmin          bool `json:"isAdmin"`
-	
+
 	// Link metadata
 	LinkedAt time.Time `json:"linkedAt"`
 }
@@ -67,10 +67,10 @@ type GroupLinkInfo struct {
 
 // CommunityParticipant represents a participant in a community
 type CommunityParticipant struct {
-	JID      string `json:"jid"`
-	Name     string `json:"name"`
-	IsOwner  bool   `json:"isOwner"`
-	IsAdmin  bool   `json:"isAdmin"`
+	JID      string    `json:"jid"`
+	Name     string    `json:"name"`
+	IsOwner  bool      `json:"isOwner"`
+	IsAdmin  bool      `json:"isAdmin"`
 	JoinedAt time.Time `json:"joinedAt"`
 }
 
@@ -78,11 +78,11 @@ type CommunityParticipant struct {
 type CommunitySettings struct {
 	IsAnnouncement bool `json:"isAnnouncement"`
 	IsMuted        bool `json:"isMuted"`
-	
+
 	// Permission settings
-	WhoCanAddGroups      string `json:"whoCanAddGroups"`      // "admins", "all"
-	WhoCanSendMessages   string `json:"whoCanSendMessages"`   // "admins", "all"
-	WhoCanEditInfo       string `json:"whoCanEditInfo"`       // "admins", "all"
+	WhoCanAddGroups    string `json:"whoCanAddGroups"`    // "admins", "all"
+	WhoCanSendMessages string `json:"whoCanSendMessages"` // "admins", "all"
+	WhoCanEditInfo     string `json:"whoCanEditInfo"`     // "admins", "all"
 }
 
 // CommunityInviteInfo represents community invite information
@@ -104,21 +104,21 @@ type CommunityStats struct {
 
 // CommunityEvent represents a community event
 type CommunityEvent struct {
-	ID          string                 `json:"id"`
-	Type        CommunityEventType     `json:"type"`
-	CommunityJID string                `json:"communityJid"`
-	ActorJID    string                 `json:"actorJid"`
-	TargetJID   string                 `json:"targetJid,omitempty"`
-	Data        map[string]interface{} `json:"data,omitempty"`
-	Timestamp   time.Time              `json:"timestamp"`
+	ID           string                 `json:"id"`
+	Type         CommunityEventType     `json:"type"`
+	CommunityJID string                 `json:"communityJid"`
+	ActorJID     string                 `json:"actorJid"`
+	TargetJID    string                 `json:"targetJid,omitempty"`
+	Data         map[string]interface{} `json:"data,omitempty"`
+	Timestamp    time.Time              `json:"timestamp"`
 }
 
 // CommunityEventType represents the type of community event
 type CommunityEventType string
 
 const (
-	CommunityEventGroupLinked   CommunityEventType = "group_linked"
-	CommunityEventGroupUnlinked CommunityEventType = "group_unlinked"
+	CommunityEventGroupLinked       CommunityEventType = "group_linked"
+	CommunityEventGroupUnlinked     CommunityEventType = "group_unlinked"
 	CommunityEventParticipantJoined CommunityEventType = "participant_joined"
 	CommunityEventParticipantLeft   CommunityEventType = "participant_left"
 	CommunityEventSettingsChanged   CommunityEventType = "settings_changed"

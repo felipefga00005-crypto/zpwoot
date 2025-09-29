@@ -12,19 +12,19 @@ import (
 type UseCase interface {
 	// CreateNewsletter creates a new newsletter
 	CreateNewsletter(ctx context.Context, sessionID string, req *CreateNewsletterRequest) (*CreateNewsletterResponse, error)
-	
+
 	// GetNewsletterInfo gets newsletter information by JID
 	GetNewsletterInfo(ctx context.Context, sessionID string, req *GetNewsletterInfoRequest) (*NewsletterInfoResponse, error)
-	
+
 	// GetNewsletterInfoWithInvite gets newsletter information using invite key
 	GetNewsletterInfoWithInvite(ctx context.Context, sessionID string, req *GetNewsletterInfoWithInviteRequest) (*NewsletterInfoResponse, error)
-	
+
 	// FollowNewsletter follows a newsletter
 	FollowNewsletter(ctx context.Context, sessionID string, req *FollowNewsletterRequest) (*NewsletterActionResponse, error)
-	
+
 	// UnfollowNewsletter unfollows a newsletter
 	UnfollowNewsletter(ctx context.Context, sessionID string, req *UnfollowNewsletterRequest) (*NewsletterActionResponse, error)
-	
+
 	// GetSubscribedNewsletters gets all subscribed newsletters
 	GetSubscribedNewsletters(ctx context.Context, sessionID string) (*SubscribedNewslettersResponse, error)
 
@@ -979,5 +979,3 @@ func (uc *useCaseImpl) UploadNewsletterReader(ctx context.Context, sessionID str
 		FileLength: response.FileLength,
 	}, nil
 }
-
-

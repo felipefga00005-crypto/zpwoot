@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/gofiber/fiber/v2"
 
@@ -280,6 +281,7 @@ func (h *ChatwootHandler) GetStats(c *fiber.Ctx) error {
 // @Failure 500 {object} object "Internal Server Error"
 // @Router /sessions/{sessionId}/chatwoot/set [post]
 func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
+	sessionID := c.Params("sessionId")
 
 	var req chatwoot.CreateChatwootConfigRequest
 	if err := c.BodyParser(&req); err != nil {
@@ -304,6 +306,33 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 			})
 		}
 
+		// Auto-create inbox if requested
+		if req.AutoCreate != nil && *req.AutoCreate {
+			h.logger.InfoWithFields("Auto-creating Chatwoot inbox", map[string]interface{}{
+				"session_id":  sessionID,
+				"auto_create": true,
+			})
+
+			// Generate inbox name (use provided name or default to session name)
+			inboxName := "WhatsApp zpwoot"
+			if req.InboxName != nil && *req.InboxName != "" {
+				inboxName = *req.InboxName
+			}
+
+			// Generate webhook URL automatically
+			webhookURL := fmt.Sprintf("http://localhost:8080/chatwoot/webhook/%s", sessionID)
+
+			// Call auto-creation logic (this would need to be implemented in the use case)
+			autoCreateErr := h.chatwootUC.AutoCreateInbox(ctx, sessionID, inboxName, webhookURL)
+			if autoCreateErr != nil {
+				h.logger.WarnWithFields("Failed to auto-create inbox", map[string]interface{}{
+					"session_id": sessionID,
+					"error":      autoCreateErr.Error(),
+				})
+				// Don't fail the entire request, just log the warning
+			}
+		}
+
 		return c.Status(201).JSON(fiber.Map{
 			"success": true,
 			"message": "Chatwoot configuration created successfully",
@@ -313,7 +342,7 @@ func (h *ChatwootHandler) SetConfig(c *fiber.Ctx) error {
 
 	updateReq := chatwoot.UpdateChatwootConfigRequest{
 		URL:       &req.URL,
-		APIKey:    &req.APIKey,
+		Token:     &req.Token,
 		AccountID: &req.AccountID,
 		InboxID:   req.InboxID,
 	}

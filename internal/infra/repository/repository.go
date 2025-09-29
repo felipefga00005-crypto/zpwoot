@@ -8,9 +8,10 @@ import (
 )
 
 type Repositories struct {
-	Session  ports.SessionRepository
-	Webhook  ports.WebhookRepository
-	Chatwoot ports.ChatwootRepository
+	Session   ports.SessionRepository
+	Webhook   ports.WebhookRepository
+	Chatwoot  ports.ChatwootRepository
+	ZpMessage ports.ZpMessageRepository
 }
 
 func NewRepositories(db *sqlx.DB, logger *logger.Logger) *Repositories {

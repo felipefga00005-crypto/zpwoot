@@ -10,15 +10,15 @@ definitions:
       file:
         example: https://example.com/audio.ogg
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       mimeType:
         example: audio/ogg
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
     - file
-    - jid
+    - remoteJid
     type: object
   BusinessProfileRequest:
     properties:
@@ -27,9 +27,6 @@ definitions:
         type: string
       email:
         example: contato@empresateste.com.br
-        type: string
-      jid:
-        example: 5511987654321@s.whatsapp.net
         type: string
       name:
         example: Empresa Teste Ltda
@@ -40,6 +37,9 @@ definitions:
       phone:
         example: "+5511987654321"
         type: string
+      remoteJid:
+        example: 5511987654321@s.whatsapp.net
+        type: string
       title:
         example: Atendimento ao Cliente
         type: string
@@ -47,9 +47,9 @@ definitions:
         example: https://www.empresateste.com.br
         type: string
     required:
-    - jid
     - name
     - phone
+    - remoteJid
     type: object
   Button:
     properties:
@@ -73,13 +73,13 @@ definitions:
         maxItems: 3
         minItems: 1
         type: array
-      jid:
+      remoteJid:
         example: 5511999999999@s.whatsapp.net
         type: string
     required:
     - body
     - buttons
-    - jid
+    - remoteJid
     type: object
   ChatwootConfigResponse:
     properties:
@@ -132,13 +132,13 @@ definitions:
       contactPhone:
         example: "+5511987654321"
         type: string
-      jid:
+      remoteJid:
         example: 5511999999999@s.whatsapp.net
         type: string
     required:
     - contactName
     - contactPhone
-    - jid
+    - remoteJid
     type: object
   ContactSendResult:
     properties:
@@ -210,9 +210,6 @@ definitions:
       allowMultipleAnswers:
         example: false
         type: boolean
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       name:
         example: What's your favorite color?
         maxLength: 100
@@ -228,20 +225,20 @@ definitions:
         maxItems: 12
         minItems: 2
         type: array
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       selectableOptionCount:
         example: 1
         minimum: 1
         type: integer
     required:
-    - jid
     - name
     - options
+    - remoteJid
     type: object
   CreatePollResponse:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       messageId:
         example: 3EB0C767D71D
         type: string
@@ -255,6 +252,9 @@ definitions:
         type: array
       pollName:
         example: What's your favorite color?
+        type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       status:
         example: sent
@@ -320,36 +320,35 @@ definitions:
       filename:
         example: important_document.pdf
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       mimeType:
         example: application/pdf
+        type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
         type: string
     required:
     - file
     - filename
-    - jid
+    - remoteJid
     type: object
   EditMessageRequest:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       messageId:
         example: 3EB0C767D71D
         type: string
       newBody:
         example: Updated message text
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
       sessionId:
         example: mySession
         type: string
     required:
-    - jid
     - messageId
     - newBody
-    - sessionId
+    - remoteJid
     type: object
   EditResponse:
     properties:
@@ -374,9 +373,6 @@ definitions:
       createdAt:
         example: "2024-01-01T12:00:00Z"
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       options:
         items:
           $ref: '#/definitions/PollOption'
@@ -386,6 +382,9 @@ definitions:
         type: string
       pollName:
         example: What's your favorite color?
+        type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       selectableOptionCount:
         example: 1
@@ -422,15 +421,15 @@ definitions:
       filename:
         example: sunset.jpg
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       mimeType:
         example: image/jpeg
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
     - file
-    - jid
+    - remoteJid
     type: object
   ListMessageRequest:
     properties:
@@ -440,7 +439,7 @@ definitions:
       buttonText:
         example: Select Option
         type: string
-      jid:
+      remoteJid:
         example: 5511999999999@s.whatsapp.net
         type: string
       sections:
@@ -451,7 +450,7 @@ definitions:
     required:
     - body
     - buttonText
-    - jid
+    - remoteJid
     - sections
     type: object
   ListSessionsResponse:
@@ -475,31 +474,31 @@ definitions:
       address:
         example: Avenida Paulista, 1578 - Bela Vista, São Paulo - SP, Brazil
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       latitude:
         example: -23.5505
         type: number
       longitude:
         example: -46.6333
         type: number
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - jid
     - latitude
     - longitude
+    - remoteJid
     type: object
   MarkReadRequest:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       messageId:
         example: 3EB0C431C26A1916E07E
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - jid
     - messageId
+    - remoteJid
     type: object
   MarkReadResponse:
     properties:
@@ -527,15 +526,15 @@ definitions:
       filename:
         example: media.file
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       mimeType:
         example: application/octet-stream
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
     - file
-    - jid
+    - remoteJid
     type: object
   MessageResponse:
     properties:
@@ -574,9 +573,6 @@ definitions:
     type: object
   PresenceMessageRequest:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       presence:
         enum:
         - typing
@@ -586,9 +582,12 @@ definitions:
         - paused
         example: typing
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - jid
     - presence
+    - remoteJid
     type: object
   PresenceResponse:
     properties:
@@ -640,19 +639,19 @@ definitions:
     type: object
   ReactionMessageRequest:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       messageId:
         example: 3EB0C767D71D
         type: string
       reaction:
         example: "\U0001F44D"
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
-    - jid
     - messageId
     - reaction
+    - remoteJid
     type: object
   ReactionResponse:
     properties:
@@ -671,18 +670,18 @@ definitions:
     type: object
   RevokeMessageRequest:
     properties:
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       messageId:
         example: 3EB0C767D71D
+        type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
         type: string
       sessionId:
         example: mySession
         type: string
     required:
-    - jid
     - messageId
+    - remoteJid
     - sessionId
     type: object
   RevokeMessageResponse:
@@ -775,6 +774,10 @@ definitions:
     type: object
   SetConfigRequest:
     properties:
+      enabled:
+        description: 'Whether webhook is enabled (default: true)'
+        example: true
+        type: boolean
       events:
         example:
         - message
@@ -799,12 +802,13 @@ definitions:
     type: object
   SetConfigResponse:
     properties:
-      active:
-        example: true
-        type: boolean
       createdAt:
         example: "2024-01-01T00:00:00Z"
         type: string
+      enabled:
+        description: Whether webhook is enabled
+        example: true
+        type: boolean
       events:
         example:
         - message
@@ -838,6 +842,17 @@ definitions:
         example: true
         type: boolean
     type: object
+  TestWebhookRequest:
+    properties:
+      eventType:
+        example: message
+        type: string
+      testData:
+        additionalProperties: true
+        type: object
+    required:
+    - eventType
+    type: object
   TextMessageRequest:
     properties:
       body:
@@ -845,12 +860,12 @@ definitions:
         type: string
       contextInfo:
         $ref: '#/definitions/ContextInfo'
-      jid:
+      remoteJid:
         example: 5511987654321@s.whatsapp.net
         type: string
     required:
     - body
-    - jid
+    - remoteJid
     type: object
   VideoMessageRequest:
     properties:
@@ -865,24 +880,25 @@ definitions:
       filename:
         example: amazing_video.mp4
         type: string
-      jid:
-        example: 5511999999999@s.whatsapp.net
-        type: string
       mimeType:
         example: video/mp4
         type: string
+      remoteJid:
+        example: 5511999999999@s.whatsapp.net
+        type: string
     required:
     - file
-    - jid
+    - remoteJid
     type: object
   WebhookResponse:
     properties:
-      active:
-        example: true
-        type: boolean
       createdAt:
         example: "2024-01-01T00:00:00Z"
         type: string
+      enabled:
+        description: Whether webhook is enabled
+        example: true
+        type: boolean
       events:
         example:
         - message
@@ -1247,6 +1263,39 @@ definitions:
       timestamp:
         example: "2024-01-01T12:00:00Z"
         type: string
+    type: object
+  zpwoot_internal_app_webhook.TestWebhookResponse:
+    properties:
+      error:
+        type: string
+      responseTimeMs:
+        example: 150
+        type: integer
+      statusCode:
+        example: 200
+        type: integer
+      success:
+        example: true
+        type: boolean
+    type: object
+  zpwoot_internal_app_webhook.WebhookEventInfo:
+    properties:
+      data_schema:
+        example: MessageEventData
+        type: string
+      description:
+        example: Triggered when a message is received or sent
+        type: string
+      type:
+        example: message
+        type: string
+    type: object
+  zpwoot_internal_app_webhook.WebhookEventsResponse:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/zpwoot_internal_app_webhook.WebhookEventInfo'
+        type: array
     type: object
 host: localhost:8080
 info:
@@ -3053,6 +3102,7 @@ paths:
       description: Get current webhook configuration for a WhatsApp session
       parameters:
       - description: Session ID
+        format: uuid
         in: path
         name: sessionId
         required: true
@@ -3064,8 +3114,12 @@ paths:
           description: Webhook configuration retrieved successfully
           schema:
             $ref: '#/definitions/WebhookResponse'
+        "400":
+          description: Bad Request - Invalid session ID format
+          schema:
+            type: object
         "404":
-          description: Session not found
+          description: Webhook not found for this session
           schema:
             type: object
         "500":
@@ -3081,9 +3135,12 @@ paths:
     post:
       consumes:
       - application/json
-      description: Set or update webhook configuration for a WhatsApp session
+      description: Create or update webhook configuration for a WhatsApp session.
+        Set enabled=true to activate, enabled=false to disable without deleting. If
+        enabled is not provided, defaults to true.
       parameters:
       - description: Session ID
+        format: uuid
         in: path
         name: sessionId
         required: true
@@ -3097,12 +3154,12 @@ paths:
       produces:
       - application/json
       responses:
-        "200":
-          description: Webhook configuration set successfully
+        "201":
+          description: Webhook configuration created/updated successfully
           schema:
             $ref: '#/definitions/SetConfigResponse'
         "400":
-          description: Bad Request
+          description: Bad Request - Invalid session ID, URL, or event types
           schema:
             type: object
         "404":
@@ -3116,6 +3173,48 @@ paths:
       security:
       - ApiKeyAuth: []
       summary: Set webhook configuration
+      tags:
+      - Webhooks
+  /sessions/{sessionId}/webhook/test:
+    post:
+      consumes:
+      - application/json
+      description: Test webhook endpoint for a WhatsApp session with a sample event
+      parameters:
+      - description: Session ID
+        format: uuid
+        in: path
+        name: sessionId
+        required: true
+        type: string
+      - description: Test webhook request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/TestWebhookRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Webhook tested successfully
+          schema:
+            $ref: '#/definitions/zpwoot_internal_app_webhook.TestWebhookResponse'
+        "400":
+          description: Bad Request - Invalid session ID or event type
+          schema:
+            type: object
+        "404":
+          description: Webhook not found for this session
+          schema:
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      security:
+      - ApiKeyAuth: []
+      summary: Test webhook
       tags:
       - Webhooks
   /sessions/create:
@@ -3194,6 +3293,24 @@ paths:
       summary: List sessions
       tags:
       - Sessions
+  /webhook/events:
+    get:
+      description: Get list of all supported webhook event types that can be subscribed
+        to
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Supported events retrieved successfully
+          schema:
+            $ref: '#/definitions/zpwoot_internal_app_webhook.WebhookEventsResponse'
+        "500":
+          description: Internal Server Error
+          schema:
+            type: object
+      summary: Get supported webhook events
+      tags:
+      - Webhooks
 securityDefinitions:
   ApiKeyAuth:
     description: 'Enter your API key directly (no Bearer prefix required). Example:

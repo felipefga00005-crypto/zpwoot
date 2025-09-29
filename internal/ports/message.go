@@ -50,46 +50,46 @@ type MessageRepository interface {
 type MessageManager interface {
 	// SendMessage sends a text message
 	SendMessage(sessionID, to, messageType, body, caption, file, filename string, latitude, longitude float64, contactName, contactPhone string, contextInfo *message.ContextInfo) (*message.SendResult, error)
-	
+
 	// SendMediaMessage sends a media message (image, video, audio, document)
 	SendMediaMessage(sessionID, to string, media []byte, mediaType, caption string) error
-	
+
 	// SendButtonMessage sends a message with interactive buttons
 	SendButtonMessage(sessionID, to, body string, buttons []map[string]string) (*message.SendResult, error)
-	
+
 	// SendListMessage sends a message with interactive list
 	SendListMessage(sessionID, to, body, buttonText string, sections []map[string]interface{}) (*message.SendResult, error)
-	
+
 	// SendReaction sends a reaction to a message
 	SendReaction(sessionID, to, messageID, reaction string) error
-	
+
 	// SendPresence sends presence information (typing, recording, etc.)
 	SendPresence(sessionID, to, presence string) error
-	
+
 	// EditMessage edits an existing message
 	EditMessage(sessionID, to, messageID, newText string) error
-	
+
 	// MarkRead marks a message as read
 	MarkRead(sessionID, to, messageID string) error
-	
+
 	// RevokeMessage revokes/deletes a message
 	RevokeMessage(sessionID, to, messageID string) (*message.SendResult, error)
-	
+
 	// ForwardMessage forwards a message to another chat
 	ForwardMessage(sessionID, fromChat, toChat, messageID string) (*message.SendResult, error)
-	
+
 	// DownloadMedia downloads media from a message
 	DownloadMedia(sessionID, messageID string) ([]byte, error)
-	
+
 	// GetMessageInfo gets detailed information about a message
 	GetMessageInfo(sessionID, messageID string) (*MessageInfo, error)
-	
+
 	// SendLocation sends a location message
 	SendLocation(sessionID, to string, latitude, longitude float64, name, address string) (*message.SendResult, error)
-	
+
 	// SendContact sends a contact message
 	SendContact(sessionID, to, contactName, contactPhone string) (*message.SendResult, error)
-	
+
 	// SendSticker sends a sticker message
 	SendSticker(sessionID, to string, sticker []byte) (*message.SendResult, error)
 }
@@ -152,11 +152,11 @@ type MessageEntity struct {
 
 // ListMessagesRequest represents a request to list messages
 type ListMessagesRequest struct {
-	SessionID string `json:"session_id"`
-	ChatJID   string `json:"chat_jid,omitempty"`
-	Type      string `json:"type,omitempty"`
-	Limit     int    `json:"limit"`
-	Offset    int    `json:"offset"`
+	SessionID string     `json:"session_id"`
+	ChatJID   string     `json:"chat_jid,omitempty"`
+	Type      string     `json:"type,omitempty"`
+	Limit     int        `json:"limit"`
+	Offset    int        `json:"offset"`
 	FromDate  *time.Time `json:"from_date,omitempty"`
 	ToDate    *time.Time `json:"to_date,omitempty"`
 }
@@ -180,8 +180,6 @@ type MessageStats struct {
 	UnreadMessages   int64 `json:"unread_messages"`
 }
 
-
-
 // GetMessageStatsRequest represents a request to get message statistics
 type GetMessageStatsRequest struct {
 	SessionID string     `json:"session_id"`
@@ -199,10 +197,10 @@ type GetMessageStatsResponse struct {
 
 // ScheduleMessageRequest represents a request to schedule a message
 type ScheduleMessageRequest struct {
-	SessionID   string                     `json:"session_id"`
-	To          string                     `json:"to"`
+	SessionID   string                      `json:"session_id"`
+	To          string                      `json:"to"`
 	Message     *message.SendMessageRequest `json:"message"`
-	ScheduledAt time.Time                  `json:"scheduled_at"`
+	ScheduledAt time.Time                   `json:"scheduled_at"`
 }
 
 // ScheduleMessageResponse represents a response for scheduled message
@@ -215,12 +213,12 @@ type ScheduleMessageResponse struct {
 
 // ScheduledMessage represents a scheduled message
 type ScheduledMessage struct {
-	ID          string                     `json:"id"`
-	SessionID   string                     `json:"session_id"`
-	To          string                     `json:"to"`
+	ID          string                      `json:"id"`
+	SessionID   string                      `json:"session_id"`
+	To          string                      `json:"to"`
 	Message     *message.SendMessageRequest `json:"message"`
-	ScheduledAt time.Time                  `json:"scheduled_at"`
-	Status      string                     `json:"status"`
-	CreatedAt   time.Time                  `json:"created_at"`
-	UpdatedAt   time.Time                  `json:"updated_at"`
+	ScheduledAt time.Time                   `json:"scheduled_at"`
+	Status      string                      `json:"status"`
+	CreatedAt   time.Time                   `json:"created_at"`
+	UpdatedAt   time.Time                   `json:"updated_at"`
 }

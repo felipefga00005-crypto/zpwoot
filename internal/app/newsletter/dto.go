@@ -35,21 +35,21 @@ type GetNewsletterInfoWithInviteRequest struct {
 
 // NewsletterInfoResponse - Response com informações do newsletter
 type NewsletterInfoResponse struct {
-	ID              string                      `json:"id"`
-	Name            string                      `json:"name"`
-	Description     string                      `json:"description"`
-	InviteCode      string                      `json:"inviteCode"`
-	SubscriberCount int                         `json:"subscriberCount"`
-	State           string                      `json:"state"`
-	Role            string                      `json:"role"`
-	Muted           bool                        `json:"muted"`
-	MuteState       string                      `json:"muteState"`
-	Verified        bool                        `json:"verified"`
-	VerificationState string                    `json:"verificationState"`
-	CreationTime    time.Time                   `json:"creationTime"`
-	UpdateTime      time.Time                   `json:"updateTime"`
-	Picture         *ProfilePictureInfo         `json:"picture,omitempty"`
-	Preview         *ProfilePictureInfo         `json:"preview,omitempty"`
+	ID                string              `json:"id"`
+	Name              string              `json:"name"`
+	Description       string              `json:"description"`
+	InviteCode        string              `json:"inviteCode"`
+	SubscriberCount   int                 `json:"subscriberCount"`
+	State             string              `json:"state"`
+	Role              string              `json:"role"`
+	Muted             bool                `json:"muted"`
+	MuteState         string              `json:"muteState"`
+	Verified          bool                `json:"verified"`
+	VerificationState string              `json:"verificationState"`
+	CreationTime      time.Time           `json:"creationTime"`
+	UpdateTime        time.Time           `json:"updateTime"`
+	Picture           *ProfilePictureInfo `json:"picture,omitempty"`
+	Preview           *ProfilePictureInfo `json:"preview,omitempty"`
 }
 
 // ProfilePictureInfo - Informações da foto do perfil
@@ -109,7 +109,7 @@ func (resp *NewsletterInfoResponse) FromDomain(info *newsletter.NewsletterInfo) 
 	resp.VerificationState = string(info.VerificationState)
 	resp.CreationTime = info.CreationTime
 	resp.UpdateTime = info.UpdateTime
-	
+
 	if info.Picture != nil {
 		resp.Picture = &ProfilePictureInfo{
 			URL:    info.Picture.URL,
@@ -118,7 +118,7 @@ func (resp *NewsletterInfoResponse) FromDomain(info *newsletter.NewsletterInfo) 
 			Direct: info.Picture.Direct,
 		}
 	}
-	
+
 	if info.Preview != nil {
 		resp.Preview = &ProfilePictureInfo{
 			URL:    info.Preview.URL,
@@ -387,8 +387,8 @@ func (req *NewsletterMarkViewedRequest) Validate() error {
 // NewsletterSendReactionRequest represents the request for sending a reaction to a newsletter message
 type NewsletterSendReactionRequest struct {
 	NewsletterJID string `json:"newsletterJid" validate:"required"`
-	ServerID      string `json:"serverId,omitempty"`   // Optional - will be looked up from MessageID if not provided
-	Reaction      string `json:"reaction"`             // Empty string to remove reaction
+	ServerID      string `json:"serverId,omitempty"`            // Optional - will be looked up from MessageID if not provided
+	Reaction      string `json:"reaction"`                      // Empty string to remove reaction
 	MessageID     string `json:"messageId" validate:"required"` // Required - used to find ServerID if not provided
 }
 
@@ -455,8 +455,8 @@ func (req *AcceptTOSNoticeRequest) Validate() error {
 
 // UploadNewsletterRequest represents the request for uploading newsletter media
 type UploadNewsletterRequest struct {
-	Data     []byte `json:"data" validate:"required"`
-	MimeType string `json:"mimeType" validate:"required"`
+	Data      []byte `json:"data" validate:"required"`
+	MimeType  string `json:"mimeType" validate:"required"`
 	MediaType string `json:"mediaType" validate:"required"` // image, video, audio, document
 }
 

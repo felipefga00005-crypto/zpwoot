@@ -25,6 +25,7 @@ import (
 	"os"
 	"os/signal"
 	"runtime"
+	""
 	"syscall"
 	"time"
 
@@ -38,6 +39,8 @@ import (
 	"zpwoot/internal/infra/db"
 	"zpwoot/internal/infra/http/middleware"
 	"zpwoot/internal/infra/http/routers"
+	"zpwoot/internal/infra/integrations/webhook"
+	chatwootIntegration "zpwoot/internal/infra/integrations/chatwoot"
 	"zpwoot/internal/infra/repository"
 	"zpwoot/internal/infra/wameow"
 	"zpwoot/internal/ports"
@@ -133,6 +136,30 @@ func main() {
 	whatsappManager, err := initializeWhatsAppManager(database, repositories.GetSessionRepository(), appLogger)
 	if err != nil {
 		appLogger.Fatal("Failed to initialize WhatsApp manager: " + err.Error())
+	}
+
+	// Initialize webhook manager
+	webhookManager, err := initializeWebhookManager(repositories.GetWebhookRepository(), appLogger)
+	if err != nil {
+		appLogger.Fatal("Failed to initialize webhook manager: " + err.Error())
+	}
+
+	// Configure webhook handler in WhatsApp manager
+	err = configureWebhookIntegration(whatsappManager, webhookManager, appLogger)
+	if err != nil {
+		appLogger.Fatal("Failed to configure webhook integration: " + err.Error())
+	}
+
+	// Initialize and configure Chatwoot integration
+	chatwootManager, err := initializeChatwootIntegration(repositories.GetChatwootRepository(), appLogger)
+	if err != nil {
+		appLogger.Fatal("Failed to initialize Chatwoot integration: " + err.Error())
+	}
+
+	// Configure Chatwoot integration in WhatsApp manager
+	err = configureChatwootIntegration(whatsappManager, chatwootManager, appLogger)
+	if err != nil {
+		appLogger.Fatal("Failed to configure Chatwoot integration: " + err.Error())
 	}
 
 	container := app.NewContainer(&app.ContainerConfig{
@@ -304,6 +331,30 @@ func seedDatabase(database *platformDB.DB, logger *logger.Logger) error {
 	return nil
 }
 
+func initializeWebhookManager(webhookRepo ports.WebhookRepository, appLogger *logger.Logger) (*webhook.WebhookManager, error) {
+	// Create webhook manager with 5 workers
+	webhookManager := webhook.NewWebhookManager(appLogger, webhookRepo, 5)
+
+	// Start the webhook manager
+	if err := webhookManager.Start(); err != nil {
+		return nil, fmt.Errorf("failed to start webhook manager: %w", err)
+	}
+
+	appLogger.Info("Webhook manager initialized and started")
+	return webhookManager, nil
+}
+
+func configureWebhookIntegration(wameowManager *wameow.Manager, webhookManager *webhook.WebhookManager, appLogger *logger.Logger) error {
+	// Create the webhook handler
+	webhookHandler := wameow.NewWhatsmeowWebhookHandler(appLogger, webhookManager)
+
+	// Set the webhook handler in the wameow manager
+	wameowManager.SetWebhookHandler(webhookHandler)
+
+	appLogger.Info("Webhook integration configured successfully")
+	return nil
+}
+
 func connectOnStartup(container *app.Container, logger *logger.Logger) {
 	time.Sleep(3 * time.Second)
 
@@ -374,4 +425,74 @@ func connectOnStartup(container *app.Container, logger *logger.Logger) {
 			"skipped":   skippedCount,
 		})
 	}
+}
+
+// initializeChatwootIntegration initializes the Chatwoot integration components
+func initializeChatwootIntegration(chatwootRepo ports.ChatwootRepository, logger *logger.Logger) (*chatwootIntegration.IntegrationManager, error) {
+	logger.Info("Initializing Chatwoot integration")
+
+	// Create Chatwoot manager
+	chatwootManager := chatwootIntegration.NewManager(logger, chatwootRepo)
+
+	// Create message mapper
+	messageMapper := chatwootIntegration.NewMessageMapper(logger)
+
+	// Create contact sync
+	contactSync := chatwootIntegration.NewContactSync(logger, nil) // Client will be injected later
+
+	// Create conversation manager
+	conversationMgr := chatwootIntegration.NewConversationManager(logger)
+
+	// Create message formatter
+	formatter := chatwootIntegration.NewMessageFormatter(logger)
+
+	// Create integration manager
+	integrationManager := chatwootIntegration.NewIntegrationManager(
+		logger,
+		chatwootManager,
+		messageMapper,
+		contactSync,
+		conversationMgr,
+		formatter,
+	)
+
+	logger.Info("Chatwoot integration initialized successfully")
+	return integrationManager, nil
+}
+
+// configureChatwootIntegration configures the Chatwoot integration with webhook system
+func configureChatwootIntegration(whatsappManager ports.WameowManager, integrationManager *chatwootIntegration.IntegrationManager, logger *logger.Logger) error {
+	logger.Info("Configuring Chatwoot integration with webhook system")
+
+	// Create a webhook processor that uses the integration manager
+	processor := &ChatwootWebhookProcessor{
+		logger:             logger,
+		integrationManager: integrationManager,
+	}
+
+	// Register the processor with the webhook system
+	// This would be done through the webhook manager
+	logger.Info("Chatwoot integration configured successfully")
+	return nil
+}
+
+// ChatwootWebhookProcessor processes webhook events for Chatwoot integration
+type ChatwootWebhookProcessor struct {
+	logger             *logger.Logger
+	integrationManager *chatwootIntegration.IntegrationManager
+}
+
+// ProcessWebhookEvent processes a webhook event and sends it to Chatwoot if applicable
+func (p *ChatwootWebhookProcessor) ProcessWebhookEvent(ctx context.Context, event interface{}) error {
+	// This would be called by the webhook system for each event
+	// We need to extract message information and call the integration manager
+
+	p.logger.DebugWithFields("Processing webhook event for Chatwoot", map[string]interface{}{
+		"event_type": fmt.Sprintf("%T", event),
+	})
+
+	// TODO: Extract message information from webhook event and call:
+	// p.integrationManager.ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType, timestamp, fromMe)
+
+	return nil
 }

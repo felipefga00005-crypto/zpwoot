@@ -25,13 +25,86 @@ func (s *Service) CreateConfig(ctx context.Context, req *CreateChatwootConfigReq
 		"account_id": req.AccountID,
 	})
 
+	// Set defaults
+	enabled := true
+	if req.Enabled != nil {
+		enabled = *req.Enabled
+	}
+
+	autoCreate := false
+	if req.AutoCreate != nil {
+		autoCreate = *req.AutoCreate
+	}
+
+	signMsg := false
+	if req.SignMsg != nil {
+		signMsg = *req.SignMsg
+	}
+
+	signDelimiter := "\n\n"
+	if req.SignDelimiter != nil {
+		signDelimiter = *req.SignDelimiter
+	}
+
+	reopenConv := true
+	if req.ReopenConv != nil {
+		reopenConv = *req.ReopenConv
+	}
+
+	convPending := false
+	if req.ConvPending != nil {
+		convPending = *req.ConvPending
+	}
+
+	importContacts := false
+	if req.ImportContacts != nil {
+		importContacts = *req.ImportContacts
+	}
+
+	importMessages := false
+	if req.ImportMessages != nil {
+		importMessages = *req.ImportMessages
+	}
+
+	importDays := 60
+	if req.ImportDays != nil {
+		importDays = *req.ImportDays
+	}
+
+	mergeBrazil := true
+	if req.MergeBrazil != nil {
+		mergeBrazil = *req.MergeBrazil
+	}
+
+	ignoreJids := []string{}
+	if req.IgnoreJids != nil {
+		ignoreJids = req.IgnoreJids
+	}
+
 	config := &ChatwootConfig{
 		ID:        uuid.New(),
 		URL:       req.URL,
-		APIKey:    req.APIKey,
+		Token:     req.Token,
 		AccountID: req.AccountID,
 		InboxID:   req.InboxID,
-		Active:    true,
+		Enabled:   enabled,
+
+		// Advanced configuration
+		InboxName:      req.InboxName,
+		AutoCreate:     autoCreate,
+		SignMsg:        signMsg,
+		SignDelimiter:  signDelimiter,
+		ReopenConv:     reopenConv,
+		ConvPending:    convPending,
+		ImportContacts: importContacts,
+		ImportMessages: importMessages,
+		ImportDays:     importDays,
+		MergeBrazil:    mergeBrazil,
+		Organization:   req.Organization,
+		Logo:           req.Logo,
+		Number:         req.Number,
+		IgnoreJids:     ignoreJids,
+
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -56,8 +129,8 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 	if req.URL != nil {
 		config.URL = *req.URL
 	}
-	if req.APIKey != nil {
-		config.APIKey = *req.APIKey
+	if req.Token != nil {
+		config.Token = *req.Token
 	}
 	if req.AccountID != nil {
 		config.AccountID = *req.AccountID
@@ -65,8 +138,8 @@ func (s *Service) UpdateConfig(ctx context.Context, req *UpdateChatwootConfigReq
 	if req.InboxID != nil {
 		config.InboxID = req.InboxID
 	}
-	if req.Active != nil {
-		config.Active = *req.Active
+	if req.Enabled != nil {
+		config.Enabled = *req.Enabled
 	}
 
 	return config, nil
@@ -85,13 +158,13 @@ func (s *Service) SyncContact(ctx context.Context, req *SyncContactRequest) (*Ch
 	})
 
 	contact := &ChatwootContact{
-		ID:          1, // This would be assigned by Chatwoot
-		Name:        req.Name,
-		PhoneNumber: req.PhoneNumber,
-		Email:       req.Email,
-		Attributes:  req.Attributes,
-		CreatedAt:   time.Now(),
-		UpdatedAt:   time.Now(),
+		ID:               1, // This would be assigned by Chatwoot
+		Name:             req.Name,
+		PhoneNumber:      req.PhoneNumber,
+		Email:            req.Email,
+		CustomAttributes: req.Attributes,
+		CreatedAt:        time.Now(),
+		UpdatedAt:        time.Now(),
 	}
 
 	return contact, nil

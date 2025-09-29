@@ -5,14 +5,14 @@ CREATE TABLE IF NOT EXISTS "zpWebhooks" (
     "url" VARCHAR(2048) NOT NULL,
     "secret" VARCHAR(255),
     "events" JSONB NOT NULL DEFAULT '[]',
-    "active" BOOLEAN NOT NULL DEFAULT true,
+    "enabled" BOOLEAN NOT NULL DEFAULT true,
     "createdAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     "updatedAt" TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS "idx_zp_webhooks_session_id" ON "zpWebhooks" ("sessionId");
-CREATE INDEX IF NOT EXISTS "idx_zp_webhooks_active" ON "zpWebhooks" ("active");
+CREATE INDEX IF NOT EXISTS "idx_zp_webhooks_enabled" ON "zpWebhooks" ("enabled");
 CREATE INDEX IF NOT EXISTS "idx_zp_webhooks_created_at" ON "zpWebhooks" ("createdAt");
 
 -- Create trigger to automatically update updatedAt
@@ -28,6 +28,6 @@ COMMENT ON COLUMN "zpWebhooks"."sessionId" IS 'Associated session ID (NULL for g
 COMMENT ON COLUMN "zpWebhooks"."url" IS 'Webhook endpoint URL';
 COMMENT ON COLUMN "zpWebhooks"."secret" IS 'Optional webhook secret for verification';
 COMMENT ON COLUMN "zpWebhooks"."events" IS 'Array of subscribed event types';
-COMMENT ON COLUMN "zpWebhooks"."active" IS 'Whether webhook is active';
+COMMENT ON COLUMN "zpWebhooks"."enabled" IS 'Whether webhook is enabled by user';
 COMMENT ON COLUMN "zpWebhooks"."createdAt" IS 'Webhook creation timestamp';
 COMMENT ON COLUMN "zpWebhooks"."updatedAt" IS 'Last update timestamp';

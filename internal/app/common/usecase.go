@@ -185,7 +185,7 @@ func (uc *useCaseImpl) getActiveWebhooksCount(ctx context.Context) int {
 	countCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 
-	webhooks, err := uc.webhookRepo.GetActiveWebhooks(countCtx)
+	webhooks, err := uc.webhookRepo.GetEnabledWebhooks(countCtx)
 	if err != nil {
 		return 0
 	}

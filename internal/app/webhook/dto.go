@@ -11,6 +11,7 @@ type SetConfigRequest struct {
 	URL       string   `json:"url" validate:"required,url" example:"https://myapp.com/webhook/whatsapp"`
 	Secret    string   `json:"secret,omitempty" example:"my-webhook-secret-key-123"`
 	Events    []string `json:"events" validate:"required,min=1" example:"message,status,connection"`
+	Enabled   *bool    `json:"enabled,omitempty" example:"true"` // Whether webhook is enabled (default: true)
 } //@name SetConfigRequest
 
 type SetConfigResponse struct {
@@ -18,20 +19,20 @@ type SetConfigResponse struct {
 	SessionID *string   `json:"sessionId,omitempty" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
 	URL       string    `json:"url" example:"https://myapp.com/webhook/whatsapp"`
 	Events    []string  `json:"events" example:"message,status,connection"`
-	Active    bool      `json:"active" example:"true"`
+	Enabled   bool      `json:"enabled" example:"true"` // Whether webhook is enabled
 	CreatedAt time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 } //@name SetConfigResponse
 
 type UpdateWebhookRequest struct {
-	URL    *string  `json:"url,omitempty" validate:"omitempty,url" example:"https://myapp.com/webhook/whatsapp/v2"`
-	Secret *string  `json:"secret,omitempty" example:"updated-webhook-secret-456"`
-	Events []string `json:"events,omitempty" validate:"omitempty,min=1" example:"message,status,connection,qr"`
-	Active *bool    `json:"active,omitempty" example:"false"`
+	URL     *string  `json:"url,omitempty" validate:"omitempty,url" example:"https://myapp.com/webhook/whatsapp/v2"`
+	Secret  *string  `json:"secret,omitempty" example:"updated-webhook-secret-456"`
+	Events  []string `json:"events,omitempty" validate:"omitempty,min=1" example:"message,status,connection,qr"`
+	Enabled *bool    `json:"enabled,omitempty" example:"false"` // Whether webhook is enabled
 } //@name UpdateWebhookRequest
 
 type ListWebhooksRequest struct {
 	SessionID *string `json:"sessionId,omitempty" query:"sessionId" example:"1b2e424c-a2a0-41a4-b992-15b7ec06b9bc"`
-	Active    *bool   `json:"active,omitempty" query:"active" example:"true"`
+	Enabled   *bool   `json:"enabled,omitempty" query:"enabled" example:"true"` // Filter by enabled status
 	Limit     int     `json:"limit,omitempty" query:"limit" validate:"omitempty,min=1,max=100" example:"20"`
 	Offset    int     `json:"offset,omitempty" query:"offset" validate:"omitempty,min=0" example:"0"`
 } //@name ListWebhooksRequest
@@ -48,7 +49,7 @@ type WebhookResponse struct {
 	SessionID *string   `json:"sessionId,omitempty" example:"session-123"`
 	URL       string    `json:"url" example:"https://example.com/webhook"`
 	Events    []string  `json:"events" example:"message,status"`
-	Active    bool      `json:"active" example:"true"`
+	Enabled   bool      `json:"enabled" example:"true"` // Whether webhook is enabled
 	CreatedAt time.Time `json:"createdAt" example:"2024-01-01T00:00:00Z"`
 	UpdatedAt time.Time `json:"updatedAt" example:"2024-01-01T00:00:00Z"`
 } //@name WebhookResponse
@@ -89,22 +90,23 @@ func (r *SetConfigRequest) ToSetConfigRequest() *webhook.SetConfigRequest {
 		URL:       r.URL,
 		Secret:    r.Secret,
 		Events:    r.Events,
+		Enabled:   r.Enabled,
 	}
 }
 
 func (r *UpdateWebhookRequest) ToUpdateWebhookRequest() *webhook.UpdateWebhookRequest {
 	return &webhook.UpdateWebhookRequest{
-		URL:    r.URL,
-		Secret: r.Secret,
-		Events: r.Events,
-		Active: r.Active,
+		URL:     r.URL,
+		Secret:  r.Secret,
+		Events:  r.Events,
+		Enabled: r.Enabled,
 	}
 }
 
 func (r *ListWebhooksRequest) ToListWebhooksRequest() *webhook.ListWebhooksRequest {
 	return &webhook.ListWebhooksRequest{
 		SessionID: r.SessionID,
-		Active:    r.Active,
+		Enabled:   r.Enabled,
 		Limit:     r.Limit,
 		Offset:    r.Offset,
 	}
@@ -116,7 +118,7 @@ func FromWebhook(w *webhook.WebhookConfig) *WebhookResponse {
 		SessionID: w.SessionID,
 		URL:       w.URL,
 		Events:    w.Events,
-		Active:    w.Active,
+		Enabled:   w.Enabled,
 		CreatedAt: w.CreatedAt,
 		UpdatedAt: w.UpdatedAt,
 	}

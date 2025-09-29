@@ -12,11 +12,24 @@ import (
 	"go.mau.fi/whatsmeow/types/events"
 )
 
+// WebhookEventHandler defines interface for handling webhook events
+type WebhookEventHandler interface {
+	HandleWhatsmeowEvent(evt interface{}, sessionID string) error
+}
+
 type EventHandler struct {
-	manager    *Manager
-	sessionMgr SessionUpdater
-	qrGen      *QRCodeGenerator
-	logger     *logger.Logger
+	manager         *Manager
+	sessionMgr      SessionUpdater
+	qrGen           *QRCodeGenerator
+	logger          *logger.Logger
+	webhookHandler  WebhookEventHandler
+	chatwootManager ChatwootManager // Interface for Chatwoot integration
+}
+
+// ChatwootManager interface for Chatwoot integration
+type ChatwootManager interface {
+	IsEnabled(sessionID string) bool
+	ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType string, timestamp time.Time, fromMe bool) error
 }
 
 func NewEventHandler(manager *Manager, sessionMgr SessionUpdater, qrGen *QRCodeGenerator, logger *logger.Logger) *EventHandler {
@@ -28,7 +41,16 @@ func NewEventHandler(manager *Manager, sessionMgr SessionUpdater, qrGen *QRCodeG
 	}
 }
 
+// SetChatwootManager sets the Chatwoot manager for integration
+func (h *EventHandler) SetChatwootManager(chatwootManager ChatwootManager) {
+	h.chatwootManager = chatwootManager
+}
+
 func (h *EventHandler) HandleEvent(evt interface{}, sessionID string) {
+	// First, deliver to webhook if configured
+	h.deliverToWebhook(evt, sessionID)
+
+	// Then handle the event internally
 	switch v := evt.(type) {
 	case *events.Connected:
 		h.handleConnected(v, sessionID)
@@ -268,6 +290,87 @@ func (h *EventHandler) handleMessage(evt *events.Message, sessionID string) {
 
 	h.updateSessionLastSeen(sessionID)
 
+	// Process message for Chatwoot integration if enabled
+	h.processChatwootIntegration(evt, sessionID)
+}
+
+// processChatwootIntegration processes the message for Chatwoot integration
+func (h *EventHandler) processChatwootIntegration(evt *events.Message, sessionID string) {
+	// Check if Chatwoot manager is available and enabled
+	if h.chatwootManager == nil || !h.chatwootManager.IsEnabled(sessionID) {
+		return
+	}
+
+	// Extract message information
+	messageID := evt.Info.ID
+	from := evt.Info.Sender.String()
+	timestamp := evt.Info.Timestamp
+	fromMe := evt.Info.IsFromMe
+
+	// Determine message type and content
+	messageType := "text"
+	content := ""
+
+	if evt.Message.ContactMessage != nil {
+		messageType = "contact"
+		if evt.Message.ContactMessage.DisplayName != nil {
+			content = "Contact: " + *evt.Message.ContactMessage.DisplayName
+		} else {
+			content = "Contact shared"
+		}
+	} else if evt.Message.ContactsArrayMessage != nil {
+		messageType = "contacts"
+		content = fmt.Sprintf("Contacts shared (%d contacts)", len(evt.Message.ContactsArrayMessage.Contacts))
+	} else if evt.Message.ImageMessage != nil {
+		messageType = "image"
+		if evt.Message.ImageMessage.Caption != nil {
+			content = *evt.Message.ImageMessage.Caption
+		} else {
+			content = "Image"
+		}
+	} else if evt.Message.AudioMessage != nil {
+		messageType = "audio"
+		content = "Audio message"
+	} else if evt.Message.VideoMessage != nil {
+		messageType = "video"
+		if evt.Message.VideoMessage.Caption != nil {
+			content = *evt.Message.VideoMessage.Caption
+		} else {
+			content = "Video"
+		}
+	} else if evt.Message.DocumentMessage != nil {
+		messageType = "document"
+		if evt.Message.DocumentMessage.Title != nil {
+			content = "Document: " + *evt.Message.DocumentMessage.Title
+		} else {
+			content = "Document"
+		}
+	} else if evt.Message.StickerMessage != nil {
+		messageType = "sticker"
+		content = "Sticker"
+	} else if evt.Message.LocationMessage != nil {
+		messageType = "location"
+		content = "Location shared"
+	} else if evt.Message.GetConversation() != "" {
+		messageType = "text"
+		content = evt.Message.GetConversation()
+	}
+
+	// Process the message with Chatwoot
+	err := h.chatwootManager.ProcessWhatsAppMessage(sessionID, messageID, from, content, messageType, timestamp, fromMe)
+	if err != nil {
+		h.logger.ErrorWithFields("Failed to process message for Chatwoot", map[string]interface{}{
+			"session_id": sessionID,
+			"message_id": messageID,
+			"error":      err.Error(),
+		})
+	} else {
+		h.logger.DebugWithFields("Message processed for Chatwoot", map[string]interface{}{
+			"session_id":   sessionID,
+			"message_id":   messageID,
+			"message_type": messageType,
+		})
+	}
 }
 
 func (h *EventHandler) handleReceipt(evt *events.Receipt, sessionID string) {
@@ -550,4 +653,24 @@ func getEventType(evt interface{}) string {
 	}
 
 	return typeName
+}
+
+// SetWebhookHandler sets the webhook handler in the EventHandler
+func (h *EventHandler) SetWebhookHandler(webhookHandler WebhookEventHandler) {
+	h.webhookHandler = webhookHandler
+}
+
+// deliverToWebhook delivers an event to the webhook handler if configured
+func (h *EventHandler) deliverToWebhook(evt interface{}, sessionID string) {
+	if h.webhookHandler == nil {
+		return
+	}
+
+	if err := h.webhookHandler.HandleWhatsmeowEvent(evt, sessionID); err != nil {
+		h.logger.ErrorWithFields("Failed to deliver event to webhook", map[string]interface{}{
+			"session_id": sessionID,
+			"event_type": getEventType(evt),
+			"error":      err.Error(),
+		})
+	}
 }

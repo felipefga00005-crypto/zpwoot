@@ -69,8 +69,6 @@ type WameowManager interface {
 	GetSessionStats(sessionID string) (*SessionStats, error)
 	RegisterEventHandler(sessionID string, handler EventHandler) error
 	UnregisterEventHandler(sessionID string, handlerID string) error
-
-
 }
 
 // GroupInfo represents information about a WhatsApp group

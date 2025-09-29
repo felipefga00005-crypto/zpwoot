@@ -1,6 +1,64 @@
 package ports
 
-import "zpwoot/internal/domain/chatwoot"
+import (
+	"context"
+	"io"
+	"time"
+	"zpwoot/internal/domain/chatwoot"
+)
+
+// ChatwootClient defines the interface for Chatwoot API client operations
+type ChatwootClient interface {
+	// Inbox operations
+	CreateInbox(name, webhookURL string) (*ChatwootInbox, error)
+	ListInboxes() ([]ChatwootInbox, error)
+	GetInbox(inboxID int) (*ChatwootInbox, error)
+	UpdateInbox(inboxID int, updates map[string]interface{}) error
+	DeleteInbox(inboxID int) error
+
+	// Contact operations
+	CreateContact(phone, name string, inboxID int) (*ChatwootContact, error)
+	FindContact(phone string, inboxID int) (*ChatwootContact, error)
+	GetContact(contactID int) (*ChatwootContact, error)
+	UpdateContactAttributes(contactID int, attributes map[string]interface{}) error
+
+	// Conversation operations
+	CreateConversation(contactID, inboxID int) (*ChatwootConversation, error)
+	GetConversation(contactID, inboxID int) (*ChatwootConversation, error)
+	GetConversationByID(conversationID int) (*ChatwootConversation, error)
+	UpdateConversationStatus(conversationID int, status string) error
+
+	// Message operations
+	SendMessage(conversationID int, content string) (*ChatwootMessage, error)
+	SendMediaMessage(conversationID int, content string, attachment io.Reader, filename string) (*ChatwootMessage, error)
+	GetMessages(conversationID int, before int) ([]ChatwootMessage, error)
+
+	// Account operations
+	GetAccount() (*ChatwootAccount, error)
+	UpdateAccount(updates map[string]interface{}) error
+}
+
+// ChatwootManager defines the interface for managing Chatwoot integrations per session
+type ChatwootManager interface {
+	// Client management
+	GetClient(sessionID string) (ChatwootClient, error)
+	IsEnabled(sessionID string) bool
+
+	// Instance initialization
+	InitInstanceChatwoot(sessionID, inboxName, webhookURL string, autoCreate bool) error
+
+	// Configuration management
+	SetConfig(sessionID string, config *chatwoot.ChatwootConfig) error
+	GetConfig(sessionID string) (*chatwoot.ChatwootConfig, error)
+
+	// Cleanup
+	Cleanup(sessionID string) error
+}
+
+// WebhookHandler defines the interface for processing Chatwoot webhooks
+type WebhookHandler interface {
+	ProcessWebhook(ctx context.Context, webhook *chatwoot.ChatwootWebhookPayload, sessionID string) error
+}
 
 // ChatwootIntegration defines the basic interface for Chatwoot integration operations
 type ChatwootIntegration interface {
@@ -52,31 +110,93 @@ type ChatwootIntegrationExtended interface {
 	BulkDeleteContacts(contactIDs []int) error
 }
 
+// ChatwootInbox represents an inbox in Chatwoot
+type ChatwootInbox struct {
+	ID                   int                    `json:"id"`
+	Name                 string                 `json:"name"`
+	ChannelType          string                 `json:"channel_type"`
+	WebhookURL           string                 `json:"webhook_url,omitempty"`
+	GreetingEnabled      bool                   `json:"greeting_enabled"`
+	GreetingMessage      string                 `json:"greeting_message"`
+	WorkingHoursEnabled  bool                   `json:"working_hours_enabled"`
+	OutOfOfficeMessage   string                 `json:"out_of_office_message"`
+	Timezone             string                 `json:"timezone"`
+	EnableAutoAssignment bool                   `json:"enable_auto_assignment"`
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
+}
+
 // ChatwootContact represents a contact in Chatwoot
 type ChatwootContact struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	PhoneNumber string `json:"phoneNumber"`
-	Email       string `json:"email"`
+	ID                   int                    `json:"id"`
+	Name                 string                 `json:"name"`
+	PhoneNumber          string                 `json:"phone_number"`
+	Email                string                 `json:"email"`
+	Identifier           string                 `json:"identifier"`
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`
+	CustomAttributes     map[string]interface{} `json:"custom_attributes,omitempty"`
+	ContactInboxes       []ChatwootContactInbox `json:"contact_inboxes,omitempty"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
+}
+
+// ChatwootContactInbox represents the relationship between contact and inbox
+type ChatwootContactInbox struct {
+	SourceID string `json:"source_id"`
+	InboxID  int    `json:"inbox_id"`
 }
 
 // ChatwootConversation represents a conversation in Chatwoot
 type ChatwootConversation struct {
-	ID        int    `json:"id"`
-	ContactID int    `json:"contact_id"`
-	InboxID   int    `json:"inbox_id"`
-	Status    string `json:"status"`
+	ID                   int                    `json:"id"`
+	ContactID            int                    `json:"contact_id"`
+	InboxID              int                    `json:"inbox_id"`
+	Status               string                 `json:"status"`
+	AgentLastSeenAt      *string                `json:"agent_last_seen_at"`
+	ContactLastSeenAt    *string                `json:"contact_last_seen_at"`
+	Timestamp            int64                  `json:"timestamp"`
+	UnreadCount          int                    `json:"unread_count"`
+	AdditionalAttributes map[string]interface{} `json:"additional_attributes,omitempty"`
+	CustomAttributes     map[string]interface{} `json:"custom_attributes,omitempty"`
+	Labels               []string               `json:"labels,omitempty"`
+	CreatedAt            string                 `json:"created_at"`
+	UpdatedAt            string                 `json:"updated_at"`
 }
 
-// ChatwootInbox represents an inbox in Chatwoot
-type ChatwootInbox struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	ChannelType string `json:"channel_type"`
-	AccountID   int    `json:"account_id"`
-	WebsiteURL  string `json:"website_url,omitempty"`
-	CreatedAt   int64  `json:"created_at"`
-	UpdatedAt   int64  `json:"updated_at"`
+// ChatwootMessage represents a message in Chatwoot
+type ChatwootMessage struct {
+	ID                int                    `json:"id"`
+	Content           string                 `json:"content"`
+	MessageType       string                 `json:"message_type"` // incoming, outgoing
+	ContentType       string                 `json:"content_type"` // text, input_select, cards, form, etc.
+	ContentAttributes map[string]interface{} `json:"content_attributes,omitempty"`
+	CreatedAt         string                 `json:"created_at"`
+	Private           bool                   `json:"private"`
+	SourceID          string                 `json:"source_id,omitempty"`
+	Sender            *ChatwootSender        `json:"sender,omitempty"`
+	ConversationID    int                    `json:"conversation_id"`
+	Attachments       []ChatwootAttachment   `json:"attachments,omitempty"`
+}
+
+// ChatwootSender represents the sender of a message
+type ChatwootSender struct {
+	ID            int    `json:"id"`
+	Name          string `json:"name"`
+	AvailableName string `json:"available_name"`
+	AvatarURL     string `json:"avatar_url"`
+	Type          string `json:"type"` // contact, user, agent_bot
+	Identifier    string `json:"identifier,omitempty"`
+	Email         string `json:"email,omitempty"`
+}
+
+// ChatwootAttachment represents an attachment in Chatwoot
+type ChatwootAttachment struct {
+	ID       int    `json:"id"`
+	FileType string `json:"file_type"`
+	DataURL  string `json:"data_url"`
+	ThumbURL string `json:"thumb_url,omitempty"`
+	FileSize int    `json:"file_size,omitempty"`
 }
 
 // ChatwootAccount represents an account in Chatwoot
@@ -165,4 +285,29 @@ type AccountMetrics struct {
 type ContactUpdate struct {
 	ID      int                    `json:"id"`
 	Updates map[string]interface{} `json:"updates"`
+}
+
+// ZpMessage represents a simple mapping between WhatsApp message ID and Chatwoot message ID
+type ZpMessage struct {
+	ID               string     `json:"id"`
+	SessionID        string     `json:"session_id"`
+	ZpMessageID      string     `json:"zp_message_id"`                // WhatsApp message ID
+	CwMessageID      *int       `json:"cw_message_id,omitempty"`      // Chatwoot message ID
+	CwConversationID *int       `json:"cw_conversation_id,omitempty"` // Chatwoot conversation ID
+	SyncStatus       string     `json:"sync_status"`                  // pending, synced, failed
+	CreatedAt        time.Time  `json:"created_at"`
+	UpdatedAt        time.Time  `json:"updated_at"`
+	SyncedAt         *time.Time `json:"synced_at,omitempty"`
+}
+
+// MessageRepository defines the interface for zpMessage operations
+type MessageRepository interface {
+	CreateMessage(ctx context.Context, message *ZpMessage) error
+	GetMessageByZpID(ctx context.Context, sessionID, zpMessageID string) (*ZpMessage, error)
+	GetMessageByCwID(ctx context.Context, cwMessageID int) (*ZpMessage, error)
+	UpdateSyncStatus(ctx context.Context, id string, status string, cwMessageID, cwConversationID *int) error
+	GetMessagesBySession(ctx context.Context, sessionID string, limit, offset int) ([]*ZpMessage, error)
+	GetMessagesByChat(ctx context.Context, sessionID, chatJID string, limit, offset int) ([]*ZpMessage, error)
+	GetPendingSyncMessages(ctx context.Context, sessionID string, limit int) ([]*ZpMessage, error)
+	DeleteMessage(ctx context.Context, id string) error
 }

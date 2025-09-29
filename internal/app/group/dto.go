@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"zpwoot/internal/domain/group"
 	"go.mau.fi/whatsmeow/types"
+	"zpwoot/internal/domain/group"
 )
 
 // CreateGroupRequest represents the request to create a new group
@@ -312,10 +312,10 @@ func NewGroupInfoFromInviteResponse(groupInfo *types.GroupInfo, code, inviter st
 
 // JoinGroupWithInviteResponse represents the response for joining group with invite
 type JoinGroupWithInviteResponse struct {
-	Success   bool   `json:"success" example:"true"`
-	Message   string `json:"message" example:"Successfully joined group"`
-	GroupJID  string `json:"groupJid" example:"120363123456789012@g.us"`
-	JoinedAt  string `json:"joinedAt" example:"2024-01-01T00:00:00Z"`
+	Success  bool   `json:"success" example:"true"`
+	Message  string `json:"message" example:"Successfully joined group"`
+	GroupJID string `json:"groupJid" example:"120363123456789012@g.us"`
+	JoinedAt string `json:"joinedAt" example:"2024-01-01T00:00:00Z"`
 } //@name JoinGroupWithInviteResponse
 
 // NewJoinGroupWithInviteResponse creates a new join group with invite response

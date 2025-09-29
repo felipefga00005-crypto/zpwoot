@@ -40,8 +40,8 @@ func (v *JIDValidator) IsValid(jid string) bool {
 
 	// Check for WhatsApp JID format (individual, group, or newsletter)
 	if strings.Contains(normalizedJID, "@s.whatsapp.net") ||
-	   strings.Contains(normalizedJID, "@g.us") ||
-	   strings.Contains(normalizedJID, "@newsletter") {
+		strings.Contains(normalizedJID, "@g.us") ||
+		strings.Contains(normalizedJID, "@newsletter") {
 		return true
 	}
 

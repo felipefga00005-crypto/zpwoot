@@ -10,54 +10,54 @@ var (
 	ErrInvalidCommunityJID   = errors.New("invalid community JID")
 	ErrInvalidGroupJID       = errors.New("invalid group JID")
 	ErrCommunityNotConnected = errors.New("community is not connected")
-	
+
 	// Permission errors
 	ErrInsufficientPermissions = errors.New("insufficient permissions")
 	ErrNotCommunityOwner       = errors.New("user is not community owner")
 	ErrNotCommunityAdmin       = errors.New("user is not community admin")
 	ErrNotCommunityMember      = errors.New("user is not community member")
-	
+
 	// Group linking errors
-	ErrGroupNotFound          = errors.New("group not found")
-	ErrGroupAlreadyLinked     = errors.New("group is already linked to this community")
-	ErrGroupLinkedElsewhere   = errors.New("group is already linked to another community")
-	ErrCannotLinkToSelf       = errors.New("cannot link community to itself")
-	ErrGroupNotLinked         = errors.New("group is not linked to this community")
-	ErrMaxGroupsReached       = errors.New("maximum number of linked groups reached")
-	
+	ErrGroupNotFound        = errors.New("group not found")
+	ErrGroupAlreadyLinked   = errors.New("group is already linked to this community")
+	ErrGroupLinkedElsewhere = errors.New("group is already linked to another community")
+	ErrCannotLinkToSelf     = errors.New("cannot link community to itself")
+	ErrGroupNotLinked       = errors.New("group is not linked to this community")
+	ErrMaxGroupsReached     = errors.New("maximum number of linked groups reached")
+
 	// Validation errors
-	ErrEmptyCommunityJID      = errors.New("community JID cannot be empty")
-	ErrEmptyGroupJID          = errors.New("group JID cannot be empty")
-	ErrEmptyCommunityName     = errors.New("community name cannot be empty")
-	ErrCommunityNameTooLong   = errors.New("community name is too long")
-	ErrDescriptionTooLong     = errors.New("community description is too long")
-	ErrInvalidJIDFormat       = errors.New("invalid JID format")
-	
+	ErrEmptyCommunityJID    = errors.New("community JID cannot be empty")
+	ErrEmptyGroupJID        = errors.New("group JID cannot be empty")
+	ErrEmptyCommunityName   = errors.New("community name cannot be empty")
+	ErrCommunityNameTooLong = errors.New("community name is too long")
+	ErrDescriptionTooLong   = errors.New("community description is too long")
+	ErrInvalidJIDFormat     = errors.New("invalid JID format")
+
 	// Operation errors
-	ErrLinkOperationFailed    = errors.New("group link operation failed")
-	ErrUnlinkOperationFailed  = errors.New("group unlink operation failed")
-	ErrCommunityInfoFailed    = errors.New("failed to get community information")
-	ErrSubGroupsFailed        = errors.New("failed to get community sub-groups")
-	
+	ErrLinkOperationFailed   = errors.New("group link operation failed")
+	ErrUnlinkOperationFailed = errors.New("group unlink operation failed")
+	ErrCommunityInfoFailed   = errors.New("failed to get community information")
+	ErrSubGroupsFailed       = errors.New("failed to get community sub-groups")
+
 	// Network/API errors
 	ErrCommunityAPIUnavailable = errors.New("community API is unavailable")
 	ErrCommunityTimeout        = errors.New("community operation timed out")
 	ErrCommunityRateLimited    = errors.New("community operation rate limited")
-	
+
 	// Business logic errors
-	ErrCommunityFull          = errors.New("community has reached maximum capacity")
-	ErrCommunityPrivate       = errors.New("community is private")
-	ErrCommunityArchived      = errors.New("community is archived")
-	ErrCommunityRestricted    = errors.New("community access is restricted")
+	ErrCommunityFull       = errors.New("community has reached maximum capacity")
+	ErrCommunityPrivate    = errors.New("community is private")
+	ErrCommunityArchived   = errors.New("community is archived")
+	ErrCommunityRestricted = errors.New("community access is restricted")
 )
 
 // CommunityError represents a community-specific error with additional context
 type CommunityError struct {
-	Code      string                 `json:"code"`
-	Message   string                 `json:"message"`
-	Details   string                 `json:"details,omitempty"`
-	Context   map[string]interface{} `json:"context,omitempty"`
-	Cause     error                  `json:"-"`
+	Code    string                 `json:"code"`
+	Message string                 `json:"message"`
+	Details string                 `json:"details,omitempty"`
+	Context map[string]interface{} `json:"context,omitempty"`
+	Cause   error                  `json:"-"`
 }
 
 // Error implements the error interface
@@ -100,21 +100,21 @@ func (e *CommunityError) WithContext(key string, value interface{}) *CommunityEr
 
 // Error codes for different types of community errors
 const (
-	ErrCodeCommunityNotFound     = "COMMUNITY_NOT_FOUND"
-	ErrCodeCommunityExists       = "COMMUNITY_EXISTS"
-	ErrCodeInvalidJID            = "INVALID_JID"
-	ErrCodeInsufficientPerms     = "INSUFFICIENT_PERMISSIONS"
-	ErrCodeGroupAlreadyLinked    = "GROUP_ALREADY_LINKED"
-	ErrCodeGroupNotLinked        = "GROUP_NOT_LINKED"
-	ErrCodeValidationFailed      = "VALIDATION_FAILED"
-	ErrCodeOperationFailed       = "OPERATION_FAILED"
-	ErrCodeAPIUnavailable        = "API_UNAVAILABLE"
-	ErrCodeTimeout               = "TIMEOUT"
-	ErrCodeRateLimited           = "RATE_LIMITED"
-	ErrCodeCommunityFull         = "COMMUNITY_FULL"
-	ErrCodeCommunityPrivate      = "COMMUNITY_PRIVATE"
-	ErrCodeCommunityArchived     = "COMMUNITY_ARCHIVED"
-	ErrCodeCommunityRestricted   = "COMMUNITY_RESTRICTED"
+	ErrCodeCommunityNotFound   = "COMMUNITY_NOT_FOUND"
+	ErrCodeCommunityExists     = "COMMUNITY_EXISTS"
+	ErrCodeInvalidJID          = "INVALID_JID"
+	ErrCodeInsufficientPerms   = "INSUFFICIENT_PERMISSIONS"
+	ErrCodeGroupAlreadyLinked  = "GROUP_ALREADY_LINKED"
+	ErrCodeGroupNotLinked      = "GROUP_NOT_LINKED"
+	ErrCodeValidationFailed    = "VALIDATION_FAILED"
+	ErrCodeOperationFailed     = "OPERATION_FAILED"
+	ErrCodeAPIUnavailable      = "API_UNAVAILABLE"
+	ErrCodeTimeout             = "TIMEOUT"
+	ErrCodeRateLimited         = "RATE_LIMITED"
+	ErrCodeCommunityFull       = "COMMUNITY_FULL"
+	ErrCodeCommunityPrivate    = "COMMUNITY_PRIVATE"
+	ErrCodeCommunityArchived   = "COMMUNITY_ARCHIVED"
+	ErrCodeCommunityRestricted = "COMMUNITY_RESTRICTED"
 )
 
 // Helper functions to create specific errors

@@ -97,28 +97,28 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 
 	// Newsletter management routes
 	newsletterHandler := handlers.NewNewsletterHandler(appLogger, container.GetNewsletterUseCase(), container.GetSessionRepository())
-	sessions.Post("/:sessionId/newsletters/create", newsletterHandler.CreateNewsletter)                    // POST /sessions/:sessionId/newsletters/create
-	sessions.Get("/:sessionId/newsletters/info", newsletterHandler.GetNewsletterInfo)                      // GET /sessions/:sessionId/newsletters/info?jid=...
-	sessions.Post("/:sessionId/newsletters/info-from-invite", newsletterHandler.GetNewsletterInfoWithInvite) // POST /sessions/:sessionId/newsletters/info-from-invite
-	sessions.Post("/:sessionId/newsletters/follow", newsletterHandler.FollowNewsletter)                    // POST /sessions/:sessionId/newsletters/follow
-	sessions.Post("/:sessionId/newsletters/unfollow", newsletterHandler.UnfollowNewsletter)                // POST /sessions/:sessionId/newsletters/unfollow
-	sessions.Get("/:sessionId/newsletters/messages", newsletterHandler.GetNewsletterMessages)              // GET /sessions/:sessionId/newsletters/messages?jid=...&count=20&before=...
-	sessions.Get("/:sessionId/newsletters/updates", newsletterHandler.GetNewsletterMessageUpdates)         // GET /sessions/:sessionId/newsletters/updates?jid=...&count=20&since=...&after=...
-	sessions.Post("/:sessionId/newsletters/mark-viewed", newsletterHandler.NewsletterMarkViewed)           // POST /sessions/:sessionId/newsletters/mark-viewed
-	sessions.Post("/:sessionId/newsletters/send-reaction", newsletterHandler.NewsletterSendReaction)       // POST /sessions/:sessionId/newsletters/send-reaction
+	sessions.Post("/:sessionId/newsletters/create", newsletterHandler.CreateNewsletter)                       // POST /sessions/:sessionId/newsletters/create
+	sessions.Get("/:sessionId/newsletters/info", newsletterHandler.GetNewsletterInfo)                         // GET /sessions/:sessionId/newsletters/info?jid=...
+	sessions.Post("/:sessionId/newsletters/info-from-invite", newsletterHandler.GetNewsletterInfoWithInvite)  // POST /sessions/:sessionId/newsletters/info-from-invite
+	sessions.Post("/:sessionId/newsletters/follow", newsletterHandler.FollowNewsletter)                       // POST /sessions/:sessionId/newsletters/follow
+	sessions.Post("/:sessionId/newsletters/unfollow", newsletterHandler.UnfollowNewsletter)                   // POST /sessions/:sessionId/newsletters/unfollow
+	sessions.Get("/:sessionId/newsletters/messages", newsletterHandler.GetNewsletterMessages)                 // GET /sessions/:sessionId/newsletters/messages?jid=...&count=20&before=...
+	sessions.Get("/:sessionId/newsletters/updates", newsletterHandler.GetNewsletterMessageUpdates)            // GET /sessions/:sessionId/newsletters/updates?jid=...&count=20&since=...&after=...
+	sessions.Post("/:sessionId/newsletters/mark-viewed", newsletterHandler.NewsletterMarkViewed)              // POST /sessions/:sessionId/newsletters/mark-viewed
+	sessions.Post("/:sessionId/newsletters/send-reaction", newsletterHandler.NewsletterSendReaction)          // POST /sessions/:sessionId/newsletters/send-reaction
 	sessions.Post("/:sessionId/newsletters/subscribe-live", newsletterHandler.NewsletterSubscribeLiveUpdates) // POST /sessions/:sessionId/newsletters/subscribe-live
-	sessions.Post("/:sessionId/newsletters/toggle-mute", newsletterHandler.NewsletterToggleMute)           // POST /sessions/:sessionId/newsletters/toggle-mute
-	sessions.Post("/:sessionId/newsletters/accept-tos", newsletterHandler.AcceptTOSNotice)                 // POST /sessions/:sessionId/newsletters/accept-tos
-	sessions.Post("/:sessionId/newsletters/upload", newsletterHandler.UploadNewsletter)                    // POST /sessions/:sessionId/newsletters/upload
-	sessions.Post("/:sessionId/newsletters/upload-reader", newsletterHandler.UploadNewsletterReader)       // POST /sessions/:sessionId/newsletters/upload-reader
-	sessions.Get("/:sessionId/newsletters", newsletterHandler.GetSubscribedNewsletters)                    // GET /sessions/:sessionId/newsletters
+	sessions.Post("/:sessionId/newsletters/toggle-mute", newsletterHandler.NewsletterToggleMute)              // POST /sessions/:sessionId/newsletters/toggle-mute
+	sessions.Post("/:sessionId/newsletters/accept-tos", newsletterHandler.AcceptTOSNotice)                    // POST /sessions/:sessionId/newsletters/accept-tos
+	sessions.Post("/:sessionId/newsletters/upload", newsletterHandler.UploadNewsletter)                       // POST /sessions/:sessionId/newsletters/upload
+	sessions.Post("/:sessionId/newsletters/upload-reader", newsletterHandler.UploadNewsletterReader)          // POST /sessions/:sessionId/newsletters/upload-reader
+	sessions.Get("/:sessionId/newsletters", newsletterHandler.GetSubscribedNewsletters)                       // GET /sessions/:sessionId/newsletters
 
 	// Community management routes
 	communityHandler := handlers.NewCommunityHandler(appLogger, container.GetCommunityUseCase(), container.GetSessionRepository())
-	sessions.Post("/:sessionId/communities/link-group", communityHandler.LinkGroup)                       // POST /sessions/:sessionId/communities/link-group
-	sessions.Post("/:sessionId/communities/unlink-group", communityHandler.UnlinkGroup)                   // POST /sessions/:sessionId/communities/unlink-group
-	sessions.Get("/:sessionId/communities/info", communityHandler.GetCommunityInfo)                       // GET /sessions/:sessionId/communities/info?communityJid=...
-	sessions.Get("/:sessionId/communities/subgroups", communityHandler.GetSubGroups)                      // GET /sessions/:sessionId/communities/subgroups?communityJid=...
+	sessions.Post("/:sessionId/communities/link-group", communityHandler.LinkGroup)     // POST /sessions/:sessionId/communities/link-group
+	sessions.Post("/:sessionId/communities/unlink-group", communityHandler.UnlinkGroup) // POST /sessions/:sessionId/communities/unlink-group
+	sessions.Get("/:sessionId/communities/info", communityHandler.GetCommunityInfo)     // GET /sessions/:sessionId/communities/info?communityJid=...
+	sessions.Get("/:sessionId/communities/subgroups", communityHandler.GetSubGroups)    // GET /sessions/:sessionId/communities/subgroups?communityJid=...
 
 	// Contact management routes
 	contactHandler := handlers.NewContactHandler(appLogger, container.GetContactUseCase(), container.GetSessionRepository())
@@ -131,8 +131,10 @@ func setupSessionRoutes(app *fiber.App, appLogger *logger.Logger, WameowManager 
 
 	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
 
-	sessions.Post("/:sessionId/webhook/set", webhookHandler.SetConfig)  // POST /sessions/:sessionId/webhook/set
-	sessions.Get("/:sessionId/webhook/find", webhookHandler.FindConfig) // GET /sessions/:sessionId/webhook/find
+	// Webhook management routes (padrão find/set - configuração única por sessão)
+	sessions.Post("/:sessionId/webhook/set", webhookHandler.SetConfig)    // POST /sessions/:sessionId/webhook/set (create/update/disable)
+	sessions.Get("/:sessionId/webhook/find", webhookHandler.FindConfig)   // GET /sessions/:sessionId/webhook/find
+	sessions.Post("/:sessionId/webhook/test", webhookHandler.TestWebhook) // POST /sessions/:sessionId/webhook/test
 
 	chatwootHandler := handlers.NewChatwootHandler(container.GetChatwootUseCase(), appLogger)
 	sessions.Post("/:sessionId/chatwoot/set", chatwootHandler.SetConfig)                        // POST /sessions/:sessionId/chatwoot/set (create/update)
@@ -152,6 +154,7 @@ func setupSessionSpecificRoutes(app *fiber.App, database *db.DB, appLogger *logg
 }
 
 func setupGlobalRoutes(app *fiber.App, database *db.DB, appLogger *logger.Logger, WameowManager *wameow.Manager, container *app.Container) {
-	// Global routes that don't depend on specific sessions
-	// Currently no global routes needed - all functionality is session-specific
+	// Global webhook info routes
+	webhookHandler := handlers.NewWebhookHandler(container.WebhookUseCase, appLogger)
+	app.Get("/webhook/events", webhookHandler.GetSupportedEvents) // GET /webhook/events
 }

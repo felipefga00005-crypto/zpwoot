@@ -68,6 +68,7 @@ func NewContainer(config *ContainerConfig) *Container {
 
 	webhookService := domainWebhook.NewService(
 		config.Logger,
+		config.WebhookRepo,
 	)
 
 	chatwootService := domainChatwoot.NewService(

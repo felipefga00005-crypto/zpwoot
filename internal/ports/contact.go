@@ -41,28 +41,28 @@ type ContactRepository interface {
 type ContactManager interface {
 	// IsOnWhatsApp checks if phone numbers are registered on WhatsApp
 	IsOnWhatsApp(ctx context.Context, sessionID string, phoneNumbers []string) (map[string]interface{}, error)
-	
+
 	// GetProfilePictureInfo gets profile picture information for a contact
 	GetProfilePictureInfo(ctx context.Context, sessionID, jid string, preview bool) (map[string]interface{}, error)
-	
+
 	// GetUserInfo gets detailed information about WhatsApp users
 	GetUserInfo(ctx context.Context, sessionID string, jids []string) ([]map[string]interface{}, error)
-	
+
 	// GetBusinessProfile gets business profile information for a contact
 	GetBusinessProfile(ctx context.Context, sessionID, jid string) (map[string]interface{}, error)
-	
+
 	// GetAllContacts gets all contacts from the WhatsApp account
 	GetAllContacts(ctx context.Context, sessionID string) (map[string]interface{}, error)
-	
+
 	// SyncContacts synchronizes contacts from the device with WhatsApp
 	SyncContacts(ctx context.Context, sessionID string, force bool) (*SyncContactsResponse, error)
-	
+
 	// BlockContact blocks a contact
 	BlockContact(ctx context.Context, sessionID, jid string) error
-	
+
 	// UnblockContact unblocks a contact
 	UnblockContact(ctx context.Context, sessionID, jid string) error
-	
+
 	// GetBlockedContacts gets list of blocked contacts
 	GetBlockedContacts(ctx context.Context, sessionID string) ([]string, error)
 }
@@ -89,38 +89,38 @@ type ContactService interface {
 
 	// GetContactStats calculates and returns contact statistics
 	GetContactStats(ctx context.Context, req *GetContactStatsRequest) (*GetContactStatsResponse, error)
-	
+
 	// ValidatePhoneNumber validates phone number format
 	ValidatePhoneNumber(phoneNumber string) error
-	
+
 	// ValidateJID validates WhatsApp JID format
 	ValidateJID(jid string) error
-	
+
 	// NormalizePhoneNumber normalizes phone number to standard format
 	NormalizePhoneNumber(phoneNumber string) (string, error)
-	
+
 	// FormatJID formats a phone number to WhatsApp JID
 	FormatJID(phoneNumber string) (string, error)
-	
+
 	// ExtractPhoneFromJID extracts phone number from WhatsApp JID
 	ExtractPhoneFromJID(jid string) (string, error)
-	
+
 	// IsBusinessContact checks if a contact is a business contact
 	IsBusinessContact(contact *contact.Contact) bool
-	
+
 	// ProcessContactInfo processes and enriches contact information
 	ProcessContactInfo(ctx context.Context, sessionID string, contact *contact.Contact) (*contact.Contact, error)
 }
 
 // ListContactsRequest represents a request to list contacts
 type ListContactsRequest struct {
-	SessionID    string `json:"session_id"`
-	Query        string `json:"query,omitempty"`
-	ContactType  string `json:"contact_type,omitempty"`
-	IsBusiness   *bool  `json:"is_business,omitempty"`
-	IsBlocked    *bool  `json:"is_blocked,omitempty"`
-	Limit        int    `json:"limit"`
-	Offset       int    `json:"offset"`
+	SessionID   string `json:"session_id"`
+	Query       string `json:"query,omitempty"`
+	ContactType string `json:"contact_type,omitempty"`
+	IsBusiness  *bool  `json:"is_business,omitempty"`
+	IsBlocked   *bool  `json:"is_blocked,omitempty"`
+	Limit       int    `json:"limit"`
+	Offset      int    `json:"offset"`
 }
 
 // ListContactsResponse represents a response with contact list
@@ -196,10 +196,10 @@ type SyncContactsRequest struct {
 
 // SyncContactsResponse represents a response for contact sync
 type SyncContactsResponse struct {
-	SyncedCount int                `json:"synced_count"`
-	NewCount    int                `json:"new_count"`
-	UpdatedCount int               `json:"updated_count"`
-	Contacts    []*contact.Contact `json:"contacts"`
+	SyncedCount  int                `json:"synced_count"`
+	NewCount     int                `json:"new_count"`
+	UpdatedCount int                `json:"updated_count"`
+	Contacts     []*contact.Contact `json:"contacts"`
 }
 
 // GetBusinessProfileRequest represents a request to get business profile

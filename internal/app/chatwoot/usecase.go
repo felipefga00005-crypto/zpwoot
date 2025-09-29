@@ -17,6 +17,7 @@ type UseCase interface {
 	ProcessWebhook(ctx context.Context, payload *ChatwootWebhookPayload) error
 	TestConnection(ctx context.Context) (*TestChatwootConnectionResponse, error)
 	GetStats(ctx context.Context) (*ChatwootStatsResponse, error)
+	AutoCreateInbox(ctx context.Context, sessionID, inboxName, webhookURL string) error
 }
 
 type useCaseImpl struct {
@@ -50,7 +51,7 @@ func (uc *useCaseImpl) CreateConfig(ctx context.Context, req *CreateChatwootConf
 		URL:       config.URL,
 		AccountID: config.AccountID,
 		InboxID:   config.InboxID,
-		Active:    config.Active,
+		Active:    config.Enabled,
 		CreatedAt: config.CreatedAt,
 	}
 
@@ -101,7 +102,7 @@ func (uc *useCaseImpl) SyncContact(ctx context.Context, req *SyncContactRequest)
 		PhoneNumber: contact.PhoneNumber,
 		Name:        contact.Name,
 		Email:       contact.Email,
-		Attributes:  contact.Attributes,
+		Attributes:  contact.CustomAttributes,
 		CreatedAt:   contact.CreatedAt,
 		UpdatedAt:   contact.UpdatedAt,
 	}
@@ -221,4 +222,16 @@ func convertAttachments(attachments []ChatwootAttachment) []chatwoot.ChatwootAtt
 		}
 	}
 	return domainAttachments
+}
+
+func (uc *useCaseImpl) AutoCreateInbox(ctx context.Context, sessionID, inboxName, webhookURL string) error {
+	// TODO: Implement auto-creation logic when ChatwootManager is available
+	// For now, just log the attempt
+
+	// This will be implemented when we have:
+	// 1. ChatwootManager with CreateInbox method
+	// 2. Proper session-based configuration
+	// 3. Integration with Chatwoot API client
+
+	return nil
 }

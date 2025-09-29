@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
+	"go.mau.fi/whatsmeow/types"
 	"zpwoot/internal/domain/community"
 	"zpwoot/internal/ports"
 	"zpwoot/platform/logger"
-	"go.mau.fi/whatsmeow/types"
 )
 
 // CommunityAdapter implements the CommunityManager interface
@@ -72,7 +72,7 @@ func (ca *CommunityAdapter) GetCommunityInfo(ctx context.Context, sessionID stri
 
 	// For now, we'll simulate getting community info since whatsmeow might not have direct community info method
 	// This would need to be implemented based on actual whatsmeow capabilities
-	
+
 	// Try to get group info as communities are essentially special groups
 	groupInfo, err := client.GetGroupInfo(ctx, communityJID)
 	if err != nil {
@@ -86,7 +86,7 @@ func (ca *CommunityAdapter) GetCommunityInfo(ctx context.Context, sessionID stri
 		Name:             groupInfo.GroupName.Name,
 		Description:      groupInfo.GroupTopic.Topic,
 		ParticipantCount: len(groupInfo.Participants),
-		GroupCount:       0, // Would need to be calculated from linked groups
+		GroupCount:       0,     // Would need to be calculated from linked groups
 		IsOwner:          false, // Would need to be determined from user's role
 		IsAdmin:          false, // Would need to be determined from user's role
 		IsMuted:          false, // Would need to be determined from user's settings
@@ -152,10 +152,10 @@ func convertToLinkedGroupFromTarget(groupTarget *types.GroupLinkTarget) *communi
 	return &community.LinkedGroup{
 		JID:              groupTarget.JID.String(),
 		Name:             groupTarget.GroupName.Name,
-		Description:      "", // GroupLinkTarget doesn't have description
-		ParticipantCount: 0,  // GroupLinkTarget doesn't have participant count
-		IsOwner:          false, // Would need to be determined from user's role
-		IsAdmin:          false, // Would need to be determined from user's role
+		Description:      "",         // GroupLinkTarget doesn't have description
+		ParticipantCount: 0,          // GroupLinkTarget doesn't have participant count
+		IsOwner:          false,      // Would need to be determined from user's role
+		IsAdmin:          false,      // Would need to be determined from user's role
 		LinkedAt:         time.Now(), // Use current time since GroupLinkTarget doesn't have creation time
 	}
 }
