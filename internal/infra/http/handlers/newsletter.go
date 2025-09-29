@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"context"
+	"fmt"
+
 	"zpwoot/internal/app/newsletter"
 	domainSession "zpwoot/internal/domain/session"
 	"zpwoot/internal/infra/http/helpers"
@@ -99,6 +102,56 @@ func (h *NewsletterHandler) handleNewsletterAction(
 	}
 
 	return c.JSON(response)
+}
+
+// handleNewsletterActionWithFiberMap handles newsletter actions that return fiber.Map responses
+func (h *NewsletterHandler) handleNewsletterActionWithFiberMap(
+	c *fiber.Ctx,
+	actionName string,
+	parseFunc func(*fiber.Ctx) (interface{}, error),
+	actionFunc func(context.Context, string, interface{}) (interface{}, error),
+) error {
+	sess, fiberErr := h.resolveSession(c)
+	if fiberErr != nil {
+		return fiberErr
+	}
+
+	req, err := parseFunc(c)
+	if err != nil {
+		h.logger.WarnWithFields(fmt.Sprintf("Failed to parse %s request", actionName), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"success": false,
+			"error":   "Invalid request body",
+		})
+	}
+
+	h.logger.InfoWithFields(actionName, map[string]interface{}{
+		"session_id": sess.ID.String(),
+	})
+
+	response, err := actionFunc(c.Context(), sess.ID.String(), req)
+	if err != nil {
+		h.logger.ErrorWithFields(fmt.Sprintf("Failed to %s", actionName), map[string]interface{}{
+			"session_id": sess.ID.String(),
+			"error":      err.Error(),
+		})
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"success": false,
+			"error":   fmt.Sprintf("Failed to %s", actionName),
+		})
+	}
+
+	h.logger.InfoWithFields(fmt.Sprintf("%s successfully", actionName), map[string]interface{}{
+		"session_id": sess.ID.String(),
+	})
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"data":    response,
+	})
 }
 
 // CreateNewsletter creates a new WhatsApp newsletter/channel
@@ -259,105 +312,39 @@ func (h *NewsletterHandler) GetNewsletterInfoWithInvite(c *fiber.Ctx) error {
 // FollowNewsletter follows a newsletter
 // POST /sessions/:sessionId/newsletters/follow
 func (h *NewsletterHandler) FollowNewsletter(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.FollowNewsletterRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse follow newsletter request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	h.logger.InfoWithFields("Following newsletter", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-	})
-
-	response, err := h.newsletterUC.FollowNewsletter(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to follow newsletter", map[string]interface{}{
-			"session_id":     sess.ID.String(),
-			"newsletter_jid": req.NewsletterJID,
-			"error":          err.Error(),
-		})
-
-		if err.Error() == "session is not connected" {
-			return fiber.NewError(400, "Session is not connected")
-		}
-
-		if err.Error() == "newsletter not found" {
-			return fiber.NewError(404, "Newsletter not found")
-		}
-
-		return fiber.NewError(500, "Failed to follow newsletter")
-	}
-
-	h.logger.InfoWithFields("Newsletter followed successfully", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterAction(
+		c,
+		"Following newsletter",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.FollowNewsletterRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.FollowNewsletter(ctx, sessionID, req.(*newsletter.FollowNewsletterRequest))
+		},
+	)
 }
 
 // UnfollowNewsletter unfollows a newsletter
 // POST /sessions/:sessionId/newsletters/unfollow
 func (h *NewsletterHandler) UnfollowNewsletter(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.UnfollowNewsletterRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse unfollow newsletter request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return fiber.NewError(400, "Invalid request body")
-	}
-
-	h.logger.InfoWithFields("Unfollowing newsletter", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-	})
-
-	response, err := h.newsletterUC.UnfollowNewsletter(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to unfollow newsletter", map[string]interface{}{
-			"session_id":     sess.ID.String(),
-			"newsletter_jid": req.NewsletterJID,
-			"error":          err.Error(),
-		})
-
-		if err.Error() == "session is not connected" {
-			return fiber.NewError(400, "Session is not connected")
-		}
-
-		if err.Error() == "newsletter not found" {
-			return fiber.NewError(404, "Newsletter not found")
-		}
-
-		return fiber.NewError(500, "Failed to unfollow newsletter")
-	}
-
-	h.logger.InfoWithFields("Newsletter unfollowed successfully", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterAction(
+		c,
+		"Unfollowing newsletter",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.UnfollowNewsletterRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.UnfollowNewsletter(ctx, sessionID, req.(*newsletter.UnfollowNewsletterRequest))
+		},
+	)
 }
 
 // GetSubscribedNewsletters gets all newsletters the user is subscribed to
@@ -676,216 +663,72 @@ func (h *NewsletterHandler) NewsletterSubscribeLiveUpdates(c *fiber.Ctx) error {
 
 // NewsletterToggleMute toggles mute status of a newsletter
 func (h *NewsletterHandler) NewsletterToggleMute(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.NewsletterToggleMuteRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse newsletter toggle mute request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "Invalid request body",
-		})
-	}
-
-	h.logger.InfoWithFields("Toggling newsletter mute status", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-		"mute":           req.Mute,
-	})
-
-	response, err := h.newsletterUC.NewsletterToggleMute(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to toggle newsletter mute status", map[string]interface{}{
-			"session_id":     sess.ID.String(),
-			"newsletter_jid": req.NewsletterJID,
-			"mute":           req.Mute,
-			"error":          err.Error(),
-		})
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to toggle newsletter mute status",
-		})
-	}
-
-	h.logger.InfoWithFields("Newsletter mute status toggled successfully", map[string]interface{}{
-		"session_id":     sess.ID.String(),
-		"newsletter_jid": req.NewsletterJID,
-		"mute":           req.Mute,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterActionWithFiberMap(
+		c,
+		"toggle newsletter mute status",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.NewsletterToggleMuteRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.NewsletterToggleMute(ctx, sessionID, req.(*newsletter.NewsletterToggleMuteRequest))
+		},
+	)
 }
 
 // AcceptTOSNotice accepts a terms of service notice
 func (h *NewsletterHandler) AcceptTOSNotice(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.AcceptTOSNoticeRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse accept TOS notice request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "Invalid request body",
-		})
-	}
-
-	h.logger.InfoWithFields("Accepting TOS notice", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"notice_id":  req.NoticeID,
-		"stage":      req.Stage,
-	})
-
-	response, err := h.newsletterUC.AcceptTOSNotice(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to accept TOS notice", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"notice_id":  req.NoticeID,
-			"stage":      req.Stage,
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to accept TOS notice",
-		})
-	}
-
-	h.logger.InfoWithFields("TOS notice accepted successfully", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"notice_id":  req.NoticeID,
-		"stage":      req.Stage,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterActionWithFiberMap(
+		c,
+		"accept TOS notice",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.AcceptTOSNoticeRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.AcceptTOSNotice(ctx, sessionID, req.(*newsletter.AcceptTOSNoticeRequest))
+		},
+	)
 }
 
 // UploadNewsletter uploads media for newsletters
 func (h *NewsletterHandler) UploadNewsletter(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.UploadNewsletterRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse upload newsletter request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "Invalid request body",
-		})
-	}
-
-	h.logger.InfoWithFields("Uploading newsletter media", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"mime_type":  req.MimeType,
-		"media_type": req.MediaType,
-		"data_size":  len(req.Data),
-	})
-
-	response, err := h.newsletterUC.UploadNewsletter(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to upload newsletter media", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"mime_type":  req.MimeType,
-			"media_type": req.MediaType,
-			"data_size":  len(req.Data),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to upload newsletter media",
-		})
-	}
-
-	h.logger.InfoWithFields("Newsletter media uploaded successfully", map[string]interface{}{
-		"session_id":  sess.ID.String(),
-		"mime_type":   req.MimeType,
-		"media_type":  req.MediaType,
-		"data_size":   len(req.Data),
-		"url":         response.URL,
-		"handle":      response.Handle,
-		"file_length": response.FileLength,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterActionWithFiberMap(
+		c,
+		"upload newsletter media",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.UploadNewsletterRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.UploadNewsletter(ctx, sessionID, req.(*newsletter.UploadNewsletterRequest))
+		},
+	)
 }
 
 // UploadNewsletterReader uploads media for newsletters from a reader
 func (h *NewsletterHandler) UploadNewsletterReader(c *fiber.Ctx) error {
-	sess, fiberErr := h.resolveSession(c)
-	if fiberErr != nil {
-		return fiberErr
-	}
-
-	var req newsletter.UploadNewsletterRequest
-	if err := c.BodyParser(&req); err != nil {
-		h.logger.WarnWithFields("Failed to parse upload newsletter reader request", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"success": false,
-			"error":   "Invalid request body",
-		})
-	}
-
-	h.logger.InfoWithFields("Uploading newsletter media with reader", map[string]interface{}{
-		"session_id": sess.ID.String(),
-		"mime_type":  req.MimeType,
-		"media_type": req.MediaType,
-		"data_size":  len(req.Data),
-	})
-
-	response, err := h.newsletterUC.UploadNewsletterReader(c.Context(), sess.ID.String(), &req)
-	if err != nil {
-		h.logger.ErrorWithFields("Failed to upload newsletter media with reader", map[string]interface{}{
-			"session_id": sess.ID.String(),
-			"mime_type":  req.MimeType,
-			"media_type": req.MediaType,
-			"data_size":  len(req.Data),
-			"error":      err.Error(),
-		})
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"success": false,
-			"error":   "Failed to upload newsletter media with reader",
-		})
-	}
-
-	h.logger.InfoWithFields("Newsletter media uploaded successfully with reader", map[string]interface{}{
-		"session_id":  sess.ID.String(),
-		"mime_type":   req.MimeType,
-		"media_type":  req.MediaType,
-		"data_size":   len(req.Data),
-		"url":         response.URL,
-		"handle":      response.Handle,
-		"file_length": response.FileLength,
-	})
-
-	return c.JSON(fiber.Map{
-		"success": true,
-		"data":    response,
-	})
+	return h.handleNewsletterActionWithFiberMap(
+		c,
+		"upload newsletter media with reader",
+		func(c *fiber.Ctx) (interface{}, error) {
+			var req newsletter.UploadNewsletterRequest
+			if err := c.BodyParser(&req); err != nil {
+				return nil, err
+			}
+			return &req, nil
+		},
+		func(ctx context.Context, sessionID string, req interface{}) (interface{}, error) {
+			return h.newsletterUC.UploadNewsletterReader(ctx, sessionID, req.(*newsletter.UploadNewsletterRequest))
+		},
+	)
 }
